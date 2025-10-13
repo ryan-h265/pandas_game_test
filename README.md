@@ -9,6 +9,8 @@ A 3D sandbox game featuring fully destructible terrain, dynamic building constru
 - **Building System**: Construct and destroy buildings with dynamic physics
 - **Character System**: Animated player characters and NPCs with model loading support
 - **Dynamic Environment**: Procedurally generated terrain with chunk-based loading
+- **Advanced Lighting**: Cascaded shadow maps with PCF soft shadows and denoising
+- **Post-Processing**: SSAO ambient occlusion for enhanced depth perception
 
 ## Tech Stack
 
@@ -57,17 +59,26 @@ hatch run lint
 hatch run test
 ```
 
+We prefer short, testable functions. Each logical component should be in its own module. We prefer early return over nested logic.
+
+## Shadow System
+
+The game features an advanced shadow and lighting system with:
+- **3-cascade shadow maps** for high quality at all distances
+- **PCF with Poisson disk sampling** for soft, realistic shadows
+- **Bilateral denoising** to reduce artifacts
+- **SSAO support** for ambient occlusion
+
+See [SHADOW_SYSTEM.md](SHADOW_SYSTEM.md) for detailed documentation.
+
+**Shadow Controls:**
+- Z/X - Adjust shadow softness
+- C - Toggle post-processing
 
 ## TODO
-
-Implement terrain editing/sculpting system (raise, lower, smooth terrain)
-
-Add raycasting for mouse picking (select terrain under cursor)
-
-Create terrain brush visualization (show edit area)
-
-Implement terrain modification with physics updates
 
 Add building placement system
 
 Create NPC system with basic AI
+
+Implement time-of-day system with dynamic lighting

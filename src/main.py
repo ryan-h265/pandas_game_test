@@ -9,6 +9,8 @@ from player.camera import CameraController
 from interaction.raycast import TerrainRaycaster
 from interaction.terrain_editor import TerrainEditor
 from rendering.brush_indicator import BrushIndicator
+from rendering.shadow_manager import ShadowManager
+from rendering.post_process import PostProcessManager
 
 
 class Game(ShowBase):
@@ -40,6 +42,14 @@ class Game(ShowBase):
         self.terrain_editor = TerrainEditor(self.game_world.terrain)
         self.brush_indicator = BrushIndicator(self.render)
 
+        # Initialize shadow system
+        light_dir = Vec3(1, 1, -1)  # Sun direction
+        self.shadow_manager = ShadowManager(self, self.render, light_dir)
+        self.shadow_manager.set_shader_inputs(self.render)
+
+        # Initialize post-processing
+        self.post_process = PostProcessManager(self.render, self.cam)
+
         # Terrain editing state
         self.editing_terrain = False
 
@@ -66,6 +76,9 @@ class Game(ShowBase):
         print("  Middle Click - Smooth terrain")
         print("  Scroll Wheel - Adjust brush size")
         print("  1/2/3 - Set edit mode (raise/lower/smooth)")
+        print("")
+        print("  Z/X - Adjust shadow softness")
+        print("  C - Toggle post-processing")
         print("  ESC - Quit")
 
     def setup_physics(self):
@@ -137,6 +150,11 @@ class Game(ShowBase):
         self.accept('wheel_up', self.adjust_brush_size, [1])
         self.accept('wheel_down', self.adjust_brush_size, [-1])
 
+        # Shadow quality adjustments
+        self.accept('z', self.adjust_shadow_softness, [-0.5])  # Decrease softness
+        self.accept('x', self.adjust_shadow_softness, [0.5])   # Increase softness
+        self.accept('c', self.toggle_post_process)              # Toggle post-processing
+
         # Quit
         self.accept('escape', self.quit_game)
 
@@ -205,14 +223,44 @@ class Game(ShowBase):
         self.brush_indicator.update_size(new_size)
         print(f"Brush size: {self.terrain_editor.brush_size:.1f}")
 
+    def adjust_shadow_softness(self, delta):
+        """Adjust shadow softness.
+
+        Args:
+            delta: Amount to adjust softness by
+        """
+        if self.shadow_manager:
+            current = self.shadow_manager.shadow_softness
+            new_softness = max(0.5, min(10.0, current + delta))
+            self.shadow_manager.set_shadow_softness(new_softness)
+            self.shadow_manager.set_shader_inputs(self.render)
+            print(f"Shadow softness: {new_softness:.1f}")
+        else:
+            print("Shadows are disabled (for performance)")
+
+    def toggle_post_process(self):
+        """Toggle post-processing effects."""
+        if self.post_process:
+            enabled = self.post_process.toggle()
+            print(f"Post-processing: {'ON' if enabled else 'OFF'}")
+        else:
+            print("Post-processing is disabled (for performance)")
+
     def quit_game(self):
         """Clean quit handler"""
         print("\nQuitting game...")
+        if self.shadow_manager:
+            self.shadow_manager.cleanup()
         self.userExit()
     
     def update(self, task):
         """Main game loop"""
         dt = globalClock.getDt()
+
+        # Update shadow cameras to follow player (if shadows enabled)
+        player_pos = self.player.get_position()
+        if self.shadow_manager:
+            self.shadow_manager.update_cascade_cameras(player_pos, None)
 
         # Handle mouse look (centered mode - track from center)
         if self.mouse_captured and self.win.hasPointer(0):
