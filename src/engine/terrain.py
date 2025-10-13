@@ -100,6 +100,38 @@ class TerrainChunk:
 
         return heights
 
+    def _calculate_normal(self, x, z):
+        """Calculate normal vector at a vertex by averaging adjacent face normals.
+
+        Args:
+            x: Local X coordinate
+            z: Local Z coordinate
+
+        Returns:
+            Tuple of (nx, ny, nz) normal components
+        """
+        # Get height at current position
+        h = self.height_data[x][z]
+
+        # Calculate normal using adjacent vertices (if they exist)
+        # Sample points around the vertex
+        h_left = self.height_data[x - 1][z] if x > 0 else h
+        h_right = self.height_data[x + 1][z] if x < self.size else h
+        h_down = self.height_data[x][z - 1] if z > 0 else h
+        h_up = self.height_data[x][z + 1] if z < self.size else h
+
+        # Calculate normal using cross product of tangent vectors
+        # Tangent in X direction
+        tx = Vec3(2.0, 0, h_right - h_left)
+        # Tangent in Z direction
+        tz = Vec3(0, 2.0, h_up - h_down)
+
+        # Normal is perpendicular to both tangents
+        normal = tz.cross(tx)
+        normal.normalize()
+
+        return normal.x, normal.y, normal.z
+
     def _create_mesh(self):
         """Create the visual mesh for the terrain."""
         # Create vertex data format
@@ -120,8 +152,9 @@ class TerrainChunk:
 
                 vertex.addData3(world_x, world_z, height)
 
-                # Calculate normal (simplified - just up for now)
-                normal.addData3(0, 0, 1)
+                # Calculate proper normal by averaging adjacent faces
+                nx, ny, nz = self._calculate_normal(x, z)
+                normal.addData3(nx, ny, nz)
 
                 # Color based on height
                 vertex_color = self._get_vertex_color(height)
@@ -138,10 +171,10 @@ class TerrainChunk:
                 v2 = v0 + (self.size + 1)
                 v3 = v2 + 1
 
-                # First triangle
-                tris.addVertices(v0, v2, v1)
-                # Second triangle
-                tris.addVertices(v1, v2, v3)
+                # First triangle (counter-clockwise winding for front face)
+                tris.addVertices(v0, v1, v2)
+                # Second triangle (counter-clockwise winding for front face)
+                tris.addVertices(v1, v3, v2)
 
         tris.closePrimitive()
 
@@ -155,6 +188,9 @@ class TerrainChunk:
 
         # Attach to render
         self.node_path = self.render.attachNewNode(node)
+
+        # Enable two-sided rendering (render both front and back faces)
+        self.node_path.setTwoSided(True)
 
     def _get_vertex_color(self, height):
         """Get color based on terrain height.
