@@ -63,6 +63,9 @@ class Game(ShowBase):
         # Update task
         self.taskMgr.add(self.update, "update")
 
+        # Display GPU information
+        self.print_gpu_info()
+
         print("Game initialized successfully!")
         print("\nControls:")
         print("  WASD - Move")
@@ -80,6 +83,47 @@ class Game(ShowBase):
         print("  Z/X - Adjust shadow softness")
         print("  C - Toggle post-processing")
         print("  ESC - Quit")
+
+    def print_gpu_info(self):
+        """Print GPU and graphics information"""
+        print("\n" + "=" * 60)
+        print("GPU / GRAPHICS INFORMATION")
+        print("=" * 60)
+
+        # Get graphics state guardian (GSG) which contains GPU info
+        gsg = self.win.getGsg()
+
+        if gsg:
+            # Driver and renderer info
+            print(f"Graphics API: {gsg.getDriverRenderer()}")
+            print(f"Driver Vendor: {gsg.getDriverVendor()}")
+            print(f"Driver Version: {gsg.getDriverVersion()}")
+            print(f"GLSL Version: {gsg.getDriverShaderVersionMajor()}.{gsg.getDriverShaderVersionMinor()}")
+
+            # Check if using hardware rendering
+            if gsg.isHardware():
+                print("Hardware Acceleration: ENABLED (Using GPU)")
+            else:
+                print("Hardware Acceleration: DISABLED (Using CPU - Software Rendering)")
+
+            # Shader support
+            if gsg.getSupportsBasicShaders():
+                print("Shader Support: YES")
+            else:
+                print("Shader Support: NO")
+
+            # Texture stages
+            print(f"Max Texture Stages: {gsg.getMaxTextureStages()}")
+
+            # Additional GPU capabilities
+            if hasattr(gsg, 'getMaxVertexTextureImages'):
+                print(f"Max Vertex Textures: {gsg.getMaxVertexTextureImages()}")
+            if hasattr(gsg, 'getMaxLights'):
+                print(f"Max Lights: {gsg.getMaxLights()}")
+        else:
+            print("WARNING: Could not retrieve graphics information!")
+
+        print("=" * 60 + "\n")
 
     def setup_physics(self):
         """Initialize Bullet physics world"""
