@@ -67,7 +67,6 @@ extra-dependencies = [
 ]
 [tool.hatch.envs.types.scripts]
 check = "mypy --install-types --non-interactive {args:src/pandasgametest tests}"
-run = "python src/main.py"
 test = "pytest"
 format = "black ."
 lint = "flake8 ."
