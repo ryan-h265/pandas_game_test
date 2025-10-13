@@ -1,5 +1,7 @@
 """World management and initialization."""
 
+from panda3d.core import Vec3, CardMaker
+from panda3d.bullet import BulletRigidBodyNode, BulletBoxShape
 from config.settings import RENDER_DISTANCE
 from engine.terrain import Terrain
 
@@ -23,8 +25,14 @@ class World:
         # Track loaded chunks
         self.loaded_chunks = set()
 
+        # Track physics objects
+        self.physics_objects = []
+
         # Generate initial terrain chunks
         self._generate_initial_terrain()
+
+        # Add example cubes to demonstrate physics and shadows
+        self._create_example_cubes()
 
     def _generate_initial_terrain(self):
         """Generate initial terrain chunks around spawn point."""
@@ -39,6 +47,130 @@ class World:
                 self.loaded_chunks.add((chunk_x, chunk_z))
 
         print(f"Generated {len(self.loaded_chunks)} terrain chunks")
+
+    def _create_example_cubes(self):
+        """Create example cubes to demonstrate physics and shadows."""
+        print("Creating example physics cubes...")
+
+        # Define cube positions and sizes
+        cube_specs = [
+            # Position (x, y, z), size, mass
+            (Vec3(20, 20, 50), 2.0, 1.0),   # Medium cube
+            (Vec3(18, 18, 55), 1.5, 0.5),   # Small cube
+            (Vec3(22, 22, 60), 3.0, 2.0),   # Large cube
+            (Vec3(16, 24, 45), 1.0, 0.3),   # Tiny cube
+            (Vec3(24, 16, 48), 2.5, 1.5),   # Another medium cube
+        ]
+
+        for i, (pos, size, mass) in enumerate(cube_specs):
+            cube = self._create_physics_cube(pos, size, mass, f"cube_{i}")
+            self.physics_objects.append(cube)
+
+        print(f"Created {len(cube_specs)} example cubes")
+
+    def _create_physics_cube(self, position, size, mass, name):
+        """Create a single physics-enabled cube.
+
+        Args:
+            position: Vec3 world position
+            size: Size of the cube (half-extents)
+            mass: Mass of the cube in kg
+            name: Name for the node
+
+        Returns:
+            NodePath of the created cube
+        """
+        # Create physics shape
+        shape = BulletBoxShape(Vec3(size/2, size/2, size/2))
+
+        # Create rigid body node
+        body_node = BulletRigidBodyNode(name)
+        body_node.setMass(mass)
+        body_node.addShape(shape)
+
+        # Set physics properties
+        body_node.setFriction(0.7)
+        body_node.setRestitution(0.3)  # Some bounciness
+
+        # Create NodePath and attach to scene
+        body_np = self.render.attachNewNode(body_node)
+        body_np.setPos(position)
+
+        # Add to physics world
+        self.bullet_world.attachRigidBody(body_node)
+
+        # Create visual geometry
+        from panda3d.core import GeomNode, GeomVertexFormat, GeomVertexData, GeomVertexWriter
+        from panda3d.core import Geom, GeomTriangles, Vec4
+
+        # Create vertex data
+        vformat = GeomVertexFormat.getV3n3c4()
+        vdata = GeomVertexData(f'{name}_vdata', vformat, Geom.UHStatic)
+
+        vertex = GeomVertexWriter(vdata, 'vertex')
+        normal = GeomVertexWriter(vdata, 'normal')
+        color = GeomVertexWriter(vdata, 'color')
+
+        # Generate cube vertices with different colors per cube
+        import random
+        cube_color = Vec4(random.uniform(0.5, 1.0),
+                         random.uniform(0.5, 1.0),
+                         random.uniform(0.5, 1.0), 1.0)
+
+        # Define cube vertices (8 corners)
+        s = size / 2
+        vertices = [
+            Vec3(-s, -s, -s), Vec3(s, -s, -s), Vec3(s, s, -s), Vec3(-s, s, -s),  # bottom
+            Vec3(-s, -s, s), Vec3(s, -s, s), Vec3(s, s, s), Vec3(-s, s, s),      # top
+        ]
+
+        # Define faces with normals (counter-clockwise winding for outward-facing)
+        faces = [
+            # Face vertices (CCW from outside), normal
+            ([3, 2, 1, 0], Vec3(0, 0, -1)),  # bottom
+            ([4, 5, 6, 7], Vec3(0, 0, 1)),   # top
+            ([1, 5, 4, 0], Vec3(0, -1, 0)),  # front
+            ([3, 7, 6, 2], Vec3(0, 1, 0)),   # back
+            ([4, 7, 3, 0], Vec3(-1, 0, 0)),  # left
+            ([2, 6, 5, 1], Vec3(1, 0, 0)),   # right
+        ]
+
+        # Build geometry
+        tris = GeomTriangles(Geom.UHStatic)
+        vtx_index = 0
+
+        for face_indices, face_normal in faces:
+            # Two triangles per face (counter-clockwise winding)
+            # First triangle: 0, 1, 2
+            for i in [0, 1, 2]:
+                v = vertices[face_indices[i]]
+                vertex.addData3(v)
+                normal.addData3(face_normal)
+                color.addData4(cube_color)
+                tris.addVertex(vtx_index)
+                vtx_index += 1
+
+            # Second triangle: 0, 2, 3
+            for i in [0, 2, 3]:
+                v = vertices[face_indices[i]]
+                vertex.addData3(v)
+                normal.addData3(face_normal)
+                color.addData4(cube_color)
+                tris.addVertex(vtx_index)
+                vtx_index += 1
+
+        tris.closePrimitive()
+
+        # Create geometry
+        geom = Geom(vdata)
+        geom.addPrimitive(tris)
+
+        # Create node and attach
+        geom_node = GeomNode(f'{name}_geom')
+        geom_node.addGeom(geom)
+        geom_np = body_np.attachNewNode(geom_node)
+
+        return body_np
 
     def update(self, dt, camera_pos=None):
         """Update world state.
