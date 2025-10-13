@@ -187,6 +187,7 @@ class ShadowManager:
             "shadowMapSize", Vec4(self.shadow_map_size, self.shadow_map_size, 0, 0)
         )
         node_path.setShaderInput("shadowSoftness", self.shadow_softness)
+        node_path.setShaderInput("useVertexColor", 0)  # Default to not using vertex colors
 
     def set_light_direction(self, direction):
         """Update light direction.

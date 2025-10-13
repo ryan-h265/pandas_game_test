@@ -10,6 +10,7 @@ uniform vec3 ambientColor;
 uniform float cascadeSplits[3];
 uniform vec2 shadowMapSize;
 uniform float shadowSoftness;
+uniform int useVertexColor;  // 1 = use vertex colors, 0 = use default terrain color
 
 in vec3 vWorldPos;
 in vec3 vNormal;
@@ -18,6 +19,7 @@ in vec4 vShadowCoord0;
 in vec4 vShadowCoord1;
 in vec4 vShadowCoord2;
 in float vViewDepth;
+in vec4 vColor;  // Vertex color from vertex shader
 
 out vec4 fragColor;
 
@@ -68,8 +70,13 @@ float calculateCascadedShadow() {
 }
 
 void main() {
-    // Base terrain color
-    vec3 baseColor = vec3(0.4, 0.6, 0.3);  // Grass green
+    // Base terrain color - use vertex color if enabled, otherwise default grass green
+    vec3 baseColor;
+    if (useVertexColor == 1) {
+        baseColor = vColor.rgb;
+    } else {
+        baseColor = vec3(0.4, 0.6, 0.3);  // Grass green
+    }
 
     // Normal lighting
     vec3 normal = normalize(vNormal);

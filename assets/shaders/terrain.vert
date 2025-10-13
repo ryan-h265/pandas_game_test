@@ -12,6 +12,7 @@ uniform mat4 shadowMatrix2;  // Shadow cascade 2
 in vec4 p3d_Vertex;
 in vec3 p3d_Normal;
 in vec2 p3d_MultiTexCoord0;
+in vec4 p3d_Color;  // Vertex color input
 
 out vec3 vWorldPos;
 out vec3 vNormal;
@@ -20,6 +21,7 @@ out vec4 vShadowCoord0;
 out vec4 vShadowCoord1;
 out vec4 vShadowCoord2;
 out float vViewDepth;
+out vec4 vColor;  // Pass vertex color to fragment shader
 
 void main() {
     // World position
@@ -30,6 +32,9 @@ void main() {
 
     // Texture coordinates
     vTexCoord = p3d_MultiTexCoord0;
+
+    // Pass through vertex color
+    vColor = p3d_Color;
 
     // Shadow coordinates for cascades
     vShadowCoord0 = shadowMatrix0 * vec4(vWorldPos, 1.0);

@@ -38,3 +38,7 @@ GRAVITY = -9.81
 
 # World generation
 FLAT_WORLD = True  # Set to True for a completely flat world at height 0
+
+# Debug visualization
+DEBUG_CHUNK_COLORS = False  # Show each chunk with a different color
+DEBUG_CHUNK_WIREFRAME = False  # Show wireframe overlay on chunks

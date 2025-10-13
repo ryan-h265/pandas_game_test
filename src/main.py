@@ -82,6 +82,8 @@ class Game(ShowBase):
         print("")
         print("  Z/X - Adjust shadow softness")
         print("  C - Toggle post-processing")
+        print("  V - Toggle chunk debug colors")
+        print("  B - Toggle wireframe debug")
         print("  ESC - Quit")
 
     def print_gpu_info(self):
@@ -199,6 +201,10 @@ class Game(ShowBase):
         self.accept("x", self.adjust_shadow_softness, [0.5])  # Increase softness
         self.accept("c", self.toggle_post_process)  # Toggle post-processing
 
+        # Debug visualization
+        self.accept("v", self.toggle_chunk_colors)  # Toggle chunk debug colors
+        self.accept("b", self.toggle_wireframe)  # Toggle wireframe
+
         # Quit
         self.accept("escape", self.quit_game)
 
@@ -297,6 +303,40 @@ class Game(ShowBase):
             print(f"Post-processing: {'ON' if enabled else 'OFF'}")
         else:
             print("Post-processing is disabled (for performance)")
+
+    def toggle_chunk_colors(self):
+        """Toggle debug chunk colors."""
+        try:
+            import config.settings as settings
+            settings.DEBUG_CHUNK_COLORS = not settings.DEBUG_CHUNK_COLORS
+            print(f"\n=== Chunk debug colors: {'ON' if settings.DEBUG_CHUNK_COLORS else 'OFF'} ===")
+            # Regenerate all chunks to apply the change
+            chunk_count = 0
+            for chunk in self.game_world.terrain.chunks.values():
+                chunk.regenerate()
+                chunk_count += 1
+            print(f"Regenerated {chunk_count} chunks")
+        except Exception as e:
+            print(f"Error toggling chunk colors: {e}")
+            import traceback
+            traceback.print_exc()
+
+    def toggle_wireframe(self):
+        """Toggle debug wireframe."""
+        try:
+            import config.settings as settings
+            settings.DEBUG_CHUNK_WIREFRAME = not settings.DEBUG_CHUNK_WIREFRAME
+            print(f"\n=== Wireframe debug: {'ON' if settings.DEBUG_CHUNK_WIREFRAME else 'OFF'} ===")
+            # Regenerate all chunks to apply the change
+            chunk_count = 0
+            for chunk in self.game_world.terrain.chunks.values():
+                chunk.regenerate()
+                chunk_count += 1
+            print(f"Regenerated {chunk_count} chunks")
+        except Exception as e:
+            print(f"Error toggling wireframe: {e}")
+            import traceback
+            traceback.print_exc()
 
     def quit_game(self):
         """Clean quit handler"""

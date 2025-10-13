@@ -19,6 +19,7 @@ from panda3d.bullet import (
 )
 
 from config.settings import CHUNK_SIZE, FLAT_WORLD
+import config.settings
 
 
 class TerrainChunk:
@@ -47,12 +48,31 @@ class TerrainChunk:
         self.height_data = None
         self.node_path = None
         self.physics_node = None
+        self.wireframe_node = None
+
+        # Generate a unique color for this chunk based on its coordinates
+        self.debug_color = self._generate_chunk_color()
 
     def generate(self):
         """Generate the terrain mesh and collision."""
         self.height_data = self._generate_height_data()
         self._create_mesh()
         self._create_collision()
+
+    def _generate_chunk_color(self):
+        """Generate a unique color for this chunk based on its coordinates.
+
+        Returns:
+            Vec4 color
+        """
+        import random
+        # Use chunk coordinates as seed for consistent colors
+        seed = (self.chunk_x * 73856093) ^ (self.chunk_z * 19349663)
+        rng = random.Random(seed)
+        r = rng.uniform(0.4, 1.0)
+        g = rng.uniform(0.4, 1.0)
+        b = rng.uniform(0.4, 1.0)
+        return Vec4(r, g, b, 1.0)
 
     def _generate_height_data(self):
         """Generate height data using Perlin noise.
@@ -179,8 +199,11 @@ class TerrainChunk:
                 nx, ny, nz = self._calculate_normal(x, z)
                 normal.addData3(nx, ny, nz)
 
-                # Color based on height
-                vertex_color = self._get_vertex_color(height)
+                # Color based on height or debug color
+                if config.settings.DEBUG_CHUNK_COLORS:
+                    vertex_color = self.debug_color
+                else:
+                    vertex_color = self._get_vertex_color(height)
                 color.addData4(vertex_color)
 
         # Create triangles
@@ -218,6 +241,16 @@ class TerrainChunk:
         # Set collision mask so raycasting can detect it
         self.node_path.setCollideMask(1)
 
+        # Set shader input to enable/disable vertex colors
+        if config.settings.DEBUG_CHUNK_COLORS:
+            self.node_path.setShaderInput("useVertexColor", 1)
+        else:
+            self.node_path.setShaderInput("useVertexColor", 0)
+
+        # Add wireframe overlay if debug mode is enabled
+        if config.settings.DEBUG_CHUNK_WIREFRAME:
+            self._create_wireframe()
+
     def _get_vertex_color(self, height):
         """Get color based on terrain height.
 
@@ -248,6 +281,41 @@ class TerrainChunk:
         else:
             # Snow - white
             return Vec4(0.9, 0.9, 0.9, 1.0)
+
+    def _create_wireframe(self):
+        """Create a wireframe overlay for debugging chunk boundaries."""
+        from panda3d.core import GeomLines, LineSegs
+
+        # Create line segments for the wireframe
+        lines = LineSegs()
+        lines.setThickness(2)
+        lines.setColor(0, 0, 0, 1)  # Black wireframe
+
+        # Draw horizontal lines
+        for z in range(self.size + 1):
+            for x in range(self.size):
+                world_x = self.world_x + x
+                world_z = self.world_z + z
+                height1 = self.height_data[x][z]
+                height2 = self.height_data[x + 1][z]
+
+                lines.moveTo(world_x, world_z, height1 + 0.01)
+                lines.drawTo(world_x + 1, world_z, height2 + 0.01)
+
+        # Draw vertical lines
+        for x in range(self.size + 1):
+            for z in range(self.size):
+                world_x = self.world_x + x
+                world_z = self.world_z + z
+                height1 = self.height_data[x][z]
+                height2 = self.height_data[x][z + 1]
+
+                lines.moveTo(world_x, world_z, height1 + 0.01)
+                lines.drawTo(world_x, world_z + 1, height2 + 0.01)
+
+        # Create and attach the wireframe node
+        wireframe_geom = lines.create()
+        self.wireframe_node = self.render.attachNewNode(wireframe_geom)
 
     def _create_collision(self):
         """Create physics collision mesh."""
@@ -291,6 +359,9 @@ class TerrainChunk:
             self.node_path.removeNode()
         if self.physics_node:
             self.bullet_world.removeRigidBody(self.physics_node)
+        if self.wireframe_node:
+            self.wireframe_node.removeNode()
+            self.wireframe_node = None
 
         # Regenerate
         self._create_mesh()
@@ -302,6 +373,8 @@ class TerrainChunk:
             self.node_path.removeNode()
         if self.physics_node:
             self.bullet_world.removeRigidBody(self.physics_node)
+        if self.wireframe_node:
+            self.wireframe_node.removeNode()
 
 
 class Terrain:
