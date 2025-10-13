@@ -31,31 +31,18 @@ class TerrainEditor:
         if strength is None:
             strength = self.brush_strength
 
-        # Find affected chunk
-        chunk_x = int(world_pos.x // CHUNK_SIZE)
-        chunk_z = int(world_pos.y // CHUNK_SIZE)
-        chunk_key = (chunk_x, chunk_z)
+        # Track which chunks have been modified
+        modified_chunks = set()
 
-        if chunk_key not in self.terrain.chunks:
-            return
-
-        chunk = self.terrain.chunks[chunk_key]
-
-        # Get local position in chunk
-        local_x = world_pos.x - chunk.world_x
-        local_z = world_pos.y - chunk.world_z
+        # Store height modifications by world coordinate to ensure consistency
+        height_modifications = {}
 
         # Apply brush effect to all points within brush radius
-        modified = False
-        for dx in range(-int(self.brush_size), int(self.brush_size) + 1):
-            for dz in range(-int(self.brush_size), int(self.brush_size) + 1):
-                # Calculate actual position
-                px = int(local_x) + dx
-                pz = int(local_z) + dz
-
-                # Check bounds
-                if px < 0 or px > CHUNK_SIZE or pz < 0 or pz > CHUNK_SIZE:
-                    continue
+        for dx in range(-int(self.brush_size) - 1, int(self.brush_size) + 2):
+            for dz in range(-int(self.brush_size) - 1, int(self.brush_size) + 2):
+                # Calculate world position
+                world_x = int(world_pos.x) + dx
+                world_z = int(world_pos.y) + dz
 
                 # Calculate distance from center
                 dist = math.sqrt(dx * dx + dz * dz)
@@ -66,25 +53,57 @@ class TerrainEditor:
                 falloff = 1.0 - (dist / self.brush_size)
                 falloff = falloff * falloff  # Square for smoother falloff
 
-                # Apply modification based on mode
-                if mode == "raise":
-                    chunk.height_data[px][pz] += strength * falloff
-                    modified = True
-                elif mode == "lower":
-                    chunk.height_data[px][pz] -= strength * falloff
-                    modified = True
-                elif mode == "smooth":
-                    # Average with neighbors
-                    avg_height = self._get_average_height(chunk, px, pz)
-                    blend = strength * falloff * 0.5
-                    chunk.height_data[px][pz] = (
-                        chunk.height_data[px][pz] * (1 - blend) + avg_height * blend
-                    )
-                    modified = True
+                # Calculate the height modification for this world position
+                world_key = (world_x, world_z)
 
-        # Regenerate chunk mesh if modified
-        if modified:
-            chunk.regenerate()
+                if mode == "raise":
+                    if world_key not in height_modifications:
+                        height_modifications[world_key] = strength * falloff
+                elif mode == "lower":
+                    if world_key not in height_modifications:
+                        height_modifications[world_key] = -strength * falloff
+                elif mode == "smooth":
+                    if world_key not in height_modifications:
+                        avg_height = self._get_average_height_world(world_x, world_z)
+                        blend = strength * falloff * 0.5
+                        height_modifications[world_key] = ("smooth", avg_height, blend)
+
+        # Apply all modifications to all affected chunks
+        for (world_x, world_z), modification in height_modifications.items():
+            # Find all chunks that contain this world position
+            # A vertex can be at the boundary of up to 4 chunks
+            chunks_to_update = []
+
+            # Check which chunks this vertex belongs to
+            for offset_x in [0, -1]:
+                for offset_z in [0, -1]:
+                    test_chunk_x = (world_x + offset_x) // CHUNK_SIZE
+                    test_chunk_z = (world_z + offset_z) // CHUNK_SIZE
+                    chunk_key = (test_chunk_x, test_chunk_z)
+
+                    if chunk_key in self.terrain.chunks:
+                        chunk = self.terrain.chunks[chunk_key]
+                        local_x = world_x - chunk.world_x
+                        local_z = world_z - chunk.world_z
+
+                        # Check if this position is within this chunk's height data
+                        if 0 <= local_x <= CHUNK_SIZE and 0 <= local_z <= CHUNK_SIZE:
+                            chunks_to_update.append((chunk_key, chunk, local_x, local_z))
+
+            # Apply the same modification to all chunks that share this vertex
+            for chunk_key, chunk, local_x, local_z in chunks_to_update:
+                if isinstance(modification, tuple) and modification[0] == "smooth":
+                    _, avg_height, blend = modification
+                    chunk.height_data[local_x][local_z] = (
+                        chunk.height_data[local_x][local_z] * (1 - blend) + avg_height * blend
+                    )
+                else:
+                    chunk.height_data[local_x][local_z] += modification
+                modified_chunks.add(chunk_key)
+
+        # Regenerate all modified chunks
+        for chunk_key in modified_chunks:
+            self.terrain.chunks[chunk_key].regenerate()
 
     def _get_average_height(self, chunk, x, z):
         """Get average height of neighboring vertices.
@@ -108,6 +127,59 @@ class TerrainEditor:
                     count += 1
 
         return total / count if count > 0 else chunk.height_data[x][z]
+
+    def _get_average_height_world(self, world_x, world_z):
+        """Get average height of neighboring vertices using world coordinates.
+
+        This method can access vertices across chunk boundaries.
+
+        Args:
+            world_x: World X coordinate
+            world_z: World Z coordinate
+
+        Returns:
+            Average height
+        """
+        total = 0
+        count = 0
+
+        for dx in [-1, 0, 1]:
+            for dz in [-1, 0, 1]:
+                wx = world_x + dx
+                wz = world_z + dz
+
+                # Determine which chunk this position belongs to
+                chunk_x = int(wx // CHUNK_SIZE)
+                chunk_z = int(wz // CHUNK_SIZE)
+                chunk_key = (chunk_x, chunk_z)
+
+                if chunk_key not in self.terrain.chunks:
+                    continue
+
+                chunk = self.terrain.chunks[chunk_key]
+
+                # Get local position
+                local_x = int(wx - chunk.world_x)
+                local_z = int(wz - chunk.world_z)
+
+                if 0 <= local_x <= CHUNK_SIZE and 0 <= local_z <= CHUNK_SIZE:
+                    total += chunk.height_data[local_x][local_z]
+                    count += 1
+
+        # Fallback to current height if no neighbors found
+        if count == 0:
+            chunk_x = int(world_x // CHUNK_SIZE)
+            chunk_z = int(world_z // CHUNK_SIZE)
+            chunk_key = (chunk_x, chunk_z)
+            if chunk_key in self.terrain.chunks:
+                chunk = self.terrain.chunks[chunk_key]
+                local_x = int(world_x - chunk.world_x)
+                local_z = int(world_z - chunk.world_z)
+                if 0 <= local_x <= CHUNK_SIZE and 0 <= local_z <= CHUNK_SIZE:
+                    return chunk.height_data[local_x][local_z]
+            return 0
+
+        return total / count
 
     def raise_terrain(self, position):
         """Raise terrain at the given position.
