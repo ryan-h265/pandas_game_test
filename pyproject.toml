@@ -1,0 +1,98 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pandasgametest"
+dynamic = ["version"]
+description = ''
+readme = "README.md"
+requires-python = ">=3.8"
+license = "MIT"
+keywords = []
+authors = [
+  { name = "ryan", email = "" },
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Python :: Implementation :: PyPy",
+]
+dependencies = [
+    "panda3d>=1.10.14",
+    "panda3d-gltf>=1.3.0",
+    "numpy>=1.24.3",
+    "noise>=1.2.2",
+    "Pillow>=10.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "black>=23.0.0",
+    "flake8>=6.0.0",
+    "mypy>=1.0.0",
+    "pytest>=7.0.0",
+]
+
+[project.scripts]
+builder-game = "src.main:main"
+
+
+
+
+[project.urls]
+Documentation = "https://github.com/ryan/pandasgametest#readme"
+Issues = "https://github.com/ryan/pandasgametest/issues"
+Source = "https://github.com/ryan/pandasgametest"
+
+[tool.hatch.version]
+path = "src/__about__.py"
+
+[tool.hatch.envs.default]
+dependencies = [
+    "pytest",
+    "black",
+]
+
+
+[tool.hatch.envs.types]
+extra-dependencies = [
+  "mypy>=1.0.0",
+]
+[tool.hatch.envs.types.scripts]
+check = "mypy --install-types --non-interactive {args:src/pandasgametest tests}"
+run = "python src/main.py"
+test = "pytest"
+format = "black ."
+lint = "flake8 ."
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"assets" = "assets"
+
+[tool.coverage.run]
+source_pkgs = ["pandasgametest", "tests"]
+branch = true
+parallel = true
+omit = [
+  "src/pandasgametest/__about__.py",
+]
+
+[tool.coverage.paths]
+pandasgametest = ["src/pandasgametest", "*/pandasgametest/src/pandasgametest"]
+tests = ["tests", "*/pandasgametest/tests"]
+
+[tool.coverage.report]
+exclude_lines = [
+  "no cov",
+  "if __name__ == .__main__.:",
+  "if TYPE_CHECKING:",
+]
