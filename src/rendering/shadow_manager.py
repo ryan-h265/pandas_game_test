@@ -1,9 +1,14 @@
 """Cascaded shadow map manager with PCF and denoising."""
+
 import os
 from panda3d.core import (
-    NodePath, Camera, OrthographicLens,
-    Texture, FrameBufferProperties,
-    Shader, Vec3, Vec4, Mat4
+    OrthographicLens,
+    Texture,
+    FrameBufferProperties,
+    Shader,
+    Vec3,
+    Vec4,
+    Mat4,
 )
 
 
@@ -52,7 +57,7 @@ class ShadowManager:
                 self.shadow_map_size,
                 self.shadow_map_size,
                 Texture.TFloat,
-                Texture.FDepthComponent
+                Texture.FDepthComponent,
             )
 
             # Create offscreen buffer
@@ -65,7 +70,7 @@ class ShadowManager:
                 self.shadow_map_size,
                 self.shadow_map_size,
                 depth_tex,
-                True  # to_ram
+                True,  # to_ram
             )
 
             if not buffer:
@@ -91,21 +96,21 @@ class ShadowManager:
             self.shadow_buffers.append(buffer)
             self.shadow_textures.append(depth_tex)
 
-            print(f"Created shadow cascade {i}: {self.shadow_map_size}x{self.shadow_map_size}")
+            print(
+                f"Created shadow cascade {i}: {self.shadow_map_size}x{self.shadow_map_size}"
+            )
 
     def _setup_shaders(self):
         """Load and configure shadow shaders."""
         # Get absolute path to shaders
-        shader_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'assets', 'shaders')
-        vert_path = os.path.join(shader_dir, 'terrain.vert')
-        frag_path = os.path.join(shader_dir, 'terrain.frag')
+        shader_dir = os.path.join(
+            os.path.dirname(__file__), "..", "..", "assets", "shaders"
+        )
+        vert_path = os.path.join(shader_dir, "terrain.vert")
+        frag_path = os.path.join(shader_dir, "terrain.frag")
 
         # Load terrain shader
-        shader = Shader.load(
-            Shader.SL_GLSL,
-            vertex=vert_path,
-            fragment=frag_path
-        )
+        shader = Shader.load(Shader.SL_GLSL, vertex=vert_path, fragment=frag_path)
 
         if shader:
             self.render.setShader(shader)
@@ -169,17 +174,18 @@ class ShadowManager:
         node_path.setShaderInput("lightDirection", self.light_direction)
         node_path.setShaderInput("lightColor", Vec3(0.8, 0.8, 0.7))
         node_path.setShaderInput("ambientColor", Vec3(0.3, 0.3, 0.3))
-        node_path.setShaderInput("cascadeSplits", Vec4(
-            self.cascade_splits[0],
-            self.cascade_splits[1],
-            self.cascade_splits[2],
-            999999.0
-        ))
-        node_path.setShaderInput("shadowMapSize", Vec4(
-            self.shadow_map_size,
-            self.shadow_map_size,
-            0, 0
-        ))
+        node_path.setShaderInput(
+            "cascadeSplits",
+            Vec4(
+                self.cascade_splits[0],
+                self.cascade_splits[1],
+                self.cascade_splits[2],
+                999999.0,
+            ),
+        )
+        node_path.setShaderInput(
+            "shadowMapSize", Vec4(self.shadow_map_size, self.shadow_map_size, 0, 0)
+        )
         node_path.setShaderInput("shadowSoftness", self.shadow_softness)
 
     def set_light_direction(self, direction):

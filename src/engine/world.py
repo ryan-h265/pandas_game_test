@@ -1,6 +1,6 @@
 """World management and initialization."""
 
-from panda3d.core import Vec3, CardMaker
+from panda3d.core import Vec3
 from panda3d.bullet import BulletRigidBodyNode, BulletBoxShape
 from config.settings import RENDER_DISTANCE
 from engine.terrain import Terrain
@@ -55,11 +55,11 @@ class World:
         # Define cube positions and sizes
         cube_specs = [
             # Position (x, y, z), size, mass
-            (Vec3(20, 20, 50), 2.0, 1.0),   # Medium cube
-            (Vec3(18, 18, 55), 1.5, 0.5),   # Small cube
-            (Vec3(22, 22, 60), 3.0, 2.0),   # Large cube
-            (Vec3(16, 24, 45), 1.0, 0.3),   # Tiny cube
-            (Vec3(24, 16, 48), 2.5, 1.5),   # Another medium cube
+            (Vec3(20, 20, 50), 2.0, 1.0),  # Medium cube
+            (Vec3(18, 18, 55), 1.5, 0.5),  # Small cube
+            (Vec3(22, 22, 60), 3.0, 2.0),  # Large cube
+            (Vec3(16, 24, 45), 1.0, 0.3),  # Tiny cube
+            (Vec3(24, 16, 48), 2.5, 1.5),  # Another medium cube
         ]
 
         for i, (pos, size, mass) in enumerate(cube_specs):
@@ -81,7 +81,7 @@ class World:
             NodePath of the created cube
         """
         # Create physics shape
-        shape = BulletBoxShape(Vec3(size/2, size/2, size/2))
+        shape = BulletBoxShape(Vec3(size / 2, size / 2, size / 2))
 
         # Create rigid body node
         body_node = BulletRigidBodyNode(name)
@@ -100,39 +100,54 @@ class World:
         self.bullet_world.attachRigidBody(body_node)
 
         # Create visual geometry
-        from panda3d.core import GeomNode, GeomVertexFormat, GeomVertexData, GeomVertexWriter
+        from panda3d.core import (
+            GeomNode,
+            GeomVertexFormat,
+            GeomVertexData,
+            GeomVertexWriter,
+        )
         from panda3d.core import Geom, GeomTriangles, Vec4
 
         # Create vertex data
         vformat = GeomVertexFormat.getV3n3c4()
-        vdata = GeomVertexData(f'{name}_vdata', vformat, Geom.UHStatic)
+        vdata = GeomVertexData(f"{name}_vdata", vformat, Geom.UHStatic)
 
-        vertex = GeomVertexWriter(vdata, 'vertex')
-        normal = GeomVertexWriter(vdata, 'normal')
-        color = GeomVertexWriter(vdata, 'color')
+        vertex = GeomVertexWriter(vdata, "vertex")
+        normal = GeomVertexWriter(vdata, "normal")
+        color = GeomVertexWriter(vdata, "color")
 
         # Generate cube vertices with different colors per cube
         import random
-        cube_color = Vec4(random.uniform(0.5, 1.0),
-                         random.uniform(0.5, 1.0),
-                         random.uniform(0.5, 1.0), 1.0)
+
+        cube_color = Vec4(
+            random.uniform(0.5, 1.0),
+            random.uniform(0.5, 1.0),
+            random.uniform(0.5, 1.0),
+            1.0,
+        )
 
         # Define cube vertices (8 corners)
         s = size / 2
         vertices = [
-            Vec3(-s, -s, -s), Vec3(s, -s, -s), Vec3(s, s, -s), Vec3(-s, s, -s),  # bottom
-            Vec3(-s, -s, s), Vec3(s, -s, s), Vec3(s, s, s), Vec3(-s, s, s),      # top
+            Vec3(-s, -s, -s),
+            Vec3(s, -s, -s),
+            Vec3(s, s, -s),
+            Vec3(-s, s, -s),  # bottom
+            Vec3(-s, -s, s),
+            Vec3(s, -s, s),
+            Vec3(s, s, s),
+            Vec3(-s, s, s),  # top
         ]
 
         # Define faces with normals (counter-clockwise winding for outward-facing)
         faces = [
             # Face vertices (CCW from outside), normal
             ([3, 2, 1, 0], Vec3(0, 0, -1)),  # bottom
-            ([4, 5, 6, 7], Vec3(0, 0, 1)),   # top
+            ([4, 5, 6, 7], Vec3(0, 0, 1)),  # top
             ([1, 5, 4, 0], Vec3(0, -1, 0)),  # front
-            ([3, 7, 6, 2], Vec3(0, 1, 0)),   # back
+            ([3, 7, 6, 2], Vec3(0, 1, 0)),  # back
             ([4, 7, 3, 0], Vec3(-1, 0, 0)),  # left
-            ([2, 6, 5, 1], Vec3(1, 0, 0)),   # right
+            ([2, 6, 5, 1], Vec3(1, 0, 0)),  # right
         ]
 
         # Build geometry
@@ -166,7 +181,7 @@ class World:
         geom.addPrimitive(tris)
 
         # Create node and attach
-        geom_node = GeomNode(f'{name}_geom')
+        geom_node = GeomNode(f"{name}_geom")
         geom_node.addGeom(geom)
         geom_np = body_np.attachNewNode(geom_node)
 

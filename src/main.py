@@ -85,28 +85,28 @@ class Game(ShowBase):
         """Initialize Bullet physics world"""
         self.world = BulletWorld()
         self.world.setGravity(Vec3(0, 0, GRAVITY))
-        
+
         # Optional: Enable debug visualization
-        debugNode = BulletDebugNode('Debug')
+        debugNode = BulletDebugNode("Debug")
         debugNode.showWireframe(True)
         debugNode.showConstraints(True)
         debugNode.showBoundingBoxes(False)
         debugNode.showNormals(False)
-        
+
         debugNP = self.render.attachNewNode(debugNode)
         self.world.setDebugNode(debugNP.node())
         # debugNP.show()  # Uncomment to see physics debug
-    
+
     def setup_lighting(self):
         """Setup basic lighting"""
         # Ambient light
-        alight = AmbientLight('alight')
+        alight = AmbientLight("alight")
         alight.setColor((0.3, 0.3, 0.3, 1))
         alnp = self.render.attachNewNode(alight)
         self.render.setLight(alnp)
 
         # Directional light (sun)
-        dlight = DirectionalLight('dlight')
+        dlight = DirectionalLight("dlight")
         dlight.setColor((0.8, 0.8, 0.7, 1))
         dlnp = self.render.attachNewNode(dlight)
         dlnp.setHpr(45, -60, 0)
@@ -115,48 +115,48 @@ class Game(ShowBase):
     def setup_input(self):
         """Setup keyboard input handlers"""
         # Movement keys
-        self.accept('w', self.player.handle_input, ['w', True])
-        self.accept('w-up', self.player.handle_input, ['w', False])
-        self.accept('s', self.player.handle_input, ['s', True])
-        self.accept('s-up', self.player.handle_input, ['s', False])
-        self.accept('a', self.player.handle_input, ['a', True])
-        self.accept('a-up', self.player.handle_input, ['a', False])
-        self.accept('d', self.player.handle_input, ['d', True])
-        self.accept('d-up', self.player.handle_input, ['d', False])
+        self.accept("w", self.player.handle_input, ["w", True])
+        self.accept("w-up", self.player.handle_input, ["w", False])
+        self.accept("s", self.player.handle_input, ["s", True])
+        self.accept("s-up", self.player.handle_input, ["s", False])
+        self.accept("a", self.player.handle_input, ["a", True])
+        self.accept("a-up", self.player.handle_input, ["a", False])
+        self.accept("d", self.player.handle_input, ["d", True])
+        self.accept("d-up", self.player.handle_input, ["d", False])
 
         # Jump and run
-        self.accept('space', self.player.handle_input, ['space', True])
-        self.accept('space-up', self.player.handle_input, ['space', False])
-        self.accept('shift', self.player.handle_input, ['shift', True])
-        self.accept('shift-up', self.player.handle_input, ['shift', False])
+        self.accept("space", self.player.handle_input, ["space", True])
+        self.accept("space-up", self.player.handle_input, ["space", False])
+        self.accept("shift", self.player.handle_input, ["shift", True])
+        self.accept("shift-up", self.player.handle_input, ["shift", False])
 
         # Mouse toggle
-        self.accept('m', self.toggle_mouse)
+        self.accept("m", self.toggle_mouse)
 
         # Terrain editing - Mouse buttons
-        self.accept('mouse1', self.on_mouse_down, [1])  # Left click
-        self.accept('mouse1-up', self.on_mouse_up, [1])
-        self.accept('mouse3', self.on_mouse_down, [3])  # Right click
-        self.accept('mouse3-up', self.on_mouse_up, [3])
-        self.accept('mouse2', self.on_mouse_down, [2])  # Middle click
-        self.accept('mouse2-up', self.on_mouse_up, [2])
+        self.accept("mouse1", self.on_mouse_down, [1])  # Left click
+        self.accept("mouse1-up", self.on_mouse_up, [1])
+        self.accept("mouse3", self.on_mouse_down, [3])  # Right click
+        self.accept("mouse3-up", self.on_mouse_up, [3])
+        self.accept("mouse2", self.on_mouse_down, [2])  # Middle click
+        self.accept("mouse2-up", self.on_mouse_up, [2])
 
         # Terrain editing - Mode switching
-        self.accept('1', self.terrain_editor.set_edit_mode, ['lower'])
-        self.accept('2', self.terrain_editor.set_edit_mode, ['raise'])
-        self.accept('3', self.terrain_editor.set_edit_mode, ['smooth'])
+        self.accept("1", self.terrain_editor.set_edit_mode, ["lower"])
+        self.accept("2", self.terrain_editor.set_edit_mode, ["raise"])
+        self.accept("3", self.terrain_editor.set_edit_mode, ["smooth"])
 
         # Brush size adjustment
-        self.accept('wheel_up', self.adjust_brush_size, [1])
-        self.accept('wheel_down', self.adjust_brush_size, [-1])
+        self.accept("wheel_up", self.adjust_brush_size, [1])
+        self.accept("wheel_down", self.adjust_brush_size, [-1])
 
         # Shadow quality adjustments
-        self.accept('z', self.adjust_shadow_softness, [-0.5])  # Decrease softness
-        self.accept('x', self.adjust_shadow_softness, [0.5])   # Increase softness
-        self.accept('c', self.toggle_post_process)              # Toggle post-processing
+        self.accept("z", self.adjust_shadow_softness, [-0.5])  # Decrease softness
+        self.accept("x", self.adjust_shadow_softness, [0.5])  # Increase softness
+        self.accept("c", self.toggle_post_process)  # Toggle post-processing
 
         # Quit
-        self.accept('escape', self.quit_game)
+        self.accept("escape", self.quit_game)
 
     def setup_mouse_control(self):
         """Setup mouse for FPS-style look control"""
@@ -202,6 +202,14 @@ class Game(ShowBase):
         Args:
             button: Mouse button number (1=left, 2=middle, 3=right)
         """
+        # Set edit mode based on button
+        if button == 1:  # Left click - lower
+            self.terrain_editor.set_edit_mode("lower")
+        elif button == 3:  # Right click - raise
+            self.terrain_editor.set_edit_mode("raise")
+        elif button == 2:  # Middle click - smooth
+            self.terrain_editor.set_edit_mode("smooth")
+
         self.editing_terrain = True
 
     def on_mouse_up(self, button):
@@ -252,7 +260,7 @@ class Game(ShowBase):
         if self.shadow_manager:
             self.shadow_manager.cleanup()
         self.userExit()
-    
+
     def update(self, task):
         """Main game loop"""
         dt = globalClock.getDt()
@@ -290,12 +298,12 @@ class Game(ShowBase):
         hit = self.raycaster.get_terrain_hit(self.mouseWatcherNode)
         if hit:
             # Update brush indicator position
-            self.brush_indicator.update_position(hit['position'])
+            self.brush_indicator.update_position(hit["position"])
             self.brush_indicator.show()
 
             # Perform terrain editing if mouse button is held
             if self.editing_terrain:
-                self.terrain_editor.modify_terrain(hit['position'])
+                self.terrain_editor.modify_terrain(hit["position"])
         else:
             self.brush_indicator.hide()
 
@@ -308,12 +316,13 @@ class Game(ShowBase):
         self.camera_controller.apply_rotation()
 
         # Update physics
-        self.world.doPhysics(dt, 10, 1.0/PHYSICS_FPS)
+        self.world.doPhysics(dt, 10, 1.0 / PHYSICS_FPS)
 
         # Update game world
         self.game_world.update(dt, player_pos)
 
         return task.cont
+
 
 if __name__ == "__main__":
     app = Game()

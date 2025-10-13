@@ -3,10 +3,20 @@
 import noise
 import numpy as np
 from panda3d.core import (
-    GeomVertexFormat, GeomVertexData, GeomVertexWriter,
-    Geom, GeomTriangles, GeomNode, Vec3, Vec4
+    GeomVertexFormat,
+    GeomVertexData,
+    GeomVertexWriter,
+    Geom,
+    GeomTriangles,
+    GeomNode,
+    Vec3,
+    Vec4,
 )
-from panda3d.bullet import BulletRigidBodyNode, BulletTriangleMesh, BulletTriangleMeshShape
+from panda3d.bullet import (
+    BulletRigidBodyNode,
+    BulletTriangleMesh,
+    BulletTriangleMeshShape,
+)
 
 from config.settings import CHUNK_SIZE, FLAT_WORLD
 
@@ -65,40 +75,49 @@ class TerrainChunk:
                 height = 0
 
                 # Base terrain
-                height += noise.pnoise2(
-                    world_x * 0.01,
-                    world_z * 0.01,
-                    octaves=6,
-                    persistence=0.5,
-                    lacunarity=2.0,
-                    repeatx=1024,
-                    repeaty=1024,
-                    base=0
-                ) * 20
+                height += (
+                    noise.pnoise2(
+                        world_x * 0.01,
+                        world_z * 0.01,
+                        octaves=6,
+                        persistence=0.5,
+                        lacunarity=2.0,
+                        repeatx=1024,
+                        repeaty=1024,
+                        base=0,
+                    )
+                    * 20
+                )
 
                 # Hills
-                height += noise.pnoise2(
-                    world_x * 0.05,
-                    world_z * 0.05,
-                    octaves=4,
-                    persistence=0.5,
-                    lacunarity=2.0,
-                    repeatx=1024,
-                    repeaty=1024,
-                    base=1
-                ) * 5
+                height += (
+                    noise.pnoise2(
+                        world_x * 0.05,
+                        world_z * 0.05,
+                        octaves=4,
+                        persistence=0.5,
+                        lacunarity=2.0,
+                        repeatx=1024,
+                        repeaty=1024,
+                        base=1,
+                    )
+                    * 5
+                )
 
                 # Fine details
-                height += noise.pnoise2(
-                    world_x * 0.1,
-                    world_z * 0.1,
-                    octaves=2,
-                    persistence=0.3,
-                    lacunarity=2.0,
-                    repeatx=1024,
-                    repeaty=1024,
-                    base=2
-                ) * 2
+                height += (
+                    noise.pnoise2(
+                        world_x * 0.1,
+                        world_z * 0.1,
+                        octaves=2,
+                        persistence=0.3,
+                        lacunarity=2.0,
+                        repeatx=1024,
+                        repeaty=1024,
+                        base=2,
+                    )
+                    * 2
+                )
 
                 heights[x][z] = height
 
@@ -140,12 +159,12 @@ class TerrainChunk:
         """Create the visual mesh for the terrain."""
         # Create vertex data format
         vformat = GeomVertexFormat.getV3n3c4()
-        vdata = GeomVertexData('terrain', vformat, Geom.UHStatic)
+        vdata = GeomVertexData("terrain", vformat, Geom.UHStatic)
         vdata.setNumRows((self.size + 1) * (self.size + 1))
 
-        vertex = GeomVertexWriter(vdata, 'vertex')
-        normal = GeomVertexWriter(vdata, 'normal')
-        color = GeomVertexWriter(vdata, 'color')
+        vertex = GeomVertexWriter(vdata, "vertex")
+        normal = GeomVertexWriter(vdata, "normal")
+        color = GeomVertexWriter(vdata, "color")
 
         # Create vertices
         for z in range(self.size + 1):
@@ -187,7 +206,7 @@ class TerrainChunk:
         geom.addPrimitive(tris)
 
         # Create node
-        node = GeomNode('terrain_chunk')
+        node = GeomNode("terrain_chunk")
         node.addGeom(geom)
 
         # Attach to render
@@ -256,7 +275,9 @@ class TerrainChunk:
 
         shape = BulletTriangleMeshShape(mesh, dynamic=False)
 
-        self.physics_node = BulletRigidBodyNode(f'terrain_collision_{self.chunk_x}_{self.chunk_z}')
+        self.physics_node = BulletRigidBodyNode(
+            f"terrain_collision_{self.chunk_x}_{self.chunk_z}"
+        )
         self.physics_node.addShape(shape)
         self.physics_node.setMass(0)  # Static
 

@@ -1,8 +1,12 @@
 """Visual brush indicator for terrain editing."""
 
 from panda3d.core import (
-    GeomVertexFormat, GeomVertexData, GeomVertexWriter,
-    Geom, GeomLines, GeomNode, Vec3, Vec4
+    GeomVertexFormat,
+    GeomVertexData,
+    GeomVertexWriter,
+    Geom,
+    GeomLines,
+    GeomNode,
 )
 import math
 
@@ -26,14 +30,14 @@ class BrushIndicator:
         """Create the visual indicator geometry."""
         # Create vertex data
         vformat = GeomVertexFormat.getV3c4()
-        vdata = GeomVertexData('brush', vformat, Geom.UHDynamic)
+        vdata = GeomVertexData("brush", vformat, Geom.UHDynamic)
 
         # Create circle with line segments
         num_segments = 32
         vdata.setNumRows(num_segments + 1)
 
-        vertex = GeomVertexWriter(vdata, 'vertex')
-        color = GeomVertexWriter(vdata, 'color')
+        vertex = GeomVertexWriter(vdata, "vertex")
+        color = GeomVertexWriter(vdata, "color")
 
         # Create circle vertices
         for i in range(num_segments + 1):
@@ -56,7 +60,7 @@ class BrushIndicator:
         geom.addPrimitive(lines)
 
         # Create node
-        node = GeomNode('brush_indicator')
+        node = GeomNode("brush_indicator")
         node.addGeom(geom)
 
         # Attach to render
@@ -64,7 +68,7 @@ class BrushIndicator:
         self.node_path.setTransparency(True)
         self.node_path.setDepthTest(False)  # Always visible
         self.node_path.setDepthWrite(False)
-        self.node_path.setBin('fixed', 0)
+        self.node_path.setBin("fixed", 0)
         self.node_path.hide()
 
     def update_position(self, position):

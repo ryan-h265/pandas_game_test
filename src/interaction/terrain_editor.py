@@ -1,7 +1,6 @@
 """Terrain editing tools for modifying the game world."""
 
 import math
-from panda3d.core import Vec3
 from src.config.settings import CHUNK_SIZE
 
 
@@ -17,7 +16,7 @@ class TerrainEditor:
         self.terrain = terrain
         self.brush_size = 3.0
         self.brush_strength = 0.5
-        self.edit_mode = 'raise'  # 'raise', 'lower', 'smooth'
+        self.edit_mode = "raise"  # 'raise', 'lower', 'smooth'
 
     def modify_terrain(self, world_pos, mode=None, strength=None):
         """Modify terrain at the given world position.
@@ -68,19 +67,18 @@ class TerrainEditor:
                 falloff = falloff * falloff  # Square for smoother falloff
 
                 # Apply modification based on mode
-                if mode == 'raise':
+                if mode == "raise":
                     chunk.height_data[px][pz] += strength * falloff
                     modified = True
-                elif mode == 'lower':
+                elif mode == "lower":
                     chunk.height_data[px][pz] -= strength * falloff
                     modified = True
-                elif mode == 'smooth':
+                elif mode == "smooth":
                     # Average with neighbors
                     avg_height = self._get_average_height(chunk, px, pz)
                     blend = strength * falloff * 0.5
                     chunk.height_data[px][pz] = (
-                        chunk.height_data[px][pz] * (1 - blend) +
-                        avg_height * blend
+                        chunk.height_data[px][pz] * (1 - blend) + avg_height * blend
                     )
                     modified = True
 
@@ -117,7 +115,7 @@ class TerrainEditor:
         Args:
             position: World position Vec3 to modify
         """
-        self.modify_terrain(position, mode='raise')
+        self.modify_terrain(position, mode="raise")
 
     def lower_terrain(self, position):
         """Lower terrain at the given position.
@@ -125,7 +123,7 @@ class TerrainEditor:
         Args:
             position: World position Vec3 to modify
         """
-        self.modify_terrain(position, mode='lower')
+        self.modify_terrain(position, mode="lower")
 
     def smooth_terrain(self, position):
         """Smooth terrain at the given position.
@@ -133,7 +131,7 @@ class TerrainEditor:
         Args:
             position: World position Vec3 to modify
         """
-        self.modify_terrain(position, mode='smooth')
+        self.modify_terrain(position, mode="smooth")
 
     def set_brush_size(self, size):
         """Set the size of the terrain editing brush.
@@ -157,5 +155,5 @@ class TerrainEditor:
         Args:
             mode: Edit mode ('raise', 'lower', 'smooth')
         """
-        if mode in ['raise', 'lower', 'smooth']:
+        if mode in ["raise", "lower", "smooth"]:
             self.edit_mode = mode

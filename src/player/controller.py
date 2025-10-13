@@ -1,7 +1,11 @@
 """Player controller for movement and input handling."""
 
 from panda3d.core import Vec3, BitMask32
-from panda3d.bullet import BulletCapsuleShape, BulletRigidBodyNode, BulletCharacterControllerNode, ZUp
+from panda3d.bullet import (
+    BulletCapsuleShape,
+    BulletCharacterControllerNode,
+    ZUp,
+)
 
 
 class PlayerController:
@@ -30,12 +34,12 @@ class PlayerController:
 
         # Input state
         self.keys = {
-            'forward': False,
-            'backward': False,
-            'left': False,
-            'right': False,
-            'jump': False,
-            'run': False
+            "forward": False,
+            "backward": False,
+            "left": False,
+            "right": False,
+            "jump": False,
+            "run": False,
         }
 
         # Physics character
@@ -47,7 +51,7 @@ class PlayerController:
         shape = BulletCapsuleShape(0.5, 1.8, ZUp)
 
         # Create character controller node
-        self.character = BulletCharacterControllerNode(shape, 0.4, 'Player')
+        self.character = BulletCharacterControllerNode(shape, 0.4, "Player")
         self.character_np = self.render.attachNewNode(self.character)
         self.character_np.setPos(self.position)
         self.character_np.setCollideMask(BitMask32.allOn())
@@ -70,18 +74,18 @@ class PlayerController:
         """
         key = key.lower()
 
-        if key == 'w':
-            self.keys['forward'] = pressed
-        elif key == 's':
-            self.keys['backward'] = pressed
-        elif key == 'a':
-            self.keys['left'] = pressed
-        elif key == 'd':
-            self.keys['right'] = pressed
-        elif key == 'space':
-            self.keys['jump'] = pressed
-        elif key == 'shift':
-            self.keys['run'] = pressed
+        if key == "w":
+            self.keys["forward"] = pressed
+        elif key == "s":
+            self.keys["backward"] = pressed
+        elif key == "a":
+            self.keys["left"] = pressed
+        elif key == "d":
+            self.keys["right"] = pressed
+        elif key == "space":
+            self.keys["jump"] = pressed
+        elif key == "shift":
+            self.keys["run"] = pressed
 
     def update(self, dt, camera_controller):
         """Update player state based on input.
@@ -91,7 +95,7 @@ class PlayerController:
             camera_controller: Camera controller for direction
         """
         # Update speed based on run key
-        self.current_speed = self.run_speed if self.keys['run'] else self.walk_speed
+        self.current_speed = self.run_speed if self.keys["run"] else self.walk_speed
 
         # Calculate movement direction from camera
         forward = camera_controller.get_forward_vector()
@@ -100,13 +104,13 @@ class PlayerController:
         # Build movement vector
         move_vector = Vec3(0, 0, 0)
 
-        if self.keys['forward']:
+        if self.keys["forward"]:
             move_vector += forward
-        if self.keys['backward']:
+        if self.keys["backward"]:
             move_vector -= forward
-        if self.keys['right']:
+        if self.keys["right"]:
             move_vector += right
-        if self.keys['left']:
+        if self.keys["left"]:
             move_vector -= right
 
         # Normalize to prevent faster diagonal movement
@@ -118,7 +122,7 @@ class PlayerController:
         self.character.setLinearMovement(move_vector, True)
 
         # Handle jump
-        if self.keys['jump'] and self.character.isOnGround():
+        if self.keys["jump"] and self.character.isOnGround():
             self.character.doJump()
 
         # Update position from physics

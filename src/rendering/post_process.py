@@ -1,9 +1,11 @@
 """Post-processing effects: SSAO and shadow denoising."""
+
 import random
-import math
 from panda3d.core import (
-    Texture, GraphicsOutput, FrameBufferProperties,
-    Shader, Vec3, Vec4, CardMaker, NodePath
+    Texture,
+    Shader,
+    Vec3,
+    Vec4,
 )
 
 
@@ -49,7 +51,7 @@ class PostProcessManager:
             sample = Vec3(
                 random.random() * 2.0 - 1.0,
                 random.random() * 2.0 - 1.0,
-                random.random()
+                random.random(),
             )
             sample.normalize()
 
@@ -70,17 +72,21 @@ class PostProcessManager:
         """
         noise_size = 4
         noise_tex = Texture("ssao_noise")
-        noise_tex.setup2dTexture(noise_size, noise_size, Texture.TFloat, Texture.FRgba16)
+        noise_tex.setup2dTexture(
+            noise_size, noise_size, Texture.TFloat, Texture.FRgba16
+        )
 
         # Generate random rotation vectors
         noise_data = []
         for i in range(noise_size * noise_size):
-            noise_data.extend([
-                random.random() * 2.0 - 1.0,  # X
-                random.random() * 2.0 - 1.0,  # Y
-                0.0,                          # Z (tangent space)
-                0.0                           # W (padding)
-            ])
+            noise_data.extend(
+                [
+                    random.random() * 2.0 - 1.0,  # X
+                    random.random() * 2.0 - 1.0,  # Y
+                    0.0,  # Z (tangent space)
+                    0.0,  # W (padding)
+                ]
+            )
 
         # Load data into texture
         noise_tex.setRamImage(noise_data)
@@ -102,7 +108,7 @@ class PostProcessManager:
         shader = Shader.load(
             Shader.SL_GLSL,
             vertex="assets/shaders/denoise.vert",
-            fragment="assets/shaders/ssao.frag"
+            fragment="assets/shaders/ssao.frag",
         )
 
         if not shader:
@@ -133,7 +139,7 @@ class PostProcessManager:
         shader = Shader.load(
             Shader.SL_GLSL,
             vertex="assets/shaders/denoise.vert",
-            fragment="assets/shaders/denoise.frag"
+            fragment="assets/shaders/denoise.frag",
         )
 
         if not shader:

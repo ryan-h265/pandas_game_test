@@ -1,6 +1,13 @@
 """Raycasting utilities for object selection and interaction."""
 
-from panda3d.core import Vec3, Point3, CollisionTraverser, CollisionNode, CollisionRay, CollisionHandlerQueue
+from panda3d.core import (
+    Vec3,
+    Point3,
+    CollisionTraverser,
+    CollisionNode,
+    CollisionRay,
+    CollisionHandlerQueue,
+)
 
 
 class TerrainRaycaster:
@@ -21,7 +28,7 @@ class TerrainRaycaster:
         self.picker_queue = CollisionHandlerQueue()
 
         # Create picker ray
-        self.picker_node = CollisionNode('mouse_ray')
+        self.picker_node = CollisionNode("mouse_ray")
         self.picker_ray = CollisionRay()
         self.picker_node.addSolid(self.picker_ray)
         self.picker_node.setFromCollideMask(1)
@@ -69,9 +76,9 @@ class TerrainRaycaster:
             hit_normal = entry.getSurfaceNormal(self.render)
 
             return {
-                'position': Vec3(hit_pos.getX(), hit_pos.getY(), hit_pos.getZ()),
-                'normal': Vec3(hit_normal.getX(), hit_normal.getY(), hit_normal.getZ()),
-                'node': entry.getIntoNodePath()
+                "position": Vec3(hit_pos.getX(), hit_pos.getY(), hit_pos.getZ()),
+                "normal": Vec3(hit_normal.getX(), hit_normal.getY(), hit_normal.getZ()),
+                "node": entry.getIntoNodePath(),
             }
 
         return None

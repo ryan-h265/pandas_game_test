@@ -13,7 +13,9 @@ __all__ = [
 
 __title__ = "pandas_game_test"
 __version__ = "0.0.0"  # update this as you release new versions
-__summary__ = "A small test package for experimenting with pandas and simple game logic."
+__summary__ = (
+    "A small test package for experimenting with pandas and simple game logic."
+)
 __uri__ = "https://example.com/pandas_game_test"
 
 __author__ = "Your Name"
