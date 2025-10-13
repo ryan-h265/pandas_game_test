@@ -25,3 +25,6 @@ CHUNK_SIZE = 32
 RENDER_DISTANCE = 8
 PHYSICS_FPS = 60
 GRAVITY = -9.81
+
+# World generation
+FLAT_WORLD = True  # Set to True for a completely flat world at height 0

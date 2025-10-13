@@ -8,7 +8,7 @@ from panda3d.core import (
 )
 from panda3d.bullet import BulletRigidBodyNode, BulletTriangleMesh, BulletTriangleMeshShape
 
-from config.settings import CHUNK_SIZE
+from config.settings import CHUNK_SIZE, FLAT_WORLD
 
 
 class TerrainChunk:
@@ -51,6 +51,10 @@ class TerrainChunk:
             2D numpy array of height values
         """
         heights = np.zeros((self.size + 1, self.size + 1))
+
+        # If flat world is enabled, return all zeros (flat at height 0)
+        if FLAT_WORLD:
+            return heights
 
         for x in range(self.size + 1):
             for z in range(self.size + 1):
@@ -192,6 +196,9 @@ class TerrainChunk:
         # Enable two-sided rendering (render both front and back faces)
         self.node_path.setTwoSided(True)
 
+        # Set collision mask so raycasting can detect it
+        self.node_path.setCollideMask(1)
+
     def _get_vertex_color(self, height):
         """Get color based on terrain height.
 
@@ -255,6 +262,18 @@ class TerrainChunk:
 
         physics_np = self.render.attachNewNode(self.physics_node)
         self.bullet_world.attachRigidBody(self.physics_node)
+
+    def regenerate(self):
+        """Regenerate mesh and collision after terrain modification."""
+        # Remove old mesh and collision
+        if self.node_path:
+            self.node_path.removeNode()
+        if self.physics_node:
+            self.bullet_world.removeRigidBody(self.physics_node)
+
+        # Regenerate
+        self._create_mesh()
+        self._create_collision()
 
     def remove(self):
         """Remove this chunk from the scene."""

@@ -6,6 +6,9 @@ from config.settings import configure, PHYSICS_FPS, GRAVITY
 from engine.world import World
 from player.controller import PlayerController
 from player.camera import CameraController
+from interaction.raycast import TerrainRaycaster
+from interaction.terrain_editor import TerrainEditor
+from rendering.brush_indicator import BrushIndicator
 
 
 class Game(ShowBase):
@@ -32,6 +35,14 @@ class Game(ShowBase):
         self.camera_controller = CameraController(self.camera, self.win)
         self.camera_controller.setup_mouse()
 
+        # Initialize terrain editing
+        self.raycaster = TerrainRaycaster(self.cam, self.render)
+        self.terrain_editor = TerrainEditor(self.game_world.terrain)
+        self.brush_indicator = BrushIndicator(self.render)
+
+        # Terrain editing state
+        self.editing_terrain = False
+
         # Setup input
         self.setup_input()
 
@@ -49,6 +60,12 @@ class Game(ShowBase):
         print("  Space - Jump")
         print("  Mouse - Look around")
         print("  M - Toggle mouse capture")
+        print("")
+        print("  Left Click - Lower terrain (dig)")
+        print("  Right Click - Raise terrain (build)")
+        print("  Middle Click - Smooth terrain")
+        print("  Scroll Wheel - Adjust brush size")
+        print("  1/2/3 - Set edit mode (raise/lower/smooth)")
         print("  ESC - Quit")
 
     def setup_physics(self):
@@ -103,6 +120,23 @@ class Game(ShowBase):
         # Mouse toggle
         self.accept('m', self.toggle_mouse)
 
+        # Terrain editing - Mouse buttons
+        self.accept('mouse1', self.on_mouse_down, [1])  # Left click
+        self.accept('mouse1-up', self.on_mouse_up, [1])
+        self.accept('mouse3', self.on_mouse_down, [3])  # Right click
+        self.accept('mouse3-up', self.on_mouse_up, [3])
+        self.accept('mouse2', self.on_mouse_down, [2])  # Middle click
+        self.accept('mouse2-up', self.on_mouse_up, [2])
+
+        # Terrain editing - Mode switching
+        self.accept('1', self.terrain_editor.set_edit_mode, ['lower'])
+        self.accept('2', self.terrain_editor.set_edit_mode, ['raise'])
+        self.accept('3', self.terrain_editor.set_edit_mode, ['smooth'])
+
+        # Brush size adjustment
+        self.accept('wheel_up', self.adjust_brush_size, [1])
+        self.accept('wheel_down', self.adjust_brush_size, [-1])
+
         # Quit
         self.accept('escape', self.quit_game)
 
@@ -144,6 +178,33 @@ class Game(ShowBase):
             print("Mouse released")
         self.win.requestProperties(props)
 
+    def on_mouse_down(self, button):
+        """Handle mouse button press.
+
+        Args:
+            button: Mouse button number (1=left, 2=middle, 3=right)
+        """
+        self.editing_terrain = True
+
+    def on_mouse_up(self, button):
+        """Handle mouse button release.
+
+        Args:
+            button: Mouse button number
+        """
+        self.editing_terrain = False
+
+    def adjust_brush_size(self, direction):
+        """Adjust terrain brush size.
+
+        Args:
+            direction: 1 for increase, -1 for decrease
+        """
+        new_size = self.terrain_editor.brush_size + direction
+        self.terrain_editor.set_brush_size(new_size)
+        self.brush_indicator.update_size(new_size)
+        print(f"Brush size: {self.terrain_editor.brush_size:.1f}")
+
     def quit_game(self):
         """Clean quit handler"""
         print("\nQuitting game...")
@@ -176,6 +237,19 @@ class Game(ShowBase):
 
                 # Re-center the mouse
                 self.win.movePointer(0, center_x, center_y)
+
+        # Handle terrain editing
+        hit = self.raycaster.get_terrain_hit(self.mouseWatcherNode)
+        if hit:
+            # Update brush indicator position
+            self.brush_indicator.update_position(hit['position'])
+            self.brush_indicator.show()
+
+            # Perform terrain editing if mouse button is held
+            if self.editing_terrain:
+                self.terrain_editor.modify_terrain(hit['position'])
+        else:
+            self.brush_indicator.hide()
 
         # Update player movement
         self.player.update(dt, self.camera_controller)
