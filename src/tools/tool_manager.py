@@ -25,6 +25,7 @@ class Tool:
         self.name = name
         self.tool_type = tool_type
         self.is_active = False
+        self.view_model_name = tool_type.value  # Name for the weapon viewmodel
 
     def on_activate(self):
         """Called when tool becomes active."""
@@ -382,7 +383,7 @@ class GunTool(Tool):
 class ToolManager:
     """Manages player tools and tool switching."""
 
-    def __init__(self, terrain_editor, world, camera=None, effects_manager=None, building_raycaster=None):
+    def __init__(self, terrain_editor, world, camera=None, effects_manager=None, building_raycaster=None, weapon_viewmodel=None):
         """Initialize tool manager.
 
         Args:
@@ -391,10 +392,12 @@ class ToolManager:
             camera: Camera node for gun aiming (optional)
             effects_manager: EffectsManager for visual effects (optional)
             building_raycaster: BuildingRaycaster for physics raycasting (optional)
+            weapon_viewmodel: WeaponViewModel for displaying FPS-style weapons (optional)
         """
         self.tools = {}
         self.active_tool = None
         self.tool_message_callback = None  # Optional callback for UI messages
+        self.weapon_viewmodel = weapon_viewmodel
 
         # Create tools (all melee weapons now use camera + building_raycaster for accurate hit detection)
         self.tools[ToolType.FIST] = FistTool(world, camera, building_raycaster)
@@ -423,6 +426,10 @@ class ToolManager:
         self.active_tool = self.tools[tool_type]
         message = self.active_tool.on_activate()
 
+        # Update weapon viewmodel
+        if self.weapon_viewmodel:
+            self.weapon_viewmodel.show_weapon(self.active_tool.view_model_name)
+
         # Send message to callback if set
         if self.tool_message_callback and message:
             self.tool_message_callback(message)
@@ -447,7 +454,11 @@ class ToolManager:
             bool: True if action was performed
         """
         if self.active_tool:
-            return self.active_tool.on_primary_use(hit_info)
+            result = self.active_tool.on_primary_use(hit_info)
+            # Play weapon animation
+            if result and self.weapon_viewmodel:
+                self.weapon_viewmodel.play_use_animation(self.active_tool.view_model_name)
+            return result
         return False
 
     def use_secondary(self, hit_info):
@@ -460,7 +471,11 @@ class ToolManager:
             bool: True if action was performed
         """
         if self.active_tool:
-            return self.active_tool.on_secondary_use(hit_info)
+            result = self.active_tool.on_secondary_use(hit_info)
+            # Play weapon animation for secondary use
+            if result and self.weapon_viewmodel:
+                self.weapon_viewmodel.play_use_animation(self.active_tool.view_model_name)
+            return result
         return False
 
     def use_tertiary(self, hit_info):
@@ -473,17 +488,26 @@ class ToolManager:
             bool: True if action was performed
         """
         if self.active_tool:
-            return self.active_tool.on_tertiary_use(hit_info)
+            result = self.active_tool.on_tertiary_use(hit_info)
+            # Play weapon animation for tertiary use
+            if result and self.weapon_viewmodel:
+                self.weapon_viewmodel.play_use_animation(self.active_tool.view_model_name)
+            return result
         return False
 
-    def update(self, dt):
-        """Update active tool.
+    def update(self, dt, is_moving=False):
+        """Update active tool and weapon viewmodel.
 
         Args:
             dt: Delta time
+            is_moving: Whether the player is currently moving
         """
         if self.active_tool:
             self.active_tool.update(dt)
+        
+        # Update weapon viewmodel (for bob, sway, etc.)
+        if self.weapon_viewmodel:
+            self.weapon_viewmodel.update(dt, is_moving)
 
     def cycle_tool(self):
         """Cycle to next tool."""

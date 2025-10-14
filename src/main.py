@@ -13,6 +13,7 @@ from rendering.brush_indicator import BrushIndicator
 from rendering.shadow_manager import ShadowManager
 from rendering.post_process import PostProcessManager
 from rendering.effects import EffectsManager
+from rendering.weapon_viewmodel import WeaponViewModel
 from tools.tool_manager import ToolManager, ToolType
 from ui.hud import HUD
 
@@ -55,13 +56,17 @@ class Game(ShowBase):
         # Initialize effects manager
         self.effects_manager = EffectsManager(self.render)
 
+        # Initialize weapon viewmodel (FPS-style weapon display)
+        self.weapon_viewmodel = WeaponViewModel(self.camera)
+
         # Initialize tool system
         self.tool_manager = ToolManager(
             self.terrain_editor,
             self.game_world,
             self.camera,
             self.effects_manager,
-            self.building_raycaster
+            self.building_raycaster,
+            self.weapon_viewmodel
         )
         # Set up tool message callback to display on HUD
         self.tool_manager.tool_message_callback = self.on_tool_change
@@ -108,6 +113,7 @@ class Game(ShowBase):
         print("  Middle Click - Tertiary action (smooth terrain)")
         print("  Scroll Wheel - Adjust brush size")
         print("  1/2/3 - Set terrain mode (lower/raise/smooth)")
+        print("  H - Toggle weapon viewmodel (FPS-style weapon display)")
         print("")
         print("  N - Toggle shadows on/off")
         print("  Z/X - Adjust shadow softness")
@@ -240,6 +246,7 @@ class Game(ShowBase):
         self.accept("v", self.toggle_chunk_colors)  # Toggle chunk debug colors
         self.accept("b", self.toggle_wireframe)  # Toggle wireframe
         self.accept("r", self.toggle_raycast_debug)  # Toggle raycast debug visualization
+        self.accept("h", self.toggle_weapon_viewmodel)  # Toggle weapon viewmodel on/off
 
         # Quit
         self.accept("escape", self.quit_game)
@@ -408,6 +415,21 @@ class Game(ShowBase):
         status = "ON" if self.effects_manager.debug_mode else "OFF"
         self.hud.show_message(f"Raycast Debug: {status}")
 
+    def toggle_weapon_viewmodel(self):
+        """Toggle weapon viewmodel on/off."""
+        if self.weapon_viewmodel.current_model:
+            # Hide weapon
+            self.weapon_viewmodel.hide_weapon()
+            self.hud.show_message("Weapon Viewmodel: OFF")
+            print("Weapon viewmodel hidden")
+        else:
+            # Show current weapon
+            active_tool = self.tool_manager.get_active_tool()
+            if active_tool:
+                self.weapon_viewmodel.show_weapon(active_tool.view_model_name)
+                self.hud.show_message("Weapon Viewmodel: ON")
+                print("Weapon viewmodel shown")
+
     def on_tool_change(self, message):
         """Handle tool change event.
 
@@ -496,8 +518,14 @@ class Game(ShowBase):
         else:
             self.brush_indicator.hide()
 
-        # Update tool manager
-        self.tool_manager.update(dt)
+        # Update player movement
+        self.player.update(dt, self.camera_controller)
+
+        # Check if player is moving (for weapon bob)
+        is_moving = self.player.is_moving()
+
+        # Update tool manager (includes weapon viewmodel animations)
+        self.tool_manager.update(dt, is_moving)
 
         # Update effects
         self.effects_manager.update(dt)
@@ -505,9 +533,6 @@ class Game(ShowBase):
         # Update HUD with FPS
         fps = globalClock.getAverageFrameRate()
         self.hud.update(dt, fps)
-
-        # Update player movement
-        self.player.update(dt, self.camera_controller)
 
         # Update camera to follow player
         player_pos = self.player.get_position()

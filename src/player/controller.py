@@ -152,3 +152,16 @@ class PlayerController:
             bool: True if on ground
         """
         return self.character.isOnGround()
+
+    def is_moving(self):
+        """Check if player is currently moving (for weapon bob animations).
+
+        Returns:
+            bool: True if any movement keys are pressed
+        """
+        return (
+            self.keys["forward"]
+            or self.keys["backward"]
+            or self.keys["left"]
+            or self.keys["right"]
+        )
