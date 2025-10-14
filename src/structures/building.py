@@ -764,10 +764,10 @@ class FaceChunk(BuildingPiece):
             if len(face_verts) < 3:
                 continue  # Skip degenerate faces
 
-            # Fan triangulation
+            # Simple fan triangulation - trust the face_normal provided
             for i in range(1, len(face_verts) - 1):
-                tri_indices = [0, i, i + 1]
-                for idx in tri_indices:
+                # Create triangle with vertices in order
+                for idx in [0, i, i + 1]:
                     v = face_verts[idx]
                     vertex.addData3(v)
                     normal.addData3(face_normal)
@@ -896,34 +896,59 @@ class FaceChunk(BuildingPiece):
             front_z = s.z if self.hit_face == 'z+' else -s.z
             back_z = -s.z if self.hit_face == 'z+' else s.z
 
+            # For front face: keep wedge_profile order (CCW from front)
             front_face_verts = [Vec3(p.x, p.y, front_z) for p in wedge_profile]
             front_normal = Vec3(0, 0, 1) if self.hit_face == 'z+' else Vec3(0, 0, -1)
             faces.append((front_face_verts, front_normal))
 
-            # Back face (opposite Z)
+            # Back face: reverse order so it's CCW when viewed from back (outside)
             back_face_verts = [Vec3(p.x, p.y, back_z) for p in reversed(wedge_profile)]
             back_normal = Vec3(0, 0, -1) if self.hit_face == 'z+' else Vec3(0, 0, 1)
             faces.append((back_face_verts, back_normal))
 
             # Side faces connecting front and back (extruding through depth)
+            # For each edge on perimeter, create a quad face
             for i in range(len(wedge_profile)):
                 j = (i + 1) % len(wedge_profile)
                 p1 = wedge_profile[i]
                 p2 = wedge_profile[j]
 
-                # Create quad face connecting front to back
+                # Create quad vertices - standard order
                 v1 = Vec3(p1.x, p1.y, front_z)
                 v2 = Vec3(p2.x, p2.y, front_z)
                 v3 = Vec3(p2.x, p2.y, back_z)
                 v4 = Vec3(p1.x, p1.y, back_z)
-
-                # Calculate normal
+                
+                # Calculate what normal this vertex order produces
                 edge1 = v2 - v1
                 edge2 = v4 - v1
-                face_normal = edge1.cross(edge2)
-                if face_normal.length() > 0.001:
-                    face_normal.normalize()
-                    faces.append(([v1, v2, v3, v4], face_normal))
+                test_normal = edge1.cross(edge2)
+                
+                if test_normal.length() > 0.001:
+                    test_normal.normalize()
+                    
+                    # Calculate quad center and direction from impact to center
+                    quad_center = (v1 + v2 + v3 + v4) * 0.25
+                    impact_center = Vec3(impact.x, impact.y, (front_z + back_z) * 0.5)
+                    outward = quad_center - impact_center
+                    
+                    if outward.length() > 0.001:
+                        outward.normalize()
+                        
+                        # If normal points outward (same direction as from impact to quad), use this order
+                        if test_normal.dot(outward) > 0:
+                            face_verts = [v1, v2, v3, v4]
+                            face_normal = test_normal
+                        else:
+                            # Reverse to make outward facing
+                            face_verts = [v4, v3, v2, v1]
+                            edge1_rev = face_verts[1] - face_verts[0]
+                            edge2_rev = face_verts[3] - face_verts[0]
+                            face_normal = edge1_rev.cross(edge2_rev)
+                            if face_normal.length() > 0.001:
+                                face_normal.normalize()
+                        
+                        faces.append((face_verts, face_normal))
 
         return faces
 
@@ -989,17 +1014,40 @@ class FaceChunk(BuildingPiece):
                 p1 = wedge_profile[i]
                 p2 = wedge_profile[j]
 
+                # Create quad vertices (2D: x->X, y->Z)
                 v1 = Vec3(p1.x, front_y, p1.y)
                 v2 = Vec3(p2.x, front_y, p2.y)
                 v3 = Vec3(p2.x, back_y, p2.y)
                 v4 = Vec3(p1.x, back_y, p1.y)
-
+                
+                # Test normal from vertex order
                 edge1 = v2 - v1
                 edge2 = v4 - v1
-                face_normal = edge1.cross(edge2)
-                if face_normal.length() > 0.001:
-                    face_normal.normalize()
-                    faces.append(([v1, v2, v3, v4], face_normal))
+                test_normal = edge1.cross(edge2)
+                
+                if test_normal.length() > 0.001:
+                    test_normal.normalize()
+                    
+                    # Calculate quad center and direction from impact to center
+                    quad_center = (v1 + v2 + v3 + v4) * 0.25
+                    impact_center = Vec3(impact.x, (front_y + back_y) * 0.5, impact.y)
+                    outward = quad_center - impact_center
+                    
+                    if outward.length() > 0.001:
+                        outward.normalize()
+                        
+                        if test_normal.dot(outward) > 0:
+                            face_verts = [v1, v2, v3, v4]
+                            face_normal = test_normal
+                        else:
+                            face_verts = [v4, v3, v2, v1]
+                            edge1_rev = face_verts[1] - face_verts[0]
+                            edge2_rev = face_verts[3] - face_verts[0]
+                            face_normal = edge1_rev.cross(edge2_rev)
+                            if face_normal.length() > 0.001:
+                                face_normal.normalize()
+                        
+                        faces.append((face_verts, face_normal))
 
         return faces
 
@@ -1065,17 +1113,40 @@ class FaceChunk(BuildingPiece):
                 p1 = wedge_profile[i]
                 p2 = wedge_profile[j]
 
+                # Create quad vertices (2D: x->Y, y->Z)
                 v1 = Vec3(front_x, p1.x, p1.y)
                 v2 = Vec3(front_x, p2.x, p2.y)
                 v3 = Vec3(back_x, p2.x, p2.y)
                 v4 = Vec3(back_x, p1.x, p1.y)
-
+                
+                # Test normal from vertex order
                 edge1 = v2 - v1
                 edge2 = v4 - v1
-                face_normal = edge1.cross(edge2)
-                if face_normal.length() > 0.001:
-                    face_normal.normalize()
-                    faces.append(([v1, v2, v3, v4], face_normal))
+                test_normal = edge1.cross(edge2)
+                
+                if test_normal.length() > 0.001:
+                    test_normal.normalize()
+                    
+                    # Calculate quad center and direction from impact to center
+                    quad_center = (v1 + v2 + v3 + v4) * 0.25
+                    impact_center = Vec3((front_x + back_x) * 0.5, impact.x, impact.y)
+                    outward = quad_center - impact_center
+                    
+                    if outward.length() > 0.001:
+                        outward.normalize()
+                        
+                        if test_normal.dot(outward) > 0:
+                            face_verts = [v1, v2, v3, v4]
+                            face_normal = test_normal
+                        else:
+                            face_verts = [v4, v3, v2, v1]
+                            edge1_rev = face_verts[1] - face_verts[0]
+                            edge2_rev = face_verts[3] - face_verts[0]
+                            face_normal = edge1_rev.cross(edge2_rev)
+                            if face_normal.length() > 0.001:
+                                face_normal.normalize()
+                        
+                        faces.append((face_verts, face_normal))
 
         return faces
 
