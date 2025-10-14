@@ -81,15 +81,20 @@ class Tool:
 class FistTool(Tool):
     """Default tool - bare hands for basic interaction."""
 
-    def __init__(self, world):
+    def __init__(self, world, camera, building_raycaster=None):
         """Initialize fist tool.
 
         Args:
             world: Game world instance
+            camera: Camera node for aiming
+            building_raycaster: BuildingRaycaster for physics raycasting
         """
         super().__init__("Fist", ToolType.FIST)
         self.world = world
+        self.camera = camera
+        self.building_raycaster = building_raycaster
         self.damage_per_hit = 25  # Low damage with fists
+        self.max_range = 5.0  # Very short melee range
 
     def on_activate(self):
         """Called when fist is equipped."""
@@ -99,13 +104,27 @@ class FistTool(Tool):
         """Punch buildings (weak damage).
 
         Args:
-            hit_info: Dictionary with hit information
+            hit_info: Dictionary with hit information (from terrain raycast, not used)
 
         Returns:
             bool: True if something was hit
         """
-        if hit_info:
-            # Try to damage a building at the hit position
+        # Use building raycaster for physics-based hit detection
+        if self.building_raycaster:
+            physics_hit = self.building_raycaster.raycast_from_camera(self.camera, self.max_range)
+
+            if physics_hit["hit"]:
+                hit_pos = physics_hit["position"]
+                
+                # Try to damage a building at the hit position
+                damaged = self.world.damage_building_at_position(hit_pos, damage=self.damage_per_hit)
+
+                if damaged:
+                    print(f"Fist HIT building at distance {physics_hit['distance']:.2f}")
+                    return True
+        
+        # Fallback to terrain raycast if building raycaster not available
+        elif hit_info and hit_info.get("position"):
             damaged = self.world.damage_building_at_position(
                 hit_info["position"], damage=self.damage_per_hit
             )
@@ -171,18 +190,23 @@ class TerrainTool(Tool):
 class CrowbarTool(Tool):
     """Tool for breaking building pieces (melee weapon)."""
 
-    def __init__(self, world):
+    def __init__(self, world, camera, building_raycaster=None):
         """Initialize crowbar tool.
 
         Args:
             world: Game world instance
+            camera: Camera node for aiming
+            building_raycaster: BuildingRaycaster for physics raycasting
         """
         super().__init__("Crowbar", ToolType.CROWBAR)
         self.world = world
+        self.camera = camera
+        self.building_raycaster = building_raycaster
         self.damage_per_hit = 75  # High damage for crowbar
         self.swing_cooldown = 0.5  # Seconds between swings
         self.last_swing_time = 0.0
         self.current_time = 0.0
+        self.max_range = 10.0  # Melee range (shorter than gun)
 
     def on_activate(self):
         """Called when crowbar is equipped."""
@@ -192,7 +216,7 @@ class CrowbarTool(Tool):
         """Swing crowbar to damage buildings.
 
         Args:
-            hit_info: Dictionary with hit information
+            hit_info: Dictionary with hit information (from terrain raycast, not used)
 
         Returns:
             bool: True if something was hit
@@ -201,8 +225,25 @@ class CrowbarTool(Tool):
         if self.current_time - self.last_swing_time < self.swing_cooldown:
             return False
 
-        if hit_info:
-            # Try to damage a building at the hit position
+        # Use building raycaster for physics-based hit detection
+        hit_something = False
+        if self.building_raycaster:
+            physics_hit = self.building_raycaster.raycast_from_camera(self.camera, self.max_range)
+
+            if physics_hit["hit"]:
+                hit_pos = physics_hit["position"]
+                hit_something = True
+                
+                # Try to damage building at hit position
+                damaged = self.world.damage_building_at_position(hit_pos, damage=self.damage_per_hit)
+                
+                if damaged:
+                    self.last_swing_time = self.current_time
+                    print(f"Crowbar HIT building at distance {physics_hit['distance']:.2f}")
+                    return True
+        
+        # Fallback to terrain raycast if building raycaster not available
+        elif hit_info and hit_info.get("position"):
             damaged = self.world.damage_building_at_position(
                 hit_info["position"], damage=self.damage_per_hit
             )
@@ -355,10 +396,10 @@ class ToolManager:
         self.active_tool = None
         self.tool_message_callback = None  # Optional callback for UI messages
 
-        # Create tools
-        self.tools[ToolType.FIST] = FistTool(world)
+        # Create tools (all melee weapons now use camera + building_raycaster for accurate hit detection)
+        self.tools[ToolType.FIST] = FistTool(world, camera, building_raycaster)
         self.tools[ToolType.TERRAIN] = TerrainTool(terrain_editor)
-        self.tools[ToolType.CROWBAR] = CrowbarTool(world)
+        self.tools[ToolType.CROWBAR] = CrowbarTool(world, camera, building_raycaster)
         if camera:
             self.tools[ToolType.GUN] = GunTool(world, camera, effects_manager, building_raycaster)
 

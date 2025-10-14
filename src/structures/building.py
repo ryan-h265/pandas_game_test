@@ -283,6 +283,45 @@ class BuildingPiece:
         """
         self.constraints.append({"piece": other_piece, "constraint": constraint})
 
+    def _apply_color_to_geometry(self, new_color):
+        """Apply a new color to all vertices in the piece's geometry.
+        
+        Args:
+            new_color: Vec4 RGBA color to apply
+        """
+        # Find the GeomNode child
+        geom_node_path = None
+        for child in self.body_np.getChildren():
+            if isinstance(child.node(), GeomNode):
+                geom_node_path = child
+                break
+        
+        if not geom_node_path:
+            return
+        
+        geom_node = geom_node_path.node()
+        
+        # Update all geoms in the node
+        for i in range(geom_node.getNumGeoms()):
+            geom = geom_node.modifyGeom(i)
+            vdata = geom.modifyVertexData()
+            
+            # Make vertex data writable
+            if vdata.getUsageHint() == Geom.UHStatic:
+                # Create a modifiable copy
+                new_vdata = GeomVertexData(vdata)
+                new_vdata.setUsageHint(Geom.UHDynamic)
+                geom.setVertexData(new_vdata)
+                vdata = new_vdata
+            
+            # Update color data
+            color_writer = GeomVertexWriter(vdata, "color")
+            num_vertices = vdata.getNumRows()
+            
+            for v in range(num_vertices):
+                color_writer.setRow(v)
+                color_writer.setData4(new_color)
+
     def take_damage(self, amount, create_fragments=True, create_chunks=True):
         """Apply damage to this piece.
 
@@ -299,23 +338,41 @@ class BuildingPiece:
 
         self.health -= amount
 
-        # Update color to show damage (darker = more damaged)
-        damage_factor = max(0.3, self.health / self.max_health)
-        damaged_color = Vec4(
-            self.color.x * damage_factor,
-            self.color.y * damage_factor,
-            self.color.z * damage_factor,
-            self.color.w,
-        )
-
-        # Update visual color (would need to rebuild geometry or use shader)
-        # For now, mark as damaged
+        # Update color to show damage (reduce saturation)
+        health_ratio = max(0.0, self.health / self.max_health)
+        self._update_damage_color(health_ratio)
 
         if self.health <= 0:
             self.destroy(create_fragments=create_fragments, create_chunks=create_chunks)
             return True
 
         return False
+
+    def _update_damage_color(self, health_ratio):
+        """Update the visual color of the piece based on health.
+        
+        Reduces saturation as health decreases, making the piece appear more gray/desaturated.
+        
+        Args:
+            health_ratio: Health ratio from 0.0 (dead) to 1.0 (full health)
+        """
+        # Convert RGB to grayscale (perceived brightness)
+        gray = 0.299 * self.color.x + 0.587 * self.color.y + 0.114 * self.color.z
+        
+        # Interpolate between original color (healthy) and grayscale (damaged)
+        # At full health: use original color
+        # At zero health: use mostly grayscale with slight hint of original color
+        saturation = 0.2 + (0.8 * health_ratio)  # Range from 0.2 to 1.0
+        
+        new_color = Vec4(
+            gray + (self.color.x - gray) * saturation,
+            gray + (self.color.y - gray) * saturation,
+            gray + (self.color.z - gray) * saturation,
+            self.color.w
+        )
+        
+        # Update the geometry colors
+        self._apply_color_to_geometry(new_color)
 
     def destroy(self, create_fragments=True, create_chunks=True):
         """Destroy this piece and remove all constraints.
