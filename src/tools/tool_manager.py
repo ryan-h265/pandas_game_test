@@ -268,14 +268,21 @@ class GunTool(Tool):
         if self.current_time - self.last_shot_time < self.fire_rate:
             return False
 
-        from panda3d.core import Vec3
-
         # Get camera position in world space
         camera_pos = self.camera.getPos(self.world.render)
 
-        # Get forward direction from camera
-        forward = self.world.render.getRelativeVector(self.camera, Vec3(0, 1, 0))
+        # Get forward direction from camera's transformation matrix
+        # This properly accounts for both heading (yaw) and pitch
+        cam_mat = self.camera.getMat(self.world.render)
+        forward = cam_mat.getRow3(1)  # Y-axis (forward) from transformation matrix
         forward.normalize()
+
+        # Debug: Get camera rotation
+        hpr = self.camera.getHpr(self.world.render)
+        print(f"\n=== GUN SHOT DEBUG ===")
+        print(f"Camera pos: {camera_pos}")
+        print(f"Camera HPR: {hpr}")
+        print(f"Forward vector: {forward}")
 
         # Use building raycaster if available (physics-based)
         hit_something = False
@@ -305,10 +312,13 @@ class GunTool(Tool):
 
         # Create visual effects
         if self.effects_manager:
-            # Start bullet trail very close to camera (almost at screen center)
-            muzzle_pos = camera_pos + forward * 0.5
+            # Start bullet trail offset from camera (gun barrel position)
+            muzzle_pos = camera_pos + forward * 3.0  # 3 units forward from camera (increased from 2.0)
             distance = (end_pos - muzzle_pos).length()
-            print(f"Creating bullet trail: {muzzle_pos} -> {end_pos} (distance={distance:.2f})")
+            print(f"Muzzle pos: {muzzle_pos} (camera + forward*2.0)")
+            print(f"End pos: {end_pos}")
+            print(f"Trail distance: {distance:.2f}")
+            print(f"===================\n")
             self.effects_manager.create_bullet_trail(muzzle_pos, end_pos)
             self.effects_manager.create_muzzle_flash(muzzle_pos, forward)
 

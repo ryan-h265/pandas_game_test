@@ -76,7 +76,7 @@ class BulletTrail:
 class MuzzleFlash:
     """Muzzle flash effect for gun."""
 
-    def __init__(self, render, position, direction, duration=0.05):
+    def __init__(self, render, position, direction, duration=0.02):
         """Create muzzle flash.
 
         Args:
@@ -103,7 +103,7 @@ class MuzzleFlash:
 
         # Simple quad facing camera
         flash_color = Vec4(1, 1, 0.5, 1)
-        size = 0.3
+        size = 0.1  # Much smaller flash (was 0.2)
 
         # Create quad vertices
         vertices = [
@@ -132,9 +132,15 @@ class MuzzleFlash:
         geom_node.addGeom(geom)
 
         self.flash_node = render.attachNewNode(geom_node)
-        self.flash_node.setPos(position + direction * 0.5)
+        self.flash_node.setPos(position)  # Position at the muzzle (already offset in tool_manager)
         self.flash_node.lookAt(position + direction * 10)
-        self.flash_node.setBillboardPointEye()
+        # Don't billboard - make it directional so it extends forward from gun
+        # self.flash_node.setBillboardPointEye()  # REMOVED: This was making it face camera
+        self.flash_node.setLightOff()  # Don't be affected by lighting
+        self.flash_node.setTransparency(True)
+        self.flash_node.setBin("fixed", 1001)  # Render on top
+        self.flash_node.setDepthTest(False)
+        self.flash_node.setDepthWrite(False)
 
     def update(self, dt):
         """Update flash effect.
