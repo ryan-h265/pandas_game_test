@@ -1,7 +1,7 @@
 """Terrain editing tools for modifying the game world."""
 
 import math
-from src.config.settings import CHUNK_SIZE, TERRAIN_RESOLUTION
+from src.config.settings import CHUNK_SIZE, TERRAIN_RESOLUTION, MODIFIABLE_TERRAIN
 
 
 class TerrainEditor:
@@ -26,6 +26,10 @@ class TerrainEditor:
             mode: Edit mode ('raise', 'lower', 'smooth') or None to use current
             strength: Strength multiplier or None to use current
         """
+        # Check if terrain modification is enabled
+        if not MODIFIABLE_TERRAIN:
+            return
+
         if mode is None:
             mode = self.edit_mode
         if strength is None:
