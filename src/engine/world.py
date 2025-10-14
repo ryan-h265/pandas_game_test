@@ -1,9 +1,10 @@
 """World management and initialization."""
 
-from panda3d.core import Vec3
+from panda3d.core import Vec3, Vec4
 from panda3d.bullet import BulletRigidBodyNode, BulletBoxShape
 from config.settings import RENDER_DISTANCE
 from engine.terrain import Terrain
+from structures.building import SimpleBuilding
 
 
 class World:
@@ -28,11 +29,20 @@ class World:
         # Track physics objects
         self.physics_objects = []
 
+        # Track buildings
+        self.buildings = []
+
         # Generate initial terrain chunks
         self._generate_initial_terrain()
 
         # Add example cubes to demonstrate physics and shadows
-        self._create_example_cubes()
+        # self._create_example_cubes()
+
+        # Create example destructible buildings
+        self._create_example_buildings()
+
+        # Create example destructible wall
+        # self._create_example_wall()
 
     def _generate_initial_terrain(self):
         """Generate initial terrain chunks around spawn point."""
@@ -187,6 +197,80 @@ class World:
 
         return body_np
 
+    def _create_example_buildings(self):
+        """Create example destructible buildings."""
+        print("Creating example buildings...")
+
+        # Create a simple building
+        building1 = SimpleBuilding(
+            self.bullet_world,
+            self.render,
+            Vec3(30, 30, 0),
+            width=8,
+            depth=8,
+            height=6,
+            name="building_1",
+        )
+        self.buildings.append(building1)
+
+        # Create a larger building
+        building2 = SimpleBuilding(
+            self.bullet_world,
+            self.render,
+            Vec3(45, 30, 0),
+            width=12,
+            depth=10,
+            height=8,
+            name="building_2",
+        )
+        self.buildings.append(building2)
+
+        # Create a tall narrow building (more unstable)
+        building3 = SimpleBuilding(
+            self.bullet_world,
+            self.render,
+            Vec3(30, 45, 0),
+            width=6,
+            depth=6,
+            height=12,
+            name="building_3",
+        )
+        self.buildings.append(building3)
+
+        print(f"Created {len(self.buildings)} example buildings")
+
+    def damage_building_at_position(self, position, damage=50):
+        """Damage a building piece at or near a position.
+
+        Args:
+            position: Vec3 world position
+            damage: Amount of damage to apply
+
+        Returns:
+            bool: True if something was damaged
+        """
+        # Find the closest building piece
+        closest_building = None
+        closest_piece = None
+        closest_dist = float("inf")
+
+        for building in self.buildings:
+            piece = building.get_piece_at_position(position, max_distance=5.0)
+            if piece:
+                piece_pos = piece.body_np.getPos()
+                dist = (piece_pos - position).length()
+                if dist < closest_dist:
+                    closest_dist = dist
+                    closest_piece = piece
+                    closest_building = building
+
+        if closest_piece and closest_building:
+            print(f"Damaging {closest_piece.name} (distance: {closest_dist:.2f})")
+            closest_building.damage_piece(closest_piece.name, damage)
+            return True
+
+        return False
+
     def update(self, dt, camera_pos=None):
         """Update world state.
 
@@ -240,3 +324,48 @@ class World:
         """
         height = self.terrain.get_height_at(x, z)
         return height if height is not None else 0
+
+    def _create_example_wall(self):
+        """Create example destructible wall to demonstrate building mechanics."""
+        print("Creating example destructible wall...")
+
+        # Create a simple standalone wall using the building system
+        from structures.building import BuildingPiece
+
+        # Wall parameters
+        wall_position = Vec3(25, 25, 0)  # Position on terrain
+        wall_width = 15.0  # Wide wall
+        wall_thickness = 0.8  # Thin wall
+        wall_height = 8.0  # Tall wall
+        wall_color = Vec4(0.7, 0.6, 0.5, 1.0)  # Stone/concrete color
+
+        # Get terrain height at wall position
+        terrain_height = self.get_height_at(wall_position.x, wall_position.y)
+        wall_base_position = Vec3(wall_position.x, wall_position.y, terrain_height + wall_height / 2)
+
+        # Create a single large wall piece
+        wall = BuildingPiece(
+            self.bullet_world,
+            self.render,
+            wall_base_position,
+            Vec3(wall_width, wall_thickness, wall_height),
+            mass=50.0,  # Heavy wall
+            color=wall_color,
+            name="example_wall_main",
+            piece_type="wall",
+        )
+
+        # Add to buildings list for damage handling
+        # Create a simple Building wrapper to manage this standalone wall
+        from structures.building import Building
+
+        wall_building = Building(
+            self.bullet_world,
+            self.render,
+            wall_base_position,
+            name="standalone_wall",
+        )
+        wall_building.add_piece(wall)
+        self.buildings.append(wall_building)
+
+        print(f"Created standalone destructible wall at {wall_base_position}")

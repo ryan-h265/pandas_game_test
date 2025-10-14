@@ -1,8 +1,8 @@
 """Shadow system configuration settings."""
 
 # Shadow Map Settings
-SHADOW_MAP_SIZE = 2048  # Resolution per cascade (1024, 2048, 4096)
-NUM_CASCADES = 3  # Number of shadow cascades (2-4)
+SHADOW_MAP_SIZE = 1024  # Resolution per cascade (1024, 2048, 4096)
+NUM_CASCADES = 2  # Number of shadow cascades (2-4)
 CASCADE_SPLITS = [20.0, 50.0, 150.0]  # View space split distances
 SHADOW_SOFTNESS = 2.0  # PCF kernel size multiplier (0.5-10.0)
 
@@ -15,7 +15,7 @@ AMBIENT_COLOR = (0.3, 0.3, 0.3)  # Ambient light color
 SSAO_ENABLED = True  # Enable/disable SSAO
 SSAO_RADIUS = 1.5  # Occlusion sample radius (0.5-5.0)
 SSAO_BIAS = 0.025  # Depth bias (0.001-0.1)
-SSAO_KERNEL_SIZE = 32  # Number of samples (16, 32, 64)
+SSAO_KERNEL_SIZE = 16  # Number of samples (16, 32, 64)
 
 # Denoising Settings
 DENOISE_ENABLED = True  # Enable/disable denoising

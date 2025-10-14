@@ -8,9 +8,13 @@ from player.controller import PlayerController
 from player.camera import CameraController
 from interaction.raycast import TerrainRaycaster
 from interaction.terrain_editor import TerrainEditor
+from interaction.building_raycast import BuildingRaycaster
 from rendering.brush_indicator import BrushIndicator
 from rendering.shadow_manager import ShadowManager
 from rendering.post_process import PostProcessManager
+from rendering.effects import EffectsManager
+from tools.tool_manager import ToolManager, ToolType
+from ui.hud import HUD
 
 
 class Game(ShowBase):
@@ -42,6 +46,26 @@ class Game(ShowBase):
         self.terrain_editor = TerrainEditor(self.game_world.terrain)
         self.brush_indicator = BrushIndicator(self.render)
 
+        # Initialize building raycaster for physics-based shooting
+        self.building_raycaster = BuildingRaycaster(self.world, self.render)
+
+        # Initialize HUD
+        self.hud = HUD()
+
+        # Initialize effects manager
+        self.effects_manager = EffectsManager(self.render)
+
+        # Initialize tool system
+        self.tool_manager = ToolManager(
+            self.terrain_editor,
+            self.game_world,
+            self.camera,
+            self.effects_manager,
+            self.building_raycaster
+        )
+        # Set up tool message callback to display on HUD
+        self.tool_manager.tool_message_callback = self.on_tool_change
+
         # Initialize shadow system
         light_dir = Vec3(1, 1, -1)  # Sun direction
         self.shadow_manager = ShadowManager(self, self.render, light_dir)
@@ -50,8 +74,8 @@ class Game(ShowBase):
         # Initialize post-processing
         self.post_process = PostProcessManager(self.render, self.cam)
 
-        # Terrain editing state
-        self.editing_terrain = False
+        # Interaction state
+        self.is_using_tool = False
 
         # Setup input
         self.setup_input()
@@ -74,16 +98,18 @@ class Game(ShowBase):
         print("  Mouse - Look around")
         print("  M - Toggle mouse capture")
         print("")
-        print("  Left Click - Lower terrain (dig)")
-        print("  Right Click - Raise terrain (build)")
-        print("  Middle Click - Smooth terrain")
+        print("  Q - Switch tools (Fist / Terrain / Crowbar / Gun)")
+        print("  Left Click - Use tool (punch/dig/swing/shoot)")
+        print("  Right Click - Secondary action (raise terrain)")
+        print("  Middle Click - Tertiary action (smooth terrain)")
         print("  Scroll Wheel - Adjust brush size")
-        print("  1/2/3 - Set edit mode (raise/lower/smooth)")
+        print("  1/2/3 - Set terrain mode (lower/raise/smooth)")
         print("")
         print("  Z/X - Adjust shadow softness")
         print("  C - Toggle post-processing")
         print("  V - Toggle chunk debug colors")
         print("  B - Toggle wireframe debug")
+        print("  R - Toggle raycast debug (shows gun ray paths)")
         print("  ESC - Quit")
 
     def print_gpu_info(self):
@@ -179,7 +205,10 @@ class Game(ShowBase):
         # Mouse toggle
         self.accept("m", self.toggle_mouse)
 
-        # Terrain editing - Mouse buttons
+        # Tool switching
+        self.accept("q", self.tool_manager.cycle_tool)
+
+        # Tool usage - Mouse buttons
         self.accept("mouse1", self.on_mouse_down, [1])  # Left click
         self.accept("mouse1-up", self.on_mouse_up, [1])
         self.accept("mouse3", self.on_mouse_down, [3])  # Right click
@@ -187,10 +216,10 @@ class Game(ShowBase):
         self.accept("mouse2", self.on_mouse_down, [2])  # Middle click
         self.accept("mouse2-up", self.on_mouse_up, [2])
 
-        # Terrain editing - Mode switching
-        self.accept("1", self.terrain_editor.set_edit_mode, ["lower"])
-        self.accept("2", self.terrain_editor.set_edit_mode, ["raise"])
-        self.accept("3", self.terrain_editor.set_edit_mode, ["smooth"])
+        # Terrain mode switching (only when terrain tool is active)
+        self.accept("1", self.set_terrain_mode, ["lower"])
+        self.accept("2", self.set_terrain_mode, ["raise"])
+        self.accept("3", self.set_terrain_mode, ["smooth"])
 
         # Brush size adjustment
         self.accept("wheel_up", self.adjust_brush_size, [1])
@@ -204,6 +233,7 @@ class Game(ShowBase):
         # Debug visualization
         self.accept("v", self.toggle_chunk_colors)  # Toggle chunk debug colors
         self.accept("b", self.toggle_wireframe)  # Toggle wireframe
+        self.accept("r", self.toggle_raycast_debug)  # Toggle raycast debug visualization
 
         # Quit
         self.accept("escape", self.quit_game)
@@ -252,15 +282,23 @@ class Game(ShowBase):
         Args:
             button: Mouse button number (1=left, 2=middle, 3=right)
         """
-        # Set edit mode based on button
-        if button == 1:  # Left click - lower
-            self.terrain_editor.set_edit_mode("lower")
-        elif button == 3:  # Right click - raise
-            self.terrain_editor.set_edit_mode("raise")
-        elif button == 2:  # Middle click - smooth
-            self.terrain_editor.set_edit_mode("smooth")
+        self.is_using_tool = True
+        self.current_mouse_button = button
 
-        self.editing_terrain = True
+        # For gun/crowbar/fist, fire immediately on click (not continuous)
+        active_tool = self.tool_manager.get_active_tool()
+        if active_tool and active_tool.tool_type in [ToolType.GUN, ToolType.CROWBAR, ToolType.FIST]:
+            # Get hit info for these tools
+            hit = self.raycaster.get_terrain_hit(self.mouseWatcherNode)
+
+            if button == 1:  # Left click
+                result = self.tool_manager.use_primary(hit)
+                if result:
+                    print(f"{active_tool.name} used successfully")
+            elif button == 3:  # Right click
+                self.tool_manager.use_secondary(hit)
+            elif button == 2:  # Middle click
+                self.tool_manager.use_tertiary(hit)
 
     def on_mouse_up(self, button):
         """Handle mouse button release.
@@ -268,7 +306,8 @@ class Game(ShowBase):
         Args:
             button: Mouse button number
         """
-        self.editing_terrain = False
+        self.is_using_tool = False
+        self.current_mouse_button = None
 
     def adjust_brush_size(self, direction):
         """Adjust terrain brush size.
@@ -338,6 +377,37 @@ class Game(ShowBase):
             import traceback
             traceback.print_exc()
 
+    def toggle_raycast_debug(self):
+        """Toggle raycast debug visualization."""
+        self.effects_manager.set_debug_mode(not self.effects_manager.debug_mode)
+        status = "ON" if self.effects_manager.debug_mode else "OFF"
+        self.hud.show_message(f"Raycast Debug: {status}")
+
+    def on_tool_change(self, message):
+        """Handle tool change event.
+
+        Args:
+            message: Tool change message
+        """
+        # Extract tool name from message
+        if ":" in message:
+            tool_name = message.split(":", 1)[1].strip()
+            tool_name = tool_name.split("(")[0].strip()
+            self.hud.set_tool_name(tool_name)
+        self.hud.show_message(message)
+
+    def set_terrain_mode(self, mode):
+        """Set terrain editing mode (only works with terrain tool).
+
+        Args:
+            mode: 'lower', 'raise', or 'smooth'
+        """
+        active_tool = self.tool_manager.get_active_tool()
+        if active_tool and active_tool.tool_type == ToolType.TERRAIN:
+            active_tool.set_mode(mode)
+        else:
+            self.hud.show_message("Terrain modes only work with Terrain tool! Press Q to switch.")
+
     def quit_game(self):
         """Clean quit handler"""
         print("\nQuitting game...")
@@ -378,18 +448,37 @@ class Game(ShowBase):
                 # Re-center the mouse
                 self.win.movePointer(0, center_x, center_y)
 
-        # Handle terrain editing
+        # Handle tool usage
         hit = self.raycaster.get_terrain_hit(self.mouseWatcherNode)
         if hit:
-            # Update brush indicator position
-            self.brush_indicator.update_position(hit["position"])
-            self.brush_indicator.show()
+            # Update brush indicator position (only show for terrain tool)
+            active_tool = self.tool_manager.get_active_tool()
+            if active_tool and active_tool.tool_type == ToolType.TERRAIN:
+                self.brush_indicator.update_position(hit["position"])
+                self.brush_indicator.show()
+            else:
+                self.brush_indicator.hide()
 
-            # Perform terrain editing if mouse button is held
-            if self.editing_terrain:
-                self.terrain_editor.modify_terrain(hit["position"])
+            # Use tool if mouse button is held
+            if self.is_using_tool:
+                button = getattr(self, 'current_mouse_button', 1)
+                if button == 1:  # Left click
+                    self.tool_manager.use_primary(hit)
+                elif button == 3:  # Right click
+                    self.tool_manager.use_secondary(hit)
+                elif button == 2:  # Middle click
+                    self.tool_manager.use_tertiary(hit)
         else:
             self.brush_indicator.hide()
+
+        # Update tool manager
+        self.tool_manager.update(dt)
+
+        # Update effects
+        self.effects_manager.update(dt)
+
+        # Update HUD
+        self.hud.update(dt)
 
         # Update player movement
         self.player.update(dt, self.camera_controller)
