@@ -330,6 +330,133 @@ class BuildingPiece:
                 color_writer.setRow(v)
                 color_writer.setData4(new_color)
 
+    def add_bullet_hole(self, world_impact_pos):
+        """Add a black bullet hole mark at the impact position.
+        
+        Args:
+            world_impact_pos: Vec3 world position where bullet hit
+        """
+        # Convert world position to local position
+        local_pos = self.body_np.getRelativePoint(self.render, world_impact_pos)
+        
+        # Create a small black sphere as a bullet hole mark
+        from panda3d.core import GeomNode, GeomVertexFormat, GeomVertexData, GeomVertexWriter
+        from panda3d.core import Geom, GeomTriangles
+        
+        bullet_hole_size = 0.15  # Small hole
+        
+        # Create a simple black quad as the bullet hole
+        vformat = GeomVertexFormat.getV3n3c4()
+        vdata = GeomVertexData("bullet_hole", vformat, Geom.UHStatic)
+        
+        vertex = GeomVertexWriter(vdata, "vertex")
+        normal = GeomVertexWriter(vdata, "normal")
+        color_writer = GeomVertexWriter(vdata, "color")
+        
+        # Determine which face was hit based on local position
+        half_size = self.size / 2
+        
+        # Find closest face
+        distances = {
+            'x+': abs(local_pos.x - half_size.x),
+            'x-': abs(local_pos.x + half_size.x),
+            'y+': abs(local_pos.y - half_size.y),
+            'y-': abs(local_pos.y + half_size.y),
+            'z+': abs(local_pos.z - half_size.z),
+            'z-': abs(local_pos.z + half_size.z),
+        }
+        
+        closest_face = min(distances, key=distances.get)
+        
+        # Create a small quad on the hit face
+        black = Vec4(0.1, 0.1, 0.1, 1.0)  # Dark gray/black
+        offset = 0.01  # Slight offset to prevent z-fighting
+        
+        # Generate quad vertices based on which face was hit
+        # All quads use CCW winding when viewed from outside (from the normal direction)
+        if closest_face == 'x+':
+            x = half_size.x + offset
+            vertices = [
+                Vec3(x, local_pos.y - bullet_hole_size, local_pos.z - bullet_hole_size),
+                Vec3(x, local_pos.y + bullet_hole_size, local_pos.z - bullet_hole_size),
+                Vec3(x, local_pos.y + bullet_hole_size, local_pos.z + bullet_hole_size),
+                Vec3(x, local_pos.y - bullet_hole_size, local_pos.z + bullet_hole_size),
+            ]
+            face_normal = Vec3(1, 0, 0)
+        elif closest_face == 'x-':
+            x = -half_size.x - offset
+            vertices = [
+                Vec3(x, local_pos.y + bullet_hole_size, local_pos.z - bullet_hole_size),
+                Vec3(x, local_pos.y - bullet_hole_size, local_pos.z - bullet_hole_size),
+                Vec3(x, local_pos.y - bullet_hole_size, local_pos.z + bullet_hole_size),
+                Vec3(x, local_pos.y + bullet_hole_size, local_pos.z + bullet_hole_size),
+            ]
+            face_normal = Vec3(-1, 0, 0)
+        elif closest_face == 'y+':
+            y = half_size.y + offset
+            vertices = [
+                Vec3(local_pos.x + bullet_hole_size, y, local_pos.z - bullet_hole_size),
+                Vec3(local_pos.x - bullet_hole_size, y, local_pos.z - bullet_hole_size),
+                Vec3(local_pos.x - bullet_hole_size, y, local_pos.z + bullet_hole_size),
+                Vec3(local_pos.x + bullet_hole_size, y, local_pos.z + bullet_hole_size),
+            ]
+            face_normal = Vec3(0, 1, 0)
+        elif closest_face == 'y-':
+            y = -half_size.y - offset
+            vertices = [
+                Vec3(local_pos.x - bullet_hole_size, y, local_pos.z - bullet_hole_size),
+                Vec3(local_pos.x + bullet_hole_size, y, local_pos.z - bullet_hole_size),
+                Vec3(local_pos.x + bullet_hole_size, y, local_pos.z + bullet_hole_size),
+                Vec3(local_pos.x - bullet_hole_size, y, local_pos.z + bullet_hole_size),
+            ]
+            face_normal = Vec3(0, -1, 0)
+        elif closest_face == 'z+':
+            z = half_size.z + offset
+            vertices = [
+                Vec3(local_pos.x - bullet_hole_size, local_pos.y - bullet_hole_size, z),
+                Vec3(local_pos.x + bullet_hole_size, local_pos.y - bullet_hole_size, z),
+                Vec3(local_pos.x + bullet_hole_size, local_pos.y + bullet_hole_size, z),
+                Vec3(local_pos.x - bullet_hole_size, local_pos.y + bullet_hole_size, z),
+            ]
+            face_normal = Vec3(0, 0, 1)
+        else:  # z-
+            z = -half_size.z - offset
+            vertices = [
+                Vec3(local_pos.x + bullet_hole_size, local_pos.y - bullet_hole_size, z),
+                Vec3(local_pos.x - bullet_hole_size, local_pos.y - bullet_hole_size, z),
+                Vec3(local_pos.x - bullet_hole_size, local_pos.y + bullet_hole_size, z),
+                Vec3(local_pos.x + bullet_hole_size, local_pos.y + bullet_hole_size, z),
+            ]
+            face_normal = Vec3(0, 0, -1)
+        
+        # Add vertices for two triangles (quad)
+        tris = GeomTriangles(Geom.UHStatic)
+        
+        # Triangle 1: 0, 1, 2
+        for i in [0, 1, 2]:
+            vertex.addData3(vertices[i])
+            normal.addData3(face_normal)
+            color_writer.addData4(black)
+            tris.addVertex(i)
+        
+        # Triangle 2: 0, 2, 3
+        for i in [0, 2, 3]:
+            vertex.addData3(vertices[i])
+            normal.addData3(face_normal)
+            color_writer.addData4(black)
+            tris.addVertex(3 + (i if i == 0 else i - 1))
+        
+        tris.closePrimitive()
+        
+        # Create geometry
+        geom = Geom(vdata)
+        geom.addPrimitive(tris)
+        
+        # Create node and attach to the piece
+        geom_node = GeomNode(f"bullet_hole_{id(self)}")
+        geom_node.addGeom(geom)
+        self.body_np.attachNewNode(geom_node)
+
     def take_damage(self, amount, create_fragments=True, create_chunks=False, impact_pos=None):
         """Apply damage to this piece.
 
@@ -344,6 +471,10 @@ class BuildingPiece:
         """
         if self.is_destroyed or self.is_foundation:
             return False
+
+        # Add bullet hole mark at impact position
+        if impact_pos:
+            self.add_bullet_hole(impact_pos)
 
         self.health -= amount
 
@@ -1576,7 +1707,7 @@ class Building:
         piece = self.piece_map[piece_name]
 
         # Apply damage (destroy() will be called internally if health reaches 0)
-        destroyed = piece.take_damage(amount, create_fragments=create_fragments)
+        destroyed = piece.take_damage(amount, create_fragments=create_fragments, impact_pos=impact_pos)
 
         if destroyed:
             # Fragments are already stored in self.fragments by take_damage()
