@@ -201,43 +201,19 @@ class World:
         """Create example destructible buildings."""
         print("Creating example buildings...")
 
-        # Create a simple building
-        building1 = SimpleBuilding(
+        # Create a single large building
+        building = SimpleBuilding(
             self.bullet_world,
             self.render,
             Vec3(30, 30, 0),
-            width=8,
-            depth=8,
-            height=6,
-            name="building_1",
-        )
-        self.buildings.append(building1)
-
-        # Create a larger building
-        building2 = SimpleBuilding(
-            self.bullet_world,
-            self.render,
-            Vec3(45, 30, 0),
-            width=12,
-            depth=10,
-            height=8,
-            name="building_2",
-        )
-        self.buildings.append(building2)
-
-        # Create a tall narrow building (more unstable)
-        building3 = SimpleBuilding(
-            self.bullet_world,
-            self.render,
-            Vec3(30, 45, 0),
-            width=6,
-            depth=6,
+            width=20,
+            depth=16,
             height=12,
-            name="building_3",
+            name="large_building",
         )
-        self.buildings.append(building3)
+        self.buildings.append(building)
 
-        print(f"Created {len(self.buildings)} example buildings")
+        print(f"Created {len(self.buildings)} example building")
 
     def damage_building_at_position(self, position, damage=50):
         """Damage a building piece at or near a position.
