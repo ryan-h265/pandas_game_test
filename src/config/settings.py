@@ -39,6 +39,14 @@ GRAVITY = -9.81
 # World generation
 FLAT_WORLD = True  # Set to True for a completely flat world at height 0
 
+# Terrain resolution (vertices per chunk edge)
+# Higher = more detail but worse performance
+# Examples:
+#   TERRAIN_RESOLUTION = 32  # Default: 32x32 = 2,048 triangles per chunk
+#   TERRAIN_RESOLUTION = 16  # Lower:   16x16 = 512 triangles per chunk (4x fewer)
+#   TERRAIN_RESOLUTION = 8   # Lowest:  8x8   = 128 triangles per chunk (16x fewer)
+TERRAIN_RESOLUTION = 8  # Reduced from 32 for better performance
+
 # Debug visualization
 DEBUG_CHUNK_COLORS = False  # Show each chunk with a different color
 DEBUG_CHUNK_WIREFRAME = False  # Show wireframe overlay on chunks

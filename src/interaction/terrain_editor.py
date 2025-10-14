@@ -1,7 +1,7 @@
 """Terrain editing tools for modifying the game world."""
 
 import math
-from src.config.settings import CHUNK_SIZE
+from src.config.settings import CHUNK_SIZE, TERRAIN_RESOLUTION
 
 
 class TerrainEditor:
@@ -92,13 +92,23 @@ class TerrainEditor:
 
             # Apply the same modification to all chunks that share this vertex
             for chunk_key, chunk, local_x, local_z in chunks_to_update:
+                # Convert world-space local coordinates to array indices
+                # Array indices go from 0 to resolution, not 0 to chunk_size
+                spacing = CHUNK_SIZE / TERRAIN_RESOLUTION
+                array_x = int(round(local_x / spacing))
+                array_z = int(round(local_z / spacing))
+
+                # Ensure indices are within bounds
+                array_x = max(0, min(TERRAIN_RESOLUTION, array_x))
+                array_z = max(0, min(TERRAIN_RESOLUTION, array_z))
+
                 if isinstance(modification, tuple) and modification[0] == "smooth":
                     _, avg_height, blend = modification
-                    chunk.height_data[local_x][local_z] = (
-                        chunk.height_data[local_x][local_z] * (1 - blend) + avg_height * blend
+                    chunk.height_data[array_x][array_z] = (
+                        chunk.height_data[array_x][array_z] * (1 - blend) + avg_height * blend
                     )
                 else:
-                    chunk.height_data[local_x][local_z] += modification
+                    chunk.height_data[array_x][array_z] += modification
                 modified_chunks.add(chunk_key)
 
         # Regenerate all modified chunks
@@ -110,8 +120,8 @@ class TerrainEditor:
 
         Args:
             chunk: TerrainChunk instance
-            x: Local X coordinate
-            z: Local Z coordinate
+            x: Local X coordinate (array index, not world coordinate)
+            z: Local Z coordinate (array index, not world coordinate)
 
         Returns:
             Average height
@@ -122,7 +132,7 @@ class TerrainEditor:
         for dx in [-1, 0, 1]:
             for dz in [-1, 0, 1]:
                 nx, nz = x + dx, z + dz
-                if 0 <= nx <= CHUNK_SIZE and 0 <= nz <= CHUNK_SIZE:
+                if 0 <= nx <= TERRAIN_RESOLUTION and 0 <= nz <= TERRAIN_RESOLUTION:
                     total += chunk.height_data[nx][nz]
                     count += 1
 
@@ -142,6 +152,7 @@ class TerrainEditor:
         """
         total = 0
         count = 0
+        spacing = CHUNK_SIZE / TERRAIN_RESOLUTION
 
         for dx in [-1, 0, 1]:
             for dz in [-1, 0, 1]:
@@ -158,12 +169,18 @@ class TerrainEditor:
 
                 chunk = self.terrain.chunks[chunk_key]
 
-                # Get local position
+                # Get local position in world units
                 local_x = int(wx - chunk.world_x)
                 local_z = int(wz - chunk.world_z)
 
                 if 0 <= local_x <= CHUNK_SIZE and 0 <= local_z <= CHUNK_SIZE:
-                    total += chunk.height_data[local_x][local_z]
+                    # Convert to array indices
+                    array_x = int(round(local_x / spacing))
+                    array_z = int(round(local_z / spacing))
+                    array_x = max(0, min(TERRAIN_RESOLUTION, array_x))
+                    array_z = max(0, min(TERRAIN_RESOLUTION, array_z))
+
+                    total += chunk.height_data[array_x][array_z]
                     count += 1
 
         # Fallback to current height if no neighbors found
@@ -176,7 +193,12 @@ class TerrainEditor:
                 local_x = int(world_x - chunk.world_x)
                 local_z = int(world_z - chunk.world_z)
                 if 0 <= local_x <= CHUNK_SIZE and 0 <= local_z <= CHUNK_SIZE:
-                    return chunk.height_data[local_x][local_z]
+                    # Convert to array indices
+                    array_x = int(round(local_x / spacing))
+                    array_z = int(round(local_z / spacing))
+                    array_x = max(0, min(TERRAIN_RESOLUTION, array_x))
+                    array_z = max(0, min(TERRAIN_RESOLUTION, array_z))
+                    return chunk.height_data[array_x][array_z]
             return 0
 
         return total / count

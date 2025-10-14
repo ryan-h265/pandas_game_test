@@ -18,7 +18,7 @@ from panda3d.bullet import (
     BulletTriangleMeshShape,
 )
 
-from config.settings import CHUNK_SIZE, FLAT_WORLD
+from config.settings import CHUNK_SIZE, FLAT_WORLD, TERRAIN_RESOLUTION
 import config.settings
 
 
@@ -41,7 +41,8 @@ class TerrainChunk:
         self.render = render
         self.bullet_world = bullet_world
 
-        self.size = CHUNK_SIZE
+        self.size = CHUNK_SIZE  # World size of chunk
+        self.resolution = TERRAIN_RESOLUTION  # Number of vertices along each edge
         self.world_x = chunk_x * self.size
         self.world_z = chunk_z * self.size
 
@@ -80,16 +81,19 @@ class TerrainChunk:
         Returns:
             2D numpy array of height values
         """
-        heights = np.zeros((self.size + 1, self.size + 1))
+        heights = np.zeros((self.resolution + 1, self.resolution + 1))
 
         # If flat world is enabled, return all zeros (flat at height 0)
         if FLAT_WORLD:
             return heights
 
-        for x in range(self.size + 1):
-            for z in range(self.size + 1):
-                world_x = self.world_x + x
-                world_z = self.world_z + z
+        # Calculate spacing between vertices in world units
+        spacing = self.size / self.resolution
+
+        for x in range(self.resolution + 1):
+            for z in range(self.resolution + 1):
+                world_x = self.world_x + (x * spacing)
+                world_z = self.world_z + (z * spacing)
 
                 # Multi-octave noise for more natural terrain
                 height = 0
@@ -147,8 +151,8 @@ class TerrainChunk:
         """Calculate normal vector at a vertex by averaging adjacent face normals.
 
         Args:
-            x: Local X coordinate
-            z: Local Z coordinate
+            x: Local X coordinate (index in height_data array)
+            z: Local Z coordinate (index in height_data array)
 
         Returns:
             Tuple of (nx, ny, nz) normal components
@@ -156,18 +160,21 @@ class TerrainChunk:
         # Get height at current position
         h = self.height_data[x][z]
 
+        # Calculate spacing for proper normal calculation
+        spacing = self.size / self.resolution
+
         # Calculate normal using adjacent vertices (if they exist)
         # Sample points around the vertex
         h_left = self.height_data[x - 1][z] if x > 0 else h
-        h_right = self.height_data[x + 1][z] if x < self.size else h
+        h_right = self.height_data[x + 1][z] if x < self.resolution else h
         h_down = self.height_data[x][z - 1] if z > 0 else h
-        h_up = self.height_data[x][z + 1] if z < self.size else h
+        h_up = self.height_data[x][z + 1] if z < self.resolution else h
 
         # Calculate normal using cross product of tangent vectors
-        # Tangent in X direction
-        tx = Vec3(2.0, 0, h_right - h_left)
-        # Tangent in Z direction
-        tz = Vec3(0, 2.0, h_up - h_down)
+        # Tangent in X direction (scaled by spacing)
+        tx = Vec3(2.0 * spacing, 0, h_right - h_left)
+        # Tangent in Z direction (scaled by spacing)
+        tz = Vec3(0, 2.0 * spacing, h_up - h_down)
 
         # Normal is perpendicular to both tangents
         normal = tz.cross(tx)
@@ -180,17 +187,20 @@ class TerrainChunk:
         # Create vertex data format
         vformat = GeomVertexFormat.getV3n3c4()
         vdata = GeomVertexData("terrain", vformat, Geom.UHStatic)
-        vdata.setNumRows((self.size + 1) * (self.size + 1))
+        vdata.setNumRows((self.resolution + 1) * (self.resolution + 1))
 
         vertex = GeomVertexWriter(vdata, "vertex")
         normal = GeomVertexWriter(vdata, "normal")
         color = GeomVertexWriter(vdata, "color")
 
+        # Calculate spacing between vertices in world units
+        spacing = self.size / self.resolution
+
         # Create vertices
-        for z in range(self.size + 1):
-            for x in range(self.size + 1):
-                world_x = self.world_x + x
-                world_z = self.world_z + z
+        for z in range(self.resolution + 1):
+            for x in range(self.resolution + 1):
+                world_x = self.world_x + (x * spacing)
+                world_z = self.world_z + (z * spacing)
                 height = self.height_data[x][z]
 
                 vertex.addData3(world_x, world_z, height)
@@ -209,12 +219,12 @@ class TerrainChunk:
         # Create triangles
         tris = GeomTriangles(Geom.UHStatic)
 
-        for z in range(self.size):
-            for x in range(self.size):
+        for z in range(self.resolution):
+            for x in range(self.resolution):
                 # Calculate vertex indices
-                v0 = z * (self.size + 1) + x
+                v0 = z * (self.resolution + 1) + x
                 v1 = v0 + 1
-                v2 = v0 + (self.size + 1)
+                v2 = v0 + (self.resolution + 1)
                 v3 = v2 + 1
 
                 # First triangle (counter-clockwise winding for front face)
@@ -291,27 +301,30 @@ class TerrainChunk:
         lines.setThickness(2)
         lines.setColor(0, 0, 0, 1)  # Black wireframe
 
+        # Calculate spacing between vertices in world units
+        spacing = self.size / self.resolution
+
         # Draw horizontal lines
-        for z in range(self.size + 1):
-            for x in range(self.size):
-                world_x = self.world_x + x
-                world_z = self.world_z + z
+        for z in range(self.resolution + 1):
+            for x in range(self.resolution):
+                world_x = self.world_x + (x * spacing)
+                world_z = self.world_z + (z * spacing)
                 height1 = self.height_data[x][z]
                 height2 = self.height_data[x + 1][z]
 
                 lines.moveTo(world_x, world_z, height1 + 0.01)
-                lines.drawTo(world_x + 1, world_z, height2 + 0.01)
+                lines.drawTo(world_x + spacing, world_z, height2 + 0.01)
 
         # Draw vertical lines
-        for x in range(self.size + 1):
-            for z in range(self.size):
-                world_x = self.world_x + x
-                world_z = self.world_z + z
+        for x in range(self.resolution + 1):
+            for z in range(self.resolution):
+                world_x = self.world_x + (x * spacing)
+                world_z = self.world_z + (z * spacing)
                 height1 = self.height_data[x][z]
                 height2 = self.height_data[x][z + 1]
 
                 lines.moveTo(world_x, world_z, height1 + 0.01)
-                lines.drawTo(world_x, world_z + 1, height2 + 0.01)
+                lines.drawTo(world_x, world_z + spacing, height2 + 0.01)
 
         # Create and attach the wireframe node
         wireframe_geom = lines.create()
@@ -321,10 +334,13 @@ class TerrainChunk:
         """Create physics collision mesh."""
         mesh = BulletTriangleMesh()
 
-        for z in range(self.size):
-            for x in range(self.size):
-                world_x = self.world_x + x
-                world_z = self.world_z + z
+        # Calculate spacing between vertices in world units
+        spacing = self.size / self.resolution
+
+        for z in range(self.resolution):
+            for x in range(self.resolution):
+                world_x = self.world_x + (x * spacing)
+                world_z = self.world_z + (z * spacing)
 
                 # Get the four corners of this quad
                 h00 = self.height_data[x][z]
@@ -334,9 +350,9 @@ class TerrainChunk:
 
                 # Create two triangles
                 v0 = Vec3(world_x, world_z, h00)
-                v1 = Vec3(world_x + 1, world_z, h10)
-                v2 = Vec3(world_x, world_z + 1, h01)
-                v3 = Vec3(world_x + 1, world_z + 1, h11)
+                v1 = Vec3(world_x + spacing, world_z, h10)
+                v2 = Vec3(world_x, world_z + spacing, h01)
+                v3 = Vec3(world_x + spacing, world_z + spacing, h11)
 
                 mesh.addTriangle(v0, v2, v1)
                 mesh.addTriangle(v1, v2, v3)
