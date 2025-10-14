@@ -221,6 +221,15 @@ class World:
 
         print(f"Created {len(self.buildings)} example building")
 
+    def add_building(self, building):
+        """Add a building to the world.
+
+        Args:
+            building: Building instance to add
+        """
+        self.buildings.append(building)
+        print(f"Added building '{building.name}' to world (total: {len(self.buildings)} buildings)")
+
     def damage_building_at_position(self, position, damage=50):
         """Damage a building piece at or near a position.
 
@@ -263,6 +272,13 @@ class World:
         # Update terrain (for dynamic loading if needed)
         if camera_pos:
             self.terrain.update(camera_pos)
+        
+        # Update buildings (cleanup debris)
+        import time
+        current_time = time.time()
+        for building in self.buildings:
+            if hasattr(building, 'update'):
+                building.update(dt, current_time)
 
     def update_chunks_around_position(self, position):
         """Load/unload chunks based on position.

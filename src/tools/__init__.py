@@ -5,6 +5,7 @@ from .fist import FistTool
 from .terrain import TerrainTool
 from .crowbar import CrowbarTool
 from .gun import GunTool
+from .building import BuildingTool
 from .tool_manager import ToolManager
 
 __all__ = [
@@ -14,5 +15,6 @@ __all__ = [
     "TerrainTool",
     "CrowbarTool",
     "GunTool",
+    "BuildingTool",
     "ToolManager",
 ]

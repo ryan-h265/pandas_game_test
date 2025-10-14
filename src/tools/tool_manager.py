@@ -5,12 +5,13 @@ from .fist import FistTool
 from .terrain import TerrainTool
 from .crowbar import CrowbarTool
 from .gun import GunTool
+from .building import BuildingTool
 
 
 class ToolManager:
     """Manages player tools and tool switching."""
 
-    def __init__(self, terrain_editor, world, camera=None, effects_manager=None, building_raycaster=None, weapon_viewmodel=None):
+    def __init__(self, terrain_editor, world, camera=None, effects_manager=None, building_raycaster=None, weapon_viewmodel=None, render=None, bullet_world=None, terrain_raycaster=None, mouse_watcher=None):
         """Initialize tool manager.
 
         Args:
@@ -20,6 +21,10 @@ class ToolManager:
             effects_manager: EffectsManager for visual effects (optional)
             building_raycaster: BuildingRaycaster for physics raycasting (optional)
             weapon_viewmodel: WeaponViewModel for displaying FPS-style weapons (optional)
+            render: Panda3D render node (optional, for building tool)
+            bullet_world: Bullet physics world (optional, for building tool)
+            terrain_raycaster: TerrainRaycaster for ground placement (optional, for building tool)
+            mouse_watcher: MouseWatcher node for raycasting (optional, for building tool)
         """
         self.tools = {}
         self.active_tool = None
@@ -32,6 +37,8 @@ class ToolManager:
         self.tools[ToolType.CROWBAR] = CrowbarTool(world, camera, building_raycaster)
         if camera:
             self.tools[ToolType.GUN] = GunTool(world, camera, effects_manager, building_raycaster)
+        if camera and render and bullet_world:
+            self.tools[ToolType.BUILDING] = BuildingTool(world, camera, render, bullet_world, terrain_raycaster, mouse_watcher)
 
         # Start with fist (default)
         self.set_active_tool(ToolType.FIST)

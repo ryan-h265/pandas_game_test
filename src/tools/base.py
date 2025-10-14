@@ -10,6 +10,7 @@ class ToolType(Enum):
     TERRAIN = "terrain"
     CROWBAR = "crowbar"
     GUN = "gun"
+    BUILDING = "building"
 
 
 class Tool:

@@ -1,7 +1,6 @@
 """Fist tool - default melee interaction tool."""
 
 from .base import Tool, ToolType
-from voxel.voxel_raycast import VoxelRaycaster
 
 
 class FistTool(Tool):
@@ -35,37 +34,16 @@ class FistTool(Tool):
         Returns:
             bool: True if something was hit
         """
-        # Check if using voxel system
-        if hasattr(self.world, 'use_voxels') and self.world.use_voxels and self.world.voxel_world:
-            # Use voxel raycasting
-            voxel_hit = VoxelRaycaster.raycast_from_camera(
-                self.world.voxel_world, self.camera, self.max_range
-            )
+        if self.building_raycaster:
+            physics_hit = self.building_raycaster.raycast_from_camera(self.camera, self.max_range)
 
-            if voxel_hit:
-                voxel_coords = voxel_hit['voxel_coords']
-                voxel_type = voxel_hit['voxel_type']
+            if physics_hit["hit"]:
+                hit_pos = physics_hit["position"]
+                damaged = self.world.damage_building_at_position(hit_pos, damage=self.damage_per_hit)
 
-                # Damage the voxel
-                destroyed = self.world.voxel_world.damage_voxel_at_world_pos(
-                    voxel_coords[0], voxel_coords[1], voxel_coords[2],
-                    self.damage_per_hit
-                )
-
-                print(f"Fist punched {voxel_type.name} voxel at {voxel_coords} (distance: {voxel_hit['distance']:.2f})")
-                return True
-        else:
-            # Legacy building system
-            if self.building_raycaster:
-                physics_hit = self.building_raycaster.raycast_from_camera(self.camera, self.max_range)
-
-                if physics_hit["hit"]:
-                    hit_pos = physics_hit["position"]
-                    damaged = self.world.damage_building_at_position(hit_pos, damage=self.damage_per_hit)
-
-                    if damaged:
-                        print(f"Fist HIT building at distance {physics_hit['distance']:.2f}")
-                        return True
+                if damaged:
+                    print(f"Fist HIT building at distance {physics_hit['distance']:.2f}")
+                    return True
 
         return False
 

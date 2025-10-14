@@ -2,6 +2,7 @@
 
 import random
 import math
+import time
 from panda3d.core import Vec3, Vec4, NodePath
 from panda3d.core import GeomNode, GeomVertexFormat, GeomVertexData, GeomVertexWriter
 from panda3d.core import Geom, GeomTriangles
@@ -127,9 +128,14 @@ class Fragment:
 
     def remove(self):
         """Remove fragment from world."""
-        body_node = self.body_np.node()
-        self.world.removeRigidBody(body_node)
-        self.body_np.removeNode()
+        if self.body_np and not self.body_np.isEmpty():
+            try:
+                body_node = self.body_np.node()
+                self.world.removeRigidBody(body_node)
+                self.body_np.removeNode()
+            except:
+                # Already removed or invalid - ignore
+                pass
 
 
 class BuildingPiece:
@@ -324,14 +330,14 @@ class BuildingPiece:
                 color_writer.setRow(v)
                 color_writer.setData4(new_color)
 
-    def take_damage(self, amount, create_fragments=True, create_chunks=True, impact_pos=None):
+    def take_damage(self, amount, create_fragments=True, create_chunks=False, impact_pos=None):
         """Apply damage to this piece.
 
         Args:
             amount: Damage amount (0-100)
             create_fragments: If True, create debris when destroyed
-            create_chunks: If True, break into chunks when destroyed
-            impact_pos: Vec3 world position where damage was applied (for break lines)
+            create_chunks: Unused, kept for compatibility
+            impact_pos: Unused, kept for compatibility
 
         Returns:
             bool: True if piece was destroyed
@@ -346,7 +352,24 @@ class BuildingPiece:
         self._update_damage_color(health_ratio)
 
         if self.health <= 0:
-            self.destroy(create_fragments=create_fragments, create_chunks=create_chunks, impact_pos=impact_pos)
+            # Destroy the piece (it becomes dynamic and falls)
+            fragments = self.destroy(create_fragments=create_fragments)
+            
+            # Store fragment debris in parent building's fragments list
+            if fragments and self.parent_building:
+                current_time = time.time()
+                for fragment in fragments:
+                    # Set creation time for lifetime tracking
+                    fragment.creation_time = current_time
+                    self.parent_building.fragments.append(fragment)
+            elif fragments:
+                # If no parent building, store in class-level list to prevent GC
+                if not hasattr(BuildingPiece, '_orphan_fragments'):
+                    BuildingPiece._orphan_fragments = []
+                current_time = time.time()
+                for fragment in fragments:
+                    fragment.creation_time = current_time
+                    BuildingPiece._orphan_fragments.append(fragment)
             return True
 
         return False
@@ -377,13 +400,13 @@ class BuildingPiece:
         # Update the geometry colors
         self._apply_color_to_geometry(new_color)
 
-    def destroy(self, create_fragments=True, create_chunks=True, impact_pos=None):
+    def destroy(self, create_fragments=True, create_chunks=False, impact_pos=None):
         """Destroy this piece and remove all constraints.
 
         Args:
             create_fragments: If True, create debris fragments
-            create_chunks: If True, break into larger chunks
-            impact_pos: Vec3 world position where damage was applied (for break lines)
+            create_chunks: Unused, kept for compatibility
+            impact_pos: Unused, kept for compatibility
         """
         if self.is_destroyed:
             return []
@@ -395,34 +418,20 @@ class BuildingPiece:
         body_node.setMass(self.mass)  # Restore the original mass
         body_node.setActive(True, True)  # Ensure it's active
 
-        # Remove all constraints FIRST (before creating debris)
+        # Remove all constraints so piece can fall freely
         for constraint_info in self.constraints:
             constraint = constraint_info["constraint"]
             self.world.removeConstraint(constraint)
 
-        # Chunks should only break into fragments, not more chunks (to prevent infinite subdivision)
-        if self.piece_type == "chunk":
-            create_chunks = False
-
-        # Create both fragments and chunks (while node still exists to get position/velocity)
+        # Create small debris fragments
         fragments = []
-        chunks = []
-
         if create_fragments:
             fragments = self._create_fragments()
 
-        if create_chunks:
-            chunks = self._create_chunks(impact_pos=impact_pos)
-
-        # NOW remove the original piece from the physics world and scene
-        body_node = self.body_np.node()
-        self.world.removeRigidBody(body_node)
-        self.body_np.removeNode()
-
-        print(f"Building piece {self.name} destroyed and replaced with debris!")
-
-        # Return both fragments and chunks
-        return fragments + chunks
+        print(f"Building piece {self.name} destroyed!")
+        
+        # Return fragments for storage
+        return fragments
 
     def _create_fragments(self):
         """Create debris fragments from this piece.
@@ -603,9 +612,15 @@ class BuildingPiece:
             chunk.health = self.max_health * 0.4
             chunk.max_health = chunk.health
 
-            # Register with parent building
+            # Make chunk dynamic immediately (it's debris, not a building)
+            chunk_body = chunk.body_np.node()
+            chunk_body.setMass(chunk_mass)
+            chunk_body.setActive(True, True)
+
+            # Store chunk in parent building's fragments list (not pieces list)
+            # Chunks are temporary debris, not structural pieces
             if self.parent_building:
-                self.parent_building.add_piece(chunk)
+                self.parent_building.fragments.append(chunk)
 
             # Apply outward impulse from impact point (in 3D space)
             chunk_center = chunk.body_np.getPos()
@@ -655,11 +670,14 @@ class BuildingPiece:
                 pass  # Already removed
 
         # Remove physics body
-        body_node = self.body_np.node()
-        self.world.removeRigidBody(body_node)
-
-        # Remove from scene
-        self.body_np.removeNode()
+        if self.body_np and not self.body_np.isEmpty():
+            try:
+                body_node = self.body_np.node()
+                self.world.removeRigidBody(body_node)
+                # Remove from scene
+                self.body_np.removeNode()
+            except:
+                pass  # Already removed or invalid
 
     def is_stable(self, checked_pieces=None):
         """Check if this piece has a path to a foundation.
@@ -737,6 +755,10 @@ class FaceChunk(BuildingPiece):
         self.end_angle = end_angle
         self.chunk_index = chunk_index
         self.total_chunks = total_chunks
+
+        # Chunks have a limited lifetime (like fragments)
+        self.creation_time = 0  # Will be set externally
+        self.lifetime = 10.0  # Chunks disappear after 10 seconds
 
         # Call parent init (which creates the body and geometry)
         super().__init__(world, render, position, size, mass, color, name, "chunk", parent_building)
@@ -1535,15 +1557,15 @@ class Building:
             body_node.setActive(True, True)
             # Don't destroy them - let them fall naturally
 
-    def damage_piece(self, piece_name, amount, create_fragments=True, create_chunks=True, impact_pos=None):
+    def damage_piece(self, piece_name, amount, create_fragments=True, create_chunks=False, impact_pos=None):
         """Apply damage to a specific piece.
 
         Args:
             piece_name: Name of piece to damage
             amount: Damage amount
             create_fragments: If True, create debris when destroyed
-            create_chunks: If True, break into chunks when destroyed
-            impact_pos: Vec3 world position where damage was applied (for break lines)
+            create_chunks: Unused, kept for compatibility
+            impact_pos: Unused, kept for compatibility
 
         Returns:
             bool: True if piece was destroyed
@@ -1554,12 +1576,10 @@ class Building:
         piece = self.piece_map[piece_name]
 
         # Apply damage (destroy() will be called internally if health reaches 0)
-        destroyed = piece.take_damage(amount, create_fragments=create_fragments, create_chunks=create_chunks, impact_pos=impact_pos)
+        destroyed = piece.take_damage(amount, create_fragments=create_fragments)
 
         if destroyed:
-            # Fragments and chunks are already created by destroy() method
-            # Note: destroy() was already called by take_damage()
-
+            # Fragments are already stored in self.fragments by take_damage()
             # Check if other pieces are now unstable
             self.check_stability()
 
@@ -1590,6 +1610,28 @@ class Building:
                 closest_piece = piece
 
         return closest_piece
+
+    def update(self, dt, current_time):
+        """Update building state and cleanup old debris.
+
+        Args:
+            dt: Delta time since last update
+            current_time: Current game time in seconds
+        """
+        # Clean up old fragments
+        fragments_to_remove = []
+        
+        for fragment in self.fragments:
+            # Check if fragment has expired
+            if hasattr(fragment, 'lifetime') and hasattr(fragment, 'creation_time'):
+                if fragment.creation_time > 0 and (current_time - fragment.creation_time) > fragment.lifetime:
+                    fragments_to_remove.append(fragment)
+        
+        # Remove expired fragments
+        for fragment in fragments_to_remove:
+            if hasattr(fragment, 'remove'):
+                fragment.remove()
+            self.fragments.remove(fragment)
 
     def cleanup_destroyed_pieces(self, age_threshold=5.0):
         """Remove destroyed pieces that have been falling for a while.

@@ -76,7 +76,11 @@ class Game(ShowBase):
             self.camera,
             self.effects_manager,
             self.building_raycaster,
-            self.weapon_viewmodel
+            self.weapon_viewmodel,
+            self.render,
+            self.world,
+            self.raycaster,
+            self.mouseWatcherNode
         )
         # Set up tool message callback to display on HUD
         self.tool_manager.tool_message_callback = self.on_tool_change
@@ -120,15 +124,15 @@ class Game(ShowBase):
         print("  Mouse - Look around")
         print("  M - Toggle mouse capture")
         print("")
-        print("  Q - Switch tools (Fist / Terrain / Crowbar / Gun)")
-        print("  Left Click - Use tool (punch/dig/swing/shoot)")
-        print("  Right Click - Secondary action (raise terrain)")
-        print("  Middle Click - Tertiary action (smooth terrain)")
+        print("  Q - Switch tools (Fist / Terrain / Crowbar / Gun / Building)")
+        print("  Left Click - Use tool (punch/dig/swing/shoot/place)")
+        print("  Right Click - Secondary action (raise terrain/rotate building)")
+        print("  Middle Click - Tertiary action (smooth terrain/toggle grid snap)")
         print("")
         print("  Scroll Wheel - Adjust tool property 1 (context-sensitive)")
-        print("    • Terrain: Brush size  • Fist: Damage  • Crowbar: Damage  • Gun: Damage")
+        print("    • Terrain: Brush size  • Fist: Damage  • Crowbar: Damage  • Gun: Damage  • Building: Width")
         print("  [ / ] - Adjust tool property 2 (context-sensitive)")
-        print("    • Terrain: Strength  • Fist: Range  • Crowbar: Cooldown  • Gun: Fire rate")
+        print("    • Terrain: Strength  • Fist: Range  • Crowbar: Cooldown  • Gun: Fire rate  • Building: Height")
         print("  1/2/3 - Set terrain mode (lower/raise/smooth)")
         print("  H - Toggle weapon viewmodel (FPS-style weapon display)")
         print("  J - Toggle crosshair on/off")

@@ -34,7 +34,7 @@ RENDER_DISTANCE = 8          # Chunks to load in each direction
 
 ### Run Game
 ```bash
-hatch run python -m src.main  # Note: NOT 'hatch run run' (script not defined)
+hatch run python -m src.main
 # Or directly:
 python -m src.main
 ```
@@ -115,3 +115,6 @@ When modifying rendering code:
 - OpenGL 3.3+ (shaders use GLSL 330)
 - Hardware acceleration must be enabled (`load-display pandagl` in settings.py)
 - 4GB+ RAM for chunk loading + physics simulation
+
+
+Don't generate a 'reference guide,' 'comprehensive summary document,' or any kind of docs md files until the user explicitly mentions them.

@@ -46,6 +46,11 @@ class WeaponViewModel:
                 "rotation": Vec3(0, 0, -15),
                 "scale": 1.0,
             },
+            "building": {
+                "position": Vec3(0.35, 0.7, -0.30),
+                "rotation": Vec3(0, -10, -20),
+                "scale": 0.8,
+            },
         }
 
     def create_weapon_root(self):
@@ -85,6 +90,8 @@ class WeaponViewModel:
             self.current_model = self._create_gun_model()
         elif weapon_type == "terrain":
             self.current_model = self._create_terrain_tool_model()
+        elif weapon_type == "building":
+            self.current_model = self._create_building_tool_model()
 
         if self.current_model:
             self.current_model.reparentTo(self.weapon_root)
@@ -128,6 +135,8 @@ class WeaponViewModel:
             self._play_shoot_animation()
         elif weapon_type == "terrain":
             self._play_dig_animation()
+        elif weapon_type == "building":
+            self._play_place_animation()
 
     def update(self, dt, is_moving=False):
         """Update weapon viewmodel (bob, sway, etc.).
@@ -429,6 +438,94 @@ class WeaponViewModel:
         grip.setPos(0, 0.05, 0)
 
         return tool_root
+
+    def _create_building_tool_model(self):
+        """Create simple building tool model (like a blueprint holder/tablet).
+
+        Returns:
+            NodePath containing the building tool model
+        """
+        tool_root = NodePath("building_tool")
+
+        # Main tablet/blueprint holder (flat rectangle)
+        tablet = self._create_box(
+            Vec3(0.15, 0.20, 0.01),
+            Vec4(0.3, 0.5, 0.7, 1.0),  # Blue-ish (like a blueprint screen)
+        )
+        tablet.reparentTo(tool_root)
+        tablet.setPos(0, 0.15, 0)
+
+        # Frame around tablet
+        frame_color = Vec4(0.2, 0.2, 0.22, 1.0)
+
+        # Top frame
+        frame_top = self._create_box(
+            Vec3(0.16, 0.015, 0.015),
+            frame_color,
+        )
+        frame_top.reparentTo(tool_root)
+        frame_top.setPos(0, 0.26, 0)
+
+        # Bottom frame
+        frame_bottom = self._create_box(
+            Vec3(0.16, 0.015, 0.015),
+            frame_color,
+        )
+        frame_bottom.reparentTo(tool_root)
+        frame_bottom.setPos(0, 0.04, 0)
+
+        # Left frame
+        frame_left = self._create_box(
+            Vec3(0.015, 0.21, 0.015),
+            frame_color,
+        )
+        frame_left.reparentTo(tool_root)
+        frame_left.setPos(-0.08, 0.15, 0)
+
+        # Right frame
+        frame_right = self._create_box(
+            Vec3(0.015, 0.21, 0.015),
+            frame_color,
+        )
+        frame_right.reparentTo(tool_root)
+        frame_right.setPos(0.08, 0.15, 0)
+
+        # Simple building icon on screen (small cube to represent a building)
+        building_icon = self._create_box(
+            Vec3(0.04, 0.04, 0.05),
+            Vec4(0.8, 0.8, 0.9, 1.0),  # Light color for icon
+        )
+        building_icon.reparentTo(tool_root)
+        building_icon.setPos(0, 0.15, 0.03)
+
+        return tool_root
+
+    def _play_place_animation(self):
+        """Play building placement animation."""
+        if not self.current_model or (self.animation_sequence and self.animation_sequence.isPlaying()):
+            return
+
+        if not self.base_position:
+            return
+
+        original_pos = Vec3(self.base_position)
+        original_hpr = self.current_model.getHpr()
+
+        # Placement motion - bring tablet up and forward, then return
+        place_pos = original_pos + Vec3(-0.05, 0.15, 0.1)  # Up and forward
+        place_hpr = original_hpr + Vec3(0, -15, 5)  # Tilt slightly
+
+        self.animation_sequence = Sequence(
+            # Bring up to place
+            LerpPosInterval(self.current_model, 0.15, place_pos, blendType="easeOut"),
+            LerpHprInterval(self.current_model, 0.15, place_hpr, blendType="easeOut"),
+            # Hold briefly
+            Func(lambda: None),  # Small pause
+            # Return
+            LerpPosInterval(self.current_model, 0.2, original_pos, blendType="easeIn"),
+            LerpHprInterval(self.current_model, 0.2, original_hpr, blendType="easeIn"),
+        )
+        self.animation_sequence.start()
 
     def _create_box(self, size, color):
         """Create a simple colored box geometry.
