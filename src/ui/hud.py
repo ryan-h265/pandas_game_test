@@ -33,16 +33,6 @@ class HUD:
         self.message_timer = 0.0
         self.message_duration = 2.0  # Show messages for 2 seconds
 
-        # Crosshair (center)
-        self.crosshair = OnscreenText(
-            text="+",
-            pos=(0, 0),
-            scale=0.06,
-            fg=(1, 1, 1, 0.8),
-            align=TextNode.ACenter,
-            mayChange=False,
-        )
-
         # FPS counter (top-left)
         self.fps_text = OnscreenText(
             text="FPS: --",

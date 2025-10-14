@@ -78,6 +78,28 @@ class Tool:
         """
         pass
 
+    def adjust_primary_property(self, delta):
+        """Adjust the tool's primary property (e.g., with scroll wheel).
+
+        Args:
+            delta: Amount to adjust (positive or negative)
+
+        Returns:
+            tuple: (property_name, new_value) or None if not applicable
+        """
+        return None
+
+    def adjust_secondary_property(self, delta):
+        """Adjust the tool's secondary property (e.g., with [ ] keys).
+
+        Args:
+            delta: Amount to adjust (positive or negative)
+
+        Returns:
+            tuple: (property_name, new_value) or None if not applicable
+        """
+        return None
+
 
 class FistTool(Tool):
     """Default tool - bare hands for basic interaction."""
@@ -135,6 +157,30 @@ class FistTool(Tool):
 
         return False
 
+    def adjust_primary_property(self, delta):
+        """Adjust fist damage.
+
+        Args:
+            delta: Amount to adjust
+
+        Returns:
+            tuple: (property_name, new_value)
+        """
+        self.damage_per_hit = max(5, min(100, self.damage_per_hit + delta * 5))
+        return ("Damage", self.damage_per_hit)
+
+    def adjust_secondary_property(self, delta):
+        """Adjust fist range.
+
+        Args:
+            delta: Amount to adjust
+
+        Returns:
+            tuple: (property_name, new_value)
+        """
+        self.max_range = max(2.0, min(10.0, self.max_range + delta * 10))
+        return ("Range", self.max_range)
+
 
 class TerrainTool(Tool):
     """Tool for terrain editing (dig, raise, smooth)."""
@@ -186,6 +232,50 @@ class TerrainTool(Tool):
         self.edit_mode = mode
         self.terrain_editor.set_edit_mode(mode)
         # Return nothing - parent will handle via tool_manager
+
+    def adjust_strength(self, delta):
+        """Adjust terrain editing strength.
+
+        Args:
+            delta: Amount to adjust (positive or negative)
+        """
+        new_strength = self.terrain_editor.brush_strength + delta
+        self.terrain_editor.set_brush_strength(new_strength)
+        return self.terrain_editor.brush_strength
+
+    def get_strength(self):
+        """Get current terrain editing strength.
+
+        Returns:
+            float: Current brush strength
+        """
+        return self.terrain_editor.brush_strength
+
+    def adjust_primary_property(self, delta):
+        """Adjust brush size (scroll wheel).
+
+        Args:
+            delta: Amount to adjust
+
+        Returns:
+            tuple: (property_name, new_value)
+        """
+        new_size = self.terrain_editor.brush_size + delta
+        self.terrain_editor.set_brush_size(new_size)
+        return ("Brush Size", self.terrain_editor.brush_size)
+
+    def adjust_secondary_property(self, delta):
+        """Adjust brush strength ([ ] keys).
+
+        Args:
+            delta: Amount to adjust
+
+        Returns:
+            tuple: (property_name, new_value)
+        """
+        new_strength = self.terrain_editor.brush_strength + delta
+        self.terrain_editor.set_brush_strength(new_strength)
+        return ("Brush Strength", self.terrain_editor.brush_strength)
 
 
 class CrowbarTool(Tool):
@@ -267,6 +357,30 @@ class CrowbarTool(Tool):
             dt: Delta time
         """
         self.current_time += dt
+
+    def adjust_primary_property(self, delta):
+        """Adjust crowbar damage.
+
+        Args:
+            delta: Amount to adjust
+
+        Returns:
+            tuple: (property_name, new_value)
+        """
+        self.damage_per_hit = max(10, min(150, self.damage_per_hit + delta * 5))
+        return ("Damage", self.damage_per_hit)
+
+    def adjust_secondary_property(self, delta):
+        """Adjust crowbar swing speed (cooldown).
+
+        Args:
+            delta: Amount to adjust
+
+        Returns:
+            tuple: (property_name, new_value)
+        """
+        self.swing_cooldown = max(0.1, min(2.0, self.swing_cooldown + delta * 10))
+        return ("Cooldown", self.swing_cooldown)
 
 
 class GunTool(Tool):
@@ -378,6 +492,30 @@ class GunTool(Tool):
             dt: Delta time
         """
         self.current_time += dt
+
+    def adjust_primary_property(self, delta):
+        """Adjust gun damage.
+
+        Args:
+            delta: Amount to adjust
+
+        Returns:
+            tuple: (property_name, new_value)
+        """
+        self.damage_per_shot = max(10, min(200, self.damage_per_shot + delta * 5))
+        return ("Damage", self.damage_per_shot)
+
+    def adjust_secondary_property(self, delta):
+        """Adjust gun fire rate.
+
+        Args:
+            delta: Amount to adjust
+
+        Returns:
+            tuple: (property_name, new_value)
+        """
+        self.fire_rate = max(0.1, min(2.0, self.fire_rate + delta * 10))
+        return ("Fire Rate", self.fire_rate)
 
 
 class ToolManager:

@@ -15,7 +15,7 @@ class TerrainEditor:
         """
         self.terrain = terrain
         self.brush_size = 3.0
-        self.brush_strength = 0.5
+        self.brush_strength = 0.05  # Reduced from 0.5 for mild changes
         self.edit_mode = "raise"  # 'raise', 'lower', 'smooth'
 
     def modify_terrain(self, world_pos, mode=None, strength=None):
@@ -245,7 +245,7 @@ class TerrainEditor:
         Args:
             strength: Brush strength multiplier
         """
-        self.brush_strength = max(0.1, min(2.0, strength))
+        self.brush_strength = max(0.01, min(1.0, strength))
 
     def set_edit_mode(self, mode):
         """Set the current edit mode.

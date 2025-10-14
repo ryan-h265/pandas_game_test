@@ -16,6 +16,7 @@ from rendering.effects import EffectsManager
 from rendering.weapon_viewmodel import WeaponViewModel
 from tools.tool_manager import ToolManager, ToolType
 from ui.hud import HUD
+from ui.crosshair import CrosshairManager
 
 
 class Game(ShowBase):
@@ -53,6 +54,9 @@ class Game(ShowBase):
         # Initialize HUD
         self.hud = HUD()
 
+        # Initialize crosshair system
+        self.crosshair_manager = CrosshairManager(self)
+
         # Initialize effects manager
         self.effects_manager = EffectsManager(self.render)
 
@@ -70,6 +74,9 @@ class Game(ShowBase):
         )
         # Set up tool message callback to display on HUD
         self.tool_manager.tool_message_callback = self.on_tool_change
+
+        # Show initial crosshair (fist tool is default)
+        self.crosshair_manager.show_crosshair("fist")
 
         # Initialize shadow system (disabled by default for performance)
         self.shadows_enabled = False
@@ -111,9 +118,14 @@ class Game(ShowBase):
         print("  Left Click - Use tool (punch/dig/swing/shoot)")
         print("  Right Click - Secondary action (raise terrain)")
         print("  Middle Click - Tertiary action (smooth terrain)")
-        print("  Scroll Wheel - Adjust brush size")
+        print("")
+        print("  Scroll Wheel - Adjust tool property 1 (context-sensitive)")
+        print("    • Terrain: Brush size  • Fist: Damage  • Crowbar: Damage  • Gun: Damage")
+        print("  [ / ] - Adjust tool property 2 (context-sensitive)")
+        print("    • Terrain: Strength  • Fist: Range  • Crowbar: Cooldown  • Gun: Fire rate")
         print("  1/2/3 - Set terrain mode (lower/raise/smooth)")
         print("  H - Toggle weapon viewmodel (FPS-style weapon display)")
+        print("  J - Toggle crosshair on/off")
         print("")
         print("  N - Toggle shadows on/off")
         print("  Z/X - Adjust shadow softness")
@@ -236,6 +248,10 @@ class Game(ShowBase):
         self.accept("wheel_up", self.adjust_brush_size, [1])
         self.accept("wheel_down", self.adjust_brush_size, [-1])
 
+        # Terrain strength adjustment (for terrain tool)
+        self.accept("[", self.adjust_terrain_strength, [-0.01])  # Decrease strength
+        self.accept("]", self.adjust_terrain_strength, [0.01])  # Increase strength
+
         # Shadow quality adjustments
         self.accept("z", self.adjust_shadow_softness, [-0.5])  # Decrease softness
         self.accept("x", self.adjust_shadow_softness, [0.5])  # Increase softness
@@ -247,6 +263,7 @@ class Game(ShowBase):
         self.accept("b", self.toggle_wireframe)  # Toggle wireframe
         self.accept("r", self.toggle_raycast_debug)  # Toggle raycast debug visualization
         self.accept("h", self.toggle_weapon_viewmodel)  # Toggle weapon viewmodel on/off
+        self.accept("j", self.toggle_crosshair)  # Toggle crosshair on/off
 
         # Quit
         self.accept("escape", self.quit_game)
@@ -323,15 +340,50 @@ class Game(ShowBase):
         self.current_mouse_button = None
 
     def adjust_brush_size(self, direction):
-        """Adjust terrain brush size.
+        """Adjust active tool's primary property (context-sensitive).
 
         Args:
             direction: 1 for increase, -1 for decrease
         """
-        new_size = self.terrain_editor.brush_size + direction
-        self.terrain_editor.set_brush_size(new_size)
-        self.brush_indicator.update_size(new_size)
-        print(f"Brush size: {self.terrain_editor.brush_size:.1f}")
+        active_tool = self.tool_manager.get_active_tool()
+        if active_tool:
+            result = active_tool.adjust_primary_property(direction)
+            if result:
+                prop_name, value = result
+                # Format value based on type
+                if isinstance(value, float):
+                    value_str = f"{value:.2f}"
+                else:
+                    value_str = f"{value}"
+                
+                message = f"{active_tool.name} - {prop_name}: {value_str}"
+                self.hud.show_message(message)
+                print(message)
+                
+                # Update brush indicator if terrain tool
+                if active_tool.tool_type == ToolType.TERRAIN:
+                    self.brush_indicator.update_size(self.terrain_editor.brush_size)
+
+    def adjust_terrain_strength(self, delta):
+        """Adjust active tool's secondary property (context-sensitive).
+
+        Args:
+            delta: Amount to adjust (positive or negative)
+        """
+        active_tool = self.tool_manager.get_active_tool()
+        if active_tool:
+            result = active_tool.adjust_secondary_property(delta)
+            if result:
+                prop_name, value = result
+                # Format value based on type
+                if isinstance(value, float):
+                    value_str = f"{value:.3f}"
+                else:
+                    value_str = f"{value}"
+                
+                message = f"{active_tool.name} - {prop_name}: {value_str}"
+                self.hud.show_message(message)
+                print(message)
 
     def adjust_shadow_softness(self, delta):
         """Adjust shadow softness.
@@ -430,6 +482,21 @@ class Game(ShowBase):
                 self.hud.show_message("Weapon Viewmodel: ON")
                 print("Weapon viewmodel shown")
 
+    def toggle_crosshair(self):
+        """Toggle crosshair on/off."""
+        if self.crosshair_manager.crosshair_elements:
+            # Hide crosshair
+            self.crosshair_manager.hide_crosshair()
+            self.hud.show_message("Crosshair: OFF")
+            print("Crosshair hidden")
+        else:
+            # Show crosshair for current tool
+            active_tool = self.tool_manager.get_active_tool()
+            if active_tool:
+                self.crosshair_manager.show_crosshair(active_tool.view_model_name)
+                self.hud.show_message("Crosshair: ON")
+                print("Crosshair shown")
+
     def on_tool_change(self, message):
         """Handle tool change event.
 
@@ -442,6 +509,11 @@ class Game(ShowBase):
             tool_name = tool_name.split("(")[0].strip()
             self.hud.set_tool_name(tool_name)
         self.hud.show_message(message)
+        
+        # Update crosshair for new tool
+        active_tool = self.tool_manager.get_active_tool()
+        if active_tool:
+            self.crosshair_manager.show_crosshair(active_tool.view_model_name)
 
     def set_terrain_mode(self, mode):
         """Set terrain editing mode (only works with terrain tool).

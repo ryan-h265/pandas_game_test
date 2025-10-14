@@ -266,7 +266,7 @@ class World:
 
         if closest_piece and closest_building:
             print(f"Damaging {closest_piece.name} (distance: {closest_dist:.2f})")
-            closest_building.damage_piece(closest_piece.name, damage)
+            closest_building.damage_piece(closest_piece.name, damage, impact_pos=position)
             return True
 
         return False
