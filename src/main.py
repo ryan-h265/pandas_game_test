@@ -133,14 +133,15 @@ class Game(ShowBase):
         print("  H - Toggle weapon viewmodel (FPS-style weapon display)")
         print("  J - Toggle crosshair on/off")
         print("")
+        print("")
+        print("  ESC - Pause menu (Save/Load, Settings, Quit)")
+        print("")
         print("  N - Toggle shadows on/off")
         print("  Z/X - Adjust shadow softness")
         print("  C - Toggle post-processing")
         print("  V - Toggle chunk debug colors")
         print("  B - Toggle wireframe debug")
         print("  R - Toggle raycast debug (shows gun ray paths)")
-        print("")
-        print("  ESC - Pause menu (Settings, Quit, etc.)")
 
     def print_gpu_info(self):
         """Print GPU and graphics information"""
@@ -274,6 +275,12 @@ class Game(ShowBase):
 
         # Pause menu
         self.accept("escape", self.toggle_pause_menu)
+
+        # Save/Load system
+        self.accept("f5", self.quick_save)  # Quick save
+        self.accept("f9", self.quick_load)  # Quick load
+        self.accept("f6", self.open_save_dialog)  # Save with name
+        self.accept("f7", self.open_load_dialog)  # Load dialog
 
     def setup_mouse_control(self):
         """Setup mouse for FPS-style look control"""
@@ -635,6 +642,87 @@ class Game(ShowBase):
         self.game_world.update(dt, player_pos)
 
         return task.cont
+
+    def quick_save(self):
+        """Quick save to 'quicksave' slot."""
+        print("Quick saving...")
+        metadata = {
+            'title': 'Quick Save',
+            'description': 'Auto-saved game state'
+        }
+        success = self.game_world.save_to_file('quicksave', self.player, metadata)
+        if success:
+            self.hud.show_message("Game saved!", duration=2.0)
+        else:
+            self.hud.show_message("Save failed!", duration=2.0)
+
+    def quick_load(self):
+        """Quick load from 'quicksave' slot."""
+        print("Quick loading...")
+        success = self.game_world.load_from_file('quicksave', self.player)
+        if success:
+            self.hud.show_message("Game loaded!", duration=2.0)
+        else:
+            self.hud.show_message("Load failed! No save found.", duration=2.0)
+
+    def open_save_dialog(self):
+        """Open a simple save dialog (text input for now)."""
+        print("\n" + "="*50)
+        print("SAVE GAME")
+        print("="*50)
+        print("Enter save name (or press Enter for 'save_1'):")
+        # Note: In a real game, you'd use a proper GUI dialog
+        # For now, we'll use the quick save with a timestamped name
+        import datetime
+        save_name = f"save_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        
+        metadata = {
+            'title': f'Manual Save {datetime.datetime.now().strftime("%Y-%m-%d %H:%M")}',
+            'description': 'Manually saved game state'
+        }
+        
+        success = self.game_world.save_to_file(save_name, self.player, metadata)
+        if success:
+            print(f"Game saved as: {save_name}")
+            self.hud.show_message(f"Saved: {save_name}", duration=3.0)
+        else:
+            print("Save failed!")
+            self.hud.show_message("Save failed!", duration=2.0)
+
+    def open_load_dialog(self):
+        """Open a simple load dialog (list saves)."""
+        print("\n" + "="*50)
+        print("LOAD GAME")
+        print("="*50)
+        
+        saves = self.game_world.list_saves()
+        
+        if not saves:
+            print("No saved games found!")
+            self.hud.show_message("No saves found!", duration=2.0)
+            return
+        
+        print(f"Found {len(saves)} saved game(s):\n")
+        for i, (save_name, metadata) in enumerate(saves):
+            timestamp = metadata.get('timestamp', 'Unknown')
+            title = metadata.get('title', 'Untitled')
+            print(f"  {i+1}. {save_name}")
+            print(f"     Title: {title}")
+            print(f"     Date: {timestamp}")
+            print()
+        
+        print("Note: Use F9 to load 'quicksave', or edit code to load specific saves")
+        print("="*50 + "\n")
+        
+        # For now, just load the most recent save
+        if saves:
+            most_recent = saves[0][0]
+            print(f"Loading most recent save: {most_recent}")
+            success = self.game_world.load_from_file(most_recent, self.player)
+            if success:
+                self.hud.show_message(f"Loaded: {most_recent}", duration=3.0)
+            else:
+                self.hud.show_message("Load failed!", duration=2.0)
 
 
 if __name__ == "__main__":

@@ -1422,6 +1422,29 @@ class Building:
             self.pieces.remove(piece)
             del self.piece_map[piece.name]
 
+    def destroy(self):
+        """Completely destroy this building and remove all pieces."""
+        # Remove all constraints first
+        for piece in self.pieces:
+            for constraint_data in piece.constraints:
+                constraint = constraint_data['constraint']
+                if constraint:
+                    self.world.removeConstraint(constraint)
+
+        # Remove all pieces
+        for piece in self.pieces:
+            if not piece.is_destroyed:
+                piece.remove_from_world()
+
+        # Clear fragments
+        for fragment in self.fragments:
+            if hasattr(fragment, 'remove'):
+                fragment.remove()
+
+        self.pieces.clear()
+        self.piece_map.clear()
+        self.fragments.clear()
+
 
 class SimpleBuilding(Building):
     """A simple building with walls and a roof."""

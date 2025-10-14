@@ -5,17 +5,19 @@ from panda3d.bullet import BulletRigidBodyNode, BulletBoxShape
 from config.settings import RENDER_DISTANCE
 from engine.terrain import Terrain
 from structures.building import SimpleBuilding
+from engine.world_serializer import WorldSerializer
 
 
 class World:
     """Manages the game world state and updates."""
 
-    def __init__(self, render, bullet_world):
+    def __init__(self, render, bullet_world, auto_generate=True):
         """Initialize the world.
 
         Args:
             render: Panda3D render node
             bullet_world: Bullet physics world
+            auto_generate: Whether to automatically generate initial terrain and buildings
         """
         self.render = render
         self.bullet_world = bullet_world
@@ -32,17 +34,21 @@ class World:
         # Track buildings
         self.buildings = []
 
-        # Generate initial terrain chunks
-        self._generate_initial_terrain()
+        # Initialize world serializer
+        self.serializer = WorldSerializer()
 
-        # Add example cubes to demonstrate physics and shadows
-        # self._create_example_cubes()
+        if auto_generate:
+            # Generate initial terrain chunks
+            self._generate_initial_terrain()
 
-        # Create example destructible buildings
-        self._create_example_buildings()
+            # Add example cubes to demonstrate physics and shadows
+            # self._create_example_cubes()
 
-        # Create example destructible wall
-        # self._create_example_wall()
+            # Create example destructible buildings
+            self._create_example_buildings()
+
+            # Create example destructible wall
+            # self._create_example_wall()
 
     def _generate_initial_terrain(self):
         """Generate initial terrain chunks around spawn point."""
@@ -345,3 +351,54 @@ class World:
         self.buildings.append(wall_building)
 
         print(f"Created standalone destructible wall at {wall_base_position}")
+
+    def save_to_file(self, save_name, player, metadata=None):
+        """Save the current world state to a file.
+
+        Args:
+            save_name: Name for the save file
+            player: PlayerController instance
+            metadata: Optional metadata dict (title, description, etc.)
+
+        Returns:
+            bool: True if save was successful
+        """
+        return self.serializer.save_world(self, player, save_name, metadata)
+
+    def load_from_file(self, save_name, player):
+        """Load world state from a file.
+
+        Args:
+            save_name: Name of the save file to load
+            player: PlayerController instance
+
+        Returns:
+            bool: True if load was successful
+        """
+        return self.serializer.load_world(self, player, save_name)
+
+    def list_saves(self):
+        """List all available save files.
+
+        Returns:
+            List of tuples (save_name, metadata_dict)
+        """
+        return self.serializer.list_saves()
+
+    def clear_world(self):
+        """Clear all objects from the world (buildings, physics objects, etc.)."""
+        # Remove all buildings
+        for building in self.buildings:
+            if hasattr(building, 'destroy'):
+                building.destroy()
+        self.buildings.clear()
+
+        # Remove all physics objects
+        for obj_np in self.physics_objects:
+            if obj_np and not obj_np.isEmpty():
+                body_node = obj_np.node()
+                self.bullet_world.removeRigidBody(body_node)
+                obj_np.removeNode()
+        self.physics_objects.clear()
+
+        print("World cleared")

@@ -81,14 +81,15 @@ class HUD:
         """
         self.tool_text.setText(f"Tool: {tool_name}")
 
-    def show_message(self, message):
+    def show_message(self, message, duration=None):
         """Display a temporary message.
 
         Args:
             message: Message text to display
+            duration: Optional duration in seconds (uses default if not provided)
         """
         self.message_text.setText(message)
-        self.message_timer = self.message_duration
+        self.message_timer = duration if duration is not None else self.message_duration
 
     def add_element(self, element):
         """Add a UI element to the HUD.

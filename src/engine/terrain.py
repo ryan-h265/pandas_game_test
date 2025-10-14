@@ -385,6 +385,15 @@ class TerrainChunk:
         self._create_mesh()
         self._create_collision()
 
+    def _update_mesh(self):
+        """Update mesh after height data modification (alias for regenerate)."""
+        self.regenerate()
+
+    def _update_collision(self):
+        """Update collision after height data modification (alias for regenerate)."""
+        # Note: regenerate() already handles both mesh and collision
+        pass
+
     def remove(self):
         """Remove this chunk from the scene."""
         if self.node_path:

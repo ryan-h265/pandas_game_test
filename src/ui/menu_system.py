@@ -48,6 +48,8 @@ class MenuSystem:
         # Create menus (initially hidden)
         self.create_pause_menu()
         self.create_settings_menu()
+        self.create_save_menu()
+        self.create_load_menu()
 
     def sync_settings_from_game(self):
         """Sync settings values from the game state."""
@@ -83,7 +85,7 @@ class MenuSystem:
 
         # Buttons
         button_spacing = 0.15
-        button_start_y = 0.2
+        button_start_y = 0.35
 
         self.resume_button = DirectButton(
             text="Resume",
@@ -102,13 +104,45 @@ class MenuSystem:
         self.resume_button.bind(DGG.ENTER, self.on_button_hover, [self.resume_button])
         self.resume_button.bind(DGG.EXIT, self.on_button_exit, [self.resume_button])
 
+        self.save_button = DirectButton(
+            text="Save Game",
+            text_scale=0.08,
+            text_fg=self.text_color,
+            frameColor=self.button_color,
+            frameSize=(-0.4, 0.4, -0.06, 0.06),
+            pos=(0, 0, button_start_y - button_spacing),
+            command=self.show_save_menu,
+            parent=self.pause_bg,
+            rolloverSound=None,
+            clickSound=None,
+            relief=DGG.FLAT,
+        )
+        self.save_button.bind(DGG.ENTER, self.on_button_hover, [self.save_button])
+        self.save_button.bind(DGG.EXIT, self.on_button_exit, [self.save_button])
+
+        self.load_button = DirectButton(
+            text="Load Game",
+            text_scale=0.08,
+            text_fg=self.text_color,
+            frameColor=self.button_color,
+            frameSize=(-0.4, 0.4, -0.06, 0.06),
+            pos=(0, 0, button_start_y - button_spacing * 2),
+            command=self.show_load_menu,
+            parent=self.pause_bg,
+            rolloverSound=None,
+            clickSound=None,
+            relief=DGG.FLAT,
+        )
+        self.load_button.bind(DGG.ENTER, self.on_button_hover, [self.load_button])
+        self.load_button.bind(DGG.EXIT, self.on_button_exit, [self.load_button])
+
         self.settings_button = DirectButton(
             text="Settings",
             text_scale=0.08,
             text_fg=self.text_color,
             frameColor=self.button_color,
             frameSize=(-0.4, 0.4, -0.06, 0.06),
-            pos=(0, 0, button_start_y - button_spacing),
+            pos=(0, 0, button_start_y - button_spacing * 3),
             command=self.show_settings,
             parent=self.pause_bg,
             rolloverSound=None,
@@ -124,7 +158,7 @@ class MenuSystem:
             text_fg=self.text_color,
             frameColor=self.button_color,
             frameSize=(-0.4, 0.4, -0.06, 0.06),
-            pos=(0, 0, button_start_y - button_spacing * 2),
+            pos=(0, 0, button_start_y - button_spacing * 4),
             command=self.quit_to_desktop,
             parent=self.pause_bg,
             rolloverSound=None,
@@ -425,6 +459,10 @@ class MenuSystem:
         # Hide all menus
         self.pause_bg.hide()
         self.settings_bg.hide()
+        if hasattr(self, 'save_bg'):
+            self.save_bg.hide()
+        if hasattr(self, 'load_bg'):
+            self.load_bg.hide()
 
         # Capture mouse cursor again
         if not self.game.mouse_captured:
@@ -461,9 +499,424 @@ class MenuSystem:
         print("Quitting to desktop...")
         self.game.quit_game()
 
+    def create_save_menu(self):
+        """Create the save game menu UI."""
+        # Background
+        self.save_bg = DirectFrame(
+            frameColor=self.bg_color,
+            frameSize=(-1.5, 1.5, -1, 1),
+            sortOrder=11,
+        )
+        self.save_bg.setTransparency(TransparencyAttrib.MAlpha)
+        self.save_bg.hide()
+
+        # Title
+        DirectLabel(
+            text="SAVE GAME",
+            text_scale=0.12,
+            text_fg=self.text_color,
+            frameColor=(0, 0, 0, 0),
+            pos=(0, 0, 0.7),
+            parent=self.save_bg,
+        )
+
+        # Save slots
+        y_pos = 0.4
+        spacing = 0.15
+
+        # Quick Save button
+        self.quick_save_btn = DirectButton(
+            text="Quick Save",
+            text_scale=0.07,
+            text_fg=self.text_color,
+            frameColor=self.button_color,
+            frameSize=(-0.5, 0.5, -0.06, 0.06),
+            pos=(0, 0, y_pos),
+            command=self.on_quick_save,
+            parent=self.save_bg,
+            rolloverSound=None,
+            clickSound=None,
+            relief=DGG.FLAT,
+        )
+        self.quick_save_btn.bind(DGG.ENTER, self.on_button_hover, [self.quick_save_btn])
+        self.quick_save_btn.bind(DGG.EXIT, self.on_button_exit, [self.quick_save_btn])
+
+        y_pos -= spacing
+
+        # Save Slot 1
+        self.save_slot1_btn = DirectButton(
+            text="Save Slot 1",
+            text_scale=0.07,
+            text_fg=self.text_color,
+            frameColor=self.button_color,
+            frameSize=(-0.5, 0.5, -0.06, 0.06),
+            pos=(0, 0, y_pos),
+            command=lambda: self.on_save_slot(1),
+            parent=self.save_bg,
+            rolloverSound=None,
+            clickSound=None,
+            relief=DGG.FLAT,
+        )
+        self.save_slot1_btn.bind(DGG.ENTER, self.on_button_hover, [self.save_slot1_btn])
+        self.save_slot1_btn.bind(DGG.EXIT, self.on_button_exit, [self.save_slot1_btn])
+
+        y_pos -= spacing
+
+        # Save Slot 2
+        self.save_slot2_btn = DirectButton(
+            text="Save Slot 2",
+            text_scale=0.07,
+            text_fg=self.text_color,
+            frameColor=self.button_color,
+            frameSize=(-0.5, 0.5, -0.06, 0.06),
+            pos=(0, 0, y_pos),
+            command=lambda: self.on_save_slot(2),
+            parent=self.save_bg,
+            rolloverSound=None,
+            clickSound=None,
+            relief=DGG.FLAT,
+        )
+        self.save_slot2_btn.bind(DGG.ENTER, self.on_button_hover, [self.save_slot2_btn])
+        self.save_slot2_btn.bind(DGG.EXIT, self.on_button_exit, [self.save_slot2_btn])
+
+        y_pos -= spacing
+
+        # Save Slot 3
+        self.save_slot3_btn = DirectButton(
+            text="Save Slot 3",
+            text_scale=0.07,
+            text_fg=self.text_color,
+            frameColor=self.button_color,
+            frameSize=(-0.5, 0.5, -0.06, 0.06),
+            pos=(0, 0, y_pos),
+            command=lambda: self.on_save_slot(3),
+            parent=self.save_bg,
+            rolloverSound=None,
+            clickSound=None,
+            relief=DGG.FLAT,
+        )
+        self.save_slot3_btn.bind(DGG.ENTER, self.on_button_hover, [self.save_slot3_btn])
+        self.save_slot3_btn.bind(DGG.EXIT, self.on_button_exit, [self.save_slot3_btn])
+
+        # Info label
+        self.save_info_label = DirectLabel(
+            text="Select a slot to save your game",
+            text_scale=0.05,
+            text_fg=(0.7, 0.7, 0.7, 1),
+            frameColor=(0, 0, 0, 0),
+            pos=(0, 0, -0.3),
+            parent=self.save_bg,
+        )
+
+        # Back button
+        self.save_back_btn = DirectButton(
+            text="Back",
+            text_scale=0.08,
+            text_fg=self.text_color,
+            frameColor=self.button_color,
+            frameSize=(-0.3, 0.3, -0.06, 0.06),
+            pos=(0, 0, -0.7),
+            command=self.hide_save_menu,
+            parent=self.save_bg,
+            rolloverSound=None,
+            clickSound=None,
+            relief=DGG.FLAT,
+        )
+        self.save_back_btn.bind(DGG.ENTER, self.on_button_hover, [self.save_back_btn])
+        self.save_back_btn.bind(DGG.EXIT, self.on_button_exit, [self.save_back_btn])
+
+    def create_load_menu(self):
+        """Create the load game menu UI."""
+        # Background
+        self.load_bg = DirectFrame(
+            frameColor=self.bg_color,
+            frameSize=(-1.5, 1.5, -1, 1),
+            sortOrder=11,
+        )
+        self.load_bg.setTransparency(TransparencyAttrib.MAlpha)
+        self.load_bg.hide()
+
+        # Title
+        DirectLabel(
+            text="LOAD GAME",
+            text_scale=0.12,
+            text_fg=self.text_color,
+            frameColor=(0, 0, 0, 0),
+            pos=(0, 0, 0.7),
+            parent=self.load_bg,
+        )
+
+        # Load slots
+        y_pos = 0.4
+        spacing = 0.15
+
+        # Quick Load button
+        self.quick_load_btn = DirectButton(
+            text="Quick Load",
+            text_scale=0.07,
+            text_fg=self.text_color,
+            frameColor=self.button_color,
+            frameSize=(-0.5, 0.5, -0.06, 0.06),
+            pos=(0, 0, y_pos),
+            command=self.on_quick_load,
+            parent=self.load_bg,
+            rolloverSound=None,
+            clickSound=None,
+            relief=DGG.FLAT,
+        )
+        self.quick_load_btn.bind(DGG.ENTER, self.on_button_hover, [self.quick_load_btn])
+        self.quick_load_btn.bind(DGG.EXIT, self.on_button_exit, [self.quick_load_btn])
+
+        self.quick_load_info = DirectLabel(
+            text="",
+            text_scale=0.04,
+            text_fg=(0.7, 0.7, 0.7, 1),
+            frameColor=(0, 0, 0, 0),
+            pos=(0, 0, y_pos - 0.08),
+            parent=self.load_bg,
+        )
+
+        y_pos -= spacing
+
+        # Load Slot 1
+        self.load_slot1_btn = DirectButton(
+            text="Load Slot 1",
+            text_scale=0.07,
+            text_fg=self.text_color,
+            frameColor=self.button_color,
+            frameSize=(-0.5, 0.5, -0.06, 0.06),
+            pos=(0, 0, y_pos),
+            command=lambda: self.on_load_slot(1),
+            parent=self.load_bg,
+            rolloverSound=None,
+            clickSound=None,
+            relief=DGG.FLAT,
+        )
+        self.load_slot1_btn.bind(DGG.ENTER, self.on_button_hover, [self.load_slot1_btn])
+        self.load_slot1_btn.bind(DGG.EXIT, self.on_button_exit, [self.load_slot1_btn])
+
+        self.load_slot1_info = DirectLabel(
+            text="",
+            text_scale=0.04,
+            text_fg=(0.7, 0.7, 0.7, 1),
+            frameColor=(0, 0, 0, 0),
+            pos=(0, 0, y_pos - 0.08),
+            parent=self.load_bg,
+        )
+
+        y_pos -= spacing
+
+        # Load Slot 2
+        self.load_slot2_btn = DirectButton(
+            text="Load Slot 2",
+            text_scale=0.07,
+            text_fg=self.text_color,
+            frameColor=self.button_color,
+            frameSize=(-0.5, 0.5, -0.06, 0.06),
+            pos=(0, 0, y_pos),
+            command=lambda: self.on_load_slot(2),
+            parent=self.load_bg,
+            rolloverSound=None,
+            clickSound=None,
+            relief=DGG.FLAT,
+        )
+        self.load_slot2_btn.bind(DGG.ENTER, self.on_button_hover, [self.load_slot2_btn])
+        self.load_slot2_btn.bind(DGG.EXIT, self.on_button_exit, [self.load_slot2_btn])
+
+        self.load_slot2_info = DirectLabel(
+            text="",
+            text_scale=0.04,
+            text_fg=(0.7, 0.7, 0.7, 1),
+            frameColor=(0, 0, 0, 0),
+            pos=(0, 0, y_pos - 0.08),
+            parent=self.load_bg,
+        )
+
+        y_pos -= spacing
+
+        # Load Slot 3
+        self.load_slot3_btn = DirectButton(
+            text="Load Slot 3",
+            text_scale=0.07,
+            text_fg=self.text_color,
+            frameColor=self.button_color,
+            frameSize=(-0.5, 0.5, -0.06, 0.06),
+            pos=(0, 0, y_pos),
+            command=lambda: self.on_load_slot(3),
+            parent=self.load_bg,
+            rolloverSound=None,
+            clickSound=None,
+            relief=DGG.FLAT,
+        )
+        self.load_slot3_btn.bind(DGG.ENTER, self.on_button_hover, [self.load_slot3_btn])
+        self.load_slot3_btn.bind(DGG.EXIT, self.on_button_exit, [self.load_slot3_btn])
+
+        self.load_slot3_info = DirectLabel(
+            text="",
+            text_scale=0.04,
+            text_fg=(0.7, 0.7, 0.7, 1),
+            frameColor=(0, 0, 0, 0),
+            pos=(0, 0, y_pos - 0.08),
+            parent=self.load_bg,
+        )
+
+        # Info label
+        self.load_info_label = DirectLabel(
+            text="Select a slot to load your game",
+            text_scale=0.05,
+            text_fg=(0.7, 0.7, 0.7, 1),
+            frameColor=(0, 0, 0, 0),
+            pos=(0, 0, -0.3),
+            parent=self.load_bg,
+        )
+
+        # Back button
+        self.load_back_btn = DirectButton(
+            text="Back",
+            text_scale=0.08,
+            text_fg=self.text_color,
+            frameColor=self.button_color,
+            frameSize=(-0.3, 0.3, -0.06, 0.06),
+            pos=(0, 0, -0.7),
+            command=self.hide_load_menu,
+            parent=self.load_bg,
+            rolloverSound=None,
+            clickSound=None,
+            relief=DGG.FLAT,
+        )
+        self.load_back_btn.bind(DGG.ENTER, self.on_button_hover, [self.load_back_btn])
+        self.load_back_btn.bind(DGG.EXIT, self.on_button_exit, [self.load_back_btn])
+
+    def show_save_menu(self):
+        """Show the save game menu."""
+        self.active_menu = 'save'
+        self.pause_bg.hide()
+        self.save_bg.show()
+        self.update_save_slot_info()
+
+    def hide_save_menu(self):
+        """Hide the save menu and return to pause menu."""
+        self.active_menu = 'pause'
+        self.save_bg.hide()
+        self.pause_bg.show()
+
+    def show_load_menu(self):
+        """Show the load game menu."""
+        self.active_menu = 'load'
+        self.pause_bg.hide()
+        self.load_bg.show()
+        self.update_load_slot_info()
+
+    def hide_load_menu(self):
+        """Hide the load menu and return to pause menu."""
+        self.active_menu = 'pause'
+        self.load_bg.hide()
+        self.pause_bg.show()
+
+    def update_save_slot_info(self):
+        """Update save slot information display."""
+        # This would check if saves exist and show their info
+        # For now, just show basic text
+        pass
+
+    def update_load_slot_info(self):
+        """Update load slot information display with save metadata."""
+        import os
+        from datetime import datetime
+        
+        # Update info for each slot
+        slots = [
+            ('quicksave', self.quick_load_info),
+            ('save_slot_1', self.load_slot1_info),
+            ('save_slot_2', self.load_slot2_info),
+            ('save_slot_3', self.load_slot3_info),
+        ]
+        
+        for save_name, info_label in slots:
+            save_path = self.game.game_world.serializer.get_save_path(save_name)
+            if save_path.exists():
+                # Get file modification time
+                mtime = os.path.getmtime(save_path)
+                time_str = datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M")
+                info_label['text'] = f"Saved: {time_str}"
+                info_label['text_fg'] = (0.7, 1.0, 0.7, 1)  # Green for existing save
+            else:
+                info_label['text'] = "Empty Slot"
+                info_label['text_fg'] = (0.7, 0.7, 0.7, 1)  # Gray for empty
+
+    def on_quick_save(self):
+        """Handle quick save button."""
+        metadata = {
+            'title': 'Quick Save',
+            'description': 'Quick save from menu'
+        }
+        success = self.game.game_world.save_to_file('quicksave', self.game.player, metadata)
+        if success:
+            self.save_info_label['text'] = "Game saved to Quick Save!"
+            self.save_info_label['text_fg'] = (0.5, 1.0, 0.5, 1)
+            print("Quick save successful")
+        else:
+            self.save_info_label['text'] = "Save failed!"
+            self.save_info_label['text_fg'] = (1.0, 0.5, 0.5, 1)
+
+    def on_save_slot(self, slot_number):
+        """Handle save to specific slot.
+        
+        Args:
+            slot_number: Slot number (1-3)
+        """
+        save_name = f'save_slot_{slot_number}'
+        metadata = {
+            'title': f'Save Slot {slot_number}',
+            'description': f'Manual save to slot {slot_number}'
+        }
+        success = self.game.game_world.save_to_file(save_name, self.game.player, metadata)
+        if success:
+            self.save_info_label['text'] = f"Game saved to Slot {slot_number}!"
+            self.save_info_label['text_fg'] = (0.5, 1.0, 0.5, 1)
+            print(f"Saved to slot {slot_number}")
+        else:
+            self.save_info_label['text'] = "Save failed!"
+            self.save_info_label['text_fg'] = (1.0, 0.5, 0.5, 1)
+
+    def on_quick_load(self):
+        """Handle quick load button."""
+        success = self.game.game_world.load_from_file('quicksave', self.game.player)
+        if success:
+            self.load_info_label['text'] = "Game loaded from Quick Save!"
+            self.load_info_label['text_fg'] = (0.5, 1.0, 0.5, 1)
+            print("Quick load successful")
+            # Resume game after loading
+            self.game.taskMgr.doMethodLater(1.0, lambda task: self.resume_game(), 'resume_after_load')
+        else:
+            self.load_info_label['text'] = "Load failed! No save found."
+            self.load_info_label['text_fg'] = (1.0, 0.5, 0.5, 1)
+
+    def on_load_slot(self, slot_number):
+        """Handle load from specific slot.
+        
+        Args:
+            slot_number: Slot number (1-3)
+        """
+        save_name = f'save_slot_{slot_number}'
+        success = self.game.game_world.load_from_file(save_name, self.game.player)
+        if success:
+            self.load_info_label['text'] = f"Game loaded from Slot {slot_number}!"
+            self.load_info_label['text_fg'] = (0.5, 1.0, 0.5, 1)
+            print(f"Loaded from slot {slot_number}")
+            # Resume game after loading
+            self.game.taskMgr.doMethodLater(1.0, lambda task: self.resume_game(), 'resume_after_load')
+        else:
+            self.load_info_label['text'] = "Load failed! No save found."
+            self.load_info_label['text_fg'] = (1.0, 0.5, 0.5, 1)
+
     def cleanup(self):
         """Clean up menu resources."""
         if self.pause_bg:
             self.pause_bg.destroy()
         if self.settings_bg:
             self.settings_bg.destroy()
+        if hasattr(self, 'save_bg') and self.save_bg:
+            self.save_bg.destroy()
+        if hasattr(self, 'load_bg') and self.load_bg:
+            self.load_bg.destroy()

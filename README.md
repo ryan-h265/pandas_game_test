@@ -7,6 +7,7 @@ A 3D sandbox game featuring fully destructible terrain, dynamic building constru
 - **Destructible Terrain**: Dig, excavate, and sculpt hills and landscapes in real-time
 - **Physics Simulation**: Realistic destruction with falling debris and collapsing structures
 - **Building System**: Construct and destroy buildings with dynamic physics
+- **Save/Load System**: Persistent world state with custom world templates
 - **Character System**: Animated player characters and NPCs with model loading support
 - **Dynamic Environment**: Procedurally generated terrain with chunk-based loading
 - **Advanced Lighting**: Cascaded shadow maps with PCF soft shadows and denoising
@@ -61,6 +62,28 @@ hatch run test
 
 We prefer short, testable functions. Each logical component should be in its own module. We prefer early return over nested logic.
 
+## Save/Load System
+
+The game features a comprehensive world persistence system with an integrated menu interface:
+- **In-Game Menu**: Access save/load through the pause menu (ESC)
+- **Multiple Slots**: Quick Save + 3 manual save slots
+- **Complete State**: Saves terrain, buildings, physics objects, and player state
+- **Save Info Display**: Load menu shows when each save was created
+- **World Templates**: Create and load pre-configured world setups
+
+See [docs/SAVE_LOAD_SYSTEM.md](docs/SAVE_LOAD_SYSTEM.md) for detailed documentation.
+See [docs/SAVE_LOAD_MENU.md](docs/SAVE_LOAD_MENU.md) for menu usage guide.
+
+**How to Save/Load:**
+1. Press **ESC** to open pause menu
+2. Click **"Save Game"** or **"Load Game"**
+3. Select a save slot (Quick Save or Slots 1-3)
+4. Game auto-resumes after loading
+
+**Keyboard Shortcuts (still available):**
+- F5 - Quick save
+- F9 - Quick load
+
 ## Shadow System
 
 The game features an advanced shadow and lighting system with:
@@ -69,7 +92,7 @@ The game features an advanced shadow and lighting system with:
 - **Bilateral denoising** to reduce artifacts
 - **SSAO support** for ambient occlusion
 
-See [SHADOW_SYSTEM.md](SHADOW_SYSTEM.md) for detailed documentation.
+See [docs/SHADOW_SYSTEM.md](docs/SHADOW_SYSTEM.md) for detailed documentation.
 
 **Shadow Controls:**
 - Z/X - Adjust shadow softness
