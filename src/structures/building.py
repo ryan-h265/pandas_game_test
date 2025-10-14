@@ -173,6 +173,14 @@ class BuildingPiece:
 
         # Constraints connecting this piece to others
         self.constraints = []
+        
+        # Track bullet holes to limit accumulation
+        self.bullet_hole_count = 0
+        self.max_bullet_holes = 20  # Limit to prevent too many geometry nodes
+        
+        # Lifetime tracking for destroyed pieces
+        self.destruction_time = None
+        self.destroyed_lifetime = 5.0  # Destroyed pieces disappear after 5 seconds
 
         # Create the physical piece
         self.body_np = self._create_physics_body()
@@ -336,6 +344,12 @@ class BuildingPiece:
         Args:
             world_impact_pos: Vec3 world position where bullet hit
         """
+        # Limit number of bullet holes to prevent performance issues
+        if self.bullet_hole_count >= self.max_bullet_holes:
+            return
+        
+        self.bullet_hole_count += 1
+        
         # Convert world position to local position
         local_pos = self.body_np.getRelativePoint(self.render, world_impact_pos)
         
@@ -543,16 +557,33 @@ class BuildingPiece:
             return []
 
         self.is_destroyed = True
+        
+        # Mark destruction time for lifetime tracking
+        import time
+        self.destruction_time = time.time()
 
         # Make the piece dynamic so it can fall
-        body_node = self.body_np.node()
-        body_node.setMass(self.mass)  # Restore the original mass
-        body_node.setActive(True, True)  # Ensure it's active
+        if self.body_np and not self.body_np.isEmpty():
+            body_node = self.body_np.node()
+            
+            # Validate current transform before making dynamic
+            current_pos = self.body_np.getPos()
+            if not (current_pos.x != current_pos.x or  # Check for NaN
+                    current_pos.y != current_pos.y or 
+                    current_pos.z != current_pos.z):
+                body_node.setMass(self.mass)  # Restore the original mass
+                body_node.setActive(True, True)  # Ensure it's active
+            else:
+                print(f"Warning: Piece {self.name} has invalid position, not making dynamic")
+                return []
 
         # Remove all constraints so piece can fall freely
         for constraint_info in self.constraints:
             constraint = constraint_info["constraint"]
-            self.world.removeConstraint(constraint)
+            try:
+                self.world.removeConstraint(constraint)
+            except:
+                pass  # Constraint may already be removed
 
         # Create small debris fragments
         fragments = []
@@ -1758,11 +1789,54 @@ class Building:
                 if fragment.creation_time > 0 and (current_time - fragment.creation_time) > fragment.lifetime:
                     fragments_to_remove.append(fragment)
         
-        # Remove expired fragments
+        # Also enforce hard limit on total fragments (remove oldest if too many)
+        max_fragments = 100  # Hard limit to prevent excessive accumulation
+        if len(self.fragments) > max_fragments:
+            # Sort by creation time and remove oldest
+            sorted_fragments = sorted(
+                [f for f in self.fragments if hasattr(f, 'creation_time')],
+                key=lambda f: f.creation_time
+            )
+            excess_count = len(self.fragments) - max_fragments
+            fragments_to_remove.extend(sorted_fragments[:excess_count])
+        
+        # Remove expired/excess fragments safely
         for fragment in fragments_to_remove:
-            if hasattr(fragment, 'remove'):
-                fragment.remove()
-            self.fragments.remove(fragment)
+            try:
+                if hasattr(fragment, 'remove'):
+                    fragment.remove()
+                if fragment in self.fragments:
+                    self.fragments.remove(fragment)
+            except Exception as e:
+                print(f"Warning: Error removing fragment: {e}")
+                # Still try to remove from list
+                if fragment in self.fragments:
+                    self.fragments.remove(fragment)
+        
+        # Clean up destroyed pieces that have exceeded their lifetime
+        pieces_to_remove = []
+        for piece in self.pieces:
+            if piece.is_destroyed and piece.destruction_time is not None:
+                time_since_destruction = current_time - piece.destruction_time
+                if time_since_destruction > piece.destroyed_lifetime:
+                    pieces_to_remove.append(piece)
+        
+        # Remove expired destroyed pieces
+        for piece in pieces_to_remove:
+            try:
+                print(f"Removing destroyed piece {piece.name} after {piece.destroyed_lifetime}s")
+                piece.remove_from_world()
+                if piece in self.pieces:
+                    self.pieces.remove(piece)
+                if piece.name in self.piece_map:
+                    del self.piece_map[piece.name]
+            except Exception as e:
+                print(f"Warning: Error removing destroyed piece {piece.name}: {e}")
+                # Still try to remove from lists
+                if piece in self.pieces:
+                    self.pieces.remove(piece)
+                if piece.name in self.piece_map:
+                    del self.piece_map[piece.name]
 
     def cleanup_destroyed_pieces(self, age_threshold=5.0):
         """Remove destroyed pieces that have been falling for a while.
