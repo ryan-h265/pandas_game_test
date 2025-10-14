@@ -183,14 +183,15 @@ class BuildingPiece:
 
         # Create rigid body node
         body_node = BulletRigidBodyNode(self.name)
-        body_node.setMass(self.mass if not self.is_foundation else 0)  # Foundation is static
+        # All building pieces start as static (kinematic) - mass 0
+        body_node.setMass(0)
         body_node.addShape(shape)
 
         # Set physics properties
-        body_node.setFriction(0.8)
-        body_node.setRestitution(0.1)  # Low bounciness for building materials
-        body_node.setLinearDamping(0.3)  # Some air resistance
-        body_node.setAngularDamping(0.5)  # Rotational damping
+        body_node.setFriction(0.9)
+        body_node.setRestitution(0.05)  # Very low bounciness for building materials
+        body_node.setLinearDamping(0.8)  # High damping to resist movement
+        body_node.setAngularDamping(0.9)  # High rotational damping to resist rotation
 
         # Create NodePath and attach to scene
         body_np = self.render.attachNewNode(body_node)
@@ -388,6 +389,11 @@ class BuildingPiece:
             return []
 
         self.is_destroyed = True
+
+        # Make the piece dynamic so it can fall
+        body_node = self.body_np.node()
+        body_node.setMass(self.mass)  # Restore the original mass
+        body_node.setActive(True, True)  # Ensure it's active
 
         # Remove all constraints FIRST (before creating debris)
         for constraint_info in self.constraints:
@@ -1339,17 +1345,20 @@ class Building:
         piece2.add_constraint(piece1, constraint)
 
     def check_stability(self):
-        """Check all pieces for stability and destroy unsupported ones."""
+        """Check all pieces for stability and make unsupported ones dynamic."""
         unstable_pieces = []
 
         for piece in self.pieces:
             if not piece.is_destroyed and not piece.is_stable():
                 unstable_pieces.append(piece)
 
-        # Destroy unstable pieces
+        # Make unstable pieces dynamic so they fall
         for piece in unstable_pieces:
             print(f"Piece {piece.name} is unsupported and collapsing!")
-            piece.destroy()
+            body_node = piece.body_np.node()
+            body_node.setMass(piece.mass)  # Make it dynamic
+            body_node.setActive(True, True)
+            # Don't destroy them - let them fall naturally
 
     def damage_piece(self, piece_name, amount, create_fragments=True, create_chunks=True, impact_pos=None):
         """Apply damage to a specific piece.
@@ -1470,7 +1479,11 @@ class SimpleBuilding(Building):
 
         wall_thickness = 0.5
         wall_height = height
-        wall_mass = 20.0
+        wall_mass = 20.0  # Reasonable mass for when pieces become dynamic
+
+        # Corner overlap amount - walls will extend this much into corners
+        # to create seamless joints
+        corner_overlap = wall_thickness
 
         # Create foundation (static)
         foundation = BuildingPiece(
@@ -1485,13 +1498,16 @@ class SimpleBuilding(Building):
         )
         self.add_piece(foundation)
 
-        # Create four walls
-        # Front wall (negative Y)
+        # Create four walls with extended lengths to overlap at corners
+        # Front and back walls extend the full width plus corner overlaps
+        # Left and right walls fit between them with no extension
+
+        # Front wall (negative Y) - extends full width + overlaps on both sides
         front_wall = BuildingPiece(
             world,
             render,
             position + Vec3(0, -depth / 2, wall_height / 2),
-            Vec3(width, wall_thickness, wall_height),
+            Vec3(width + (2 * corner_overlap), wall_thickness, wall_height),
             wall_mass,
             wall_color,
             f"{name}_wall_front",
@@ -1499,12 +1515,12 @@ class SimpleBuilding(Building):
         )
         self.add_piece(front_wall)
 
-        # Back wall (positive Y)
+        # Back wall (positive Y) - extends full width + overlaps on both sides
         back_wall = BuildingPiece(
             world,
             render,
             position + Vec3(0, depth / 2, wall_height / 2),
-            Vec3(width, wall_thickness, wall_height),
+            Vec3(width + (2 * corner_overlap), wall_thickness, wall_height),
             wall_mass,
             wall_color,
             f"{name}_wall_back",
@@ -1512,7 +1528,7 @@ class SimpleBuilding(Building):
         )
         self.add_piece(back_wall)
 
-        # Left wall (negative X)
+        # Left wall (negative X) - fits between front and back (no extension needed)
         left_wall = BuildingPiece(
             world,
             render,
@@ -1525,7 +1541,7 @@ class SimpleBuilding(Building):
         )
         self.add_piece(left_wall)
 
-        # Right wall (positive X)
+        # Right wall (positive X) - fits between front and back (no extension needed)
         right_wall = BuildingPiece(
             world,
             render,
@@ -1551,7 +1567,9 @@ class SimpleBuilding(Building):
         )
         self.add_piece(roof)
 
-        # Connect everything with constraints
+        # Connect everything - since pieces are kinematic, constraints just track connections
+        # They don't need high breaking thresholds since there's no physics forces on them
+
         # Connect walls to foundation
         self.connect_pieces(f"{name}_wall_front", f"{name}_foundation", breaking_threshold=100)
         self.connect_pieces(f"{name}_wall_back", f"{name}_foundation", breaking_threshold=100)
