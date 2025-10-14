@@ -23,7 +23,7 @@ in vec4 vColor;  // Vertex color from vertex shader
 
 out vec4 fragColor;
 
-// Simple PCF with 4 samples (much faster than 16)
+// Ultra-fast shadow lookup with minimal PCF (2 samples for performance)
 float calculateShadowPCF(sampler2D shadowMap, vec4 shadowCoord, float bias) {
     // Perspective divide
     vec3 projCoords = shadowCoord.xyz / shadowCoord.w;
@@ -39,32 +39,27 @@ float calculateShadowPCF(sampler2D shadowMap, vec4 shadowCoord, float bias) {
     }
 
     float currentDepth = projCoords.z;
+
+    // Minimal PCF with only 2 samples (for maximum performance)
+    vec2 texelSize = vec2(1.0) / shadowMapSize;
     float shadow = 0.0;
 
-    // Simple 2x2 PCF (4 samples)
-    vec2 texelSize = vec2(1.0) / shadowMapSize;
-    for (int x = -1; x <= 0; x++) {
-        for (int y = -1; y <= 0; y++) {
-            vec2 offset = vec2(x, y) * texelSize * shadowSoftness;
-            float pcfDepth = texture(shadowMap, projCoords.xy + offset).r;
-            shadow += currentDepth - bias > pcfDepth ? 0.0 : 1.0;
-        }
-    }
+    float pcfDepth1 = texture(shadowMap, projCoords.xy).r;
+    shadow += currentDepth - bias > pcfDepth1 ? 0.0 : 1.0;
 
-    return shadow / 4.0;
+    vec2 offset = texelSize * shadowSoftness;
+    float pcfDepth2 = texture(shadowMap, projCoords.xy + offset).r;
+    shadow += currentDepth - bias > pcfDepth2 ? 0.0 : 1.0;
+
+    return shadow / 2.0;
 }
 
-// Calculate shadow with cascade selection
+// Calculate shadow with single cascade (maximum performance)
 float calculateCascadedShadow() {
-    float shadow;
     float bias = 0.005;
 
-    // Select cascade based on view depth (only 2 cascades now)
-    if (vViewDepth < cascadeSplits[0]) {
-        shadow = calculateShadowPCF(shadowMap0, vShadowCoord0, bias * 0.5);
-    } else {
-        shadow = calculateShadowPCF(shadowMap1, vShadowCoord1, bias);
-    }
+    // Only 1 cascade for max performance
+    float shadow = calculateShadowPCF(shadowMap0, vShadowCoord0, bias);
 
     return shadow;
 }

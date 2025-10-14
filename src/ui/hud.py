@@ -43,6 +43,18 @@ class HUD:
             mayChange=False,
         )
 
+        # FPS counter (top-left)
+        self.fps_text = OnscreenText(
+            text="FPS: --",
+            pos=(-1.3, 0.9),
+            scale=0.05,
+            fg=(0.5, 1, 0.5, 1),
+            align=TextNode.ALeft,
+            mayChange=True,
+        )
+        self.fps_update_timer = 0.0
+        self.fps_update_interval = 0.5  # Update every 0.5 seconds
+
     def show(self):
         """Show the HUD."""
         self.visible = True
@@ -51,17 +63,25 @@ class HUD:
         """Hide the HUD."""
         self.visible = False
 
-    def update(self, dt):
+    def update(self, dt, fps=None):
         """Update HUD elements.
 
         Args:
             dt: Delta time since last update
+            fps: Current FPS (frames per second)
         """
         # Update message timer
         if self.message_timer > 0:
             self.message_timer -= dt
             if self.message_timer <= 0:
                 self.message_text.setText("")
+
+        # Update FPS counter
+        if fps is not None:
+            self.fps_update_timer += dt
+            if self.fps_update_timer >= self.fps_update_interval:
+                self.fps_text.setText(f"FPS: {int(fps)}")
+                self.fps_update_timer = 0.0
 
     def set_tool_name(self, tool_name):
         """Update tool display.

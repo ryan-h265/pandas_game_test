@@ -27,11 +27,11 @@ class ShadowManager:
         self.render = render
         self.light_direction = light_direction.normalized()
 
-        # Shadow map configuration - start with LOW settings for performance
-        self.shadow_map_size = 512  # Much lower for performance (was 2048)
-        self.num_cascades = 2  # Reduced to 2 cascades (was 3)
-        self.cascade_splits = [20.0, 50.0, 150.0]  # View space split distances
-        self.shadow_softness = 1.0  # Reduced softness (was 2.0)
+        # Shadow map configuration - ULTRA-LOW settings for performance
+        self.shadow_map_size = 256  # Very low resolution for max FPS (was 512)
+        self.num_cascades = 1  # Only 1 cascade for performance (was 2)
+        self.cascade_splits = [40.0, 100.0, 250.0]  # View space split distances
+        self.shadow_softness = 0.5  # Minimal softness for speed (was 1.0)
 
         # Storage for shadow cameras and buffers
         self.shadow_cameras = []

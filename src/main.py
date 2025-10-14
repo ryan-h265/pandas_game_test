@@ -66,10 +66,14 @@ class Game(ShowBase):
         # Set up tool message callback to display on HUD
         self.tool_manager.tool_message_callback = self.on_tool_change
 
-        # Initialize shadow system
-        light_dir = Vec3(1, 1, -1)  # Sun direction
-        self.shadow_manager = ShadowManager(self, self.render, light_dir)
-        self.shadow_manager.set_shader_inputs(self.render)
+        # Initialize shadow system (disabled by default for performance)
+        self.shadows_enabled = False
+        self.shadow_manager = None
+        # Uncomment to enable shadows:
+        # light_dir = Vec3(1, 1, -1)  # Sun direction
+        # self.shadow_manager = ShadowManager(self, self.render, light_dir)
+        # self.shadow_manager.set_shader_inputs(self.render)
+        # self.shadows_enabled = True
 
         # Initialize post-processing
         self.post_process = PostProcessManager(self.render, self.cam)
@@ -105,6 +109,7 @@ class Game(ShowBase):
         print("  Scroll Wheel - Adjust brush size")
         print("  1/2/3 - Set terrain mode (lower/raise/smooth)")
         print("")
+        print("  N - Toggle shadows on/off")
         print("  Z/X - Adjust shadow softness")
         print("  C - Toggle post-processing")
         print("  V - Toggle chunk debug colors")
@@ -229,6 +234,7 @@ class Game(ShowBase):
         self.accept("z", self.adjust_shadow_softness, [-0.5])  # Decrease softness
         self.accept("x", self.adjust_shadow_softness, [0.5])  # Increase softness
         self.accept("c", self.toggle_post_process)  # Toggle post-processing
+        self.accept("n", self.toggle_shadows)  # Toggle shadows on/off
 
         # Debug visualization
         self.accept("v", self.toggle_chunk_colors)  # Toggle chunk debug colors
@@ -335,11 +341,30 @@ class Game(ShowBase):
         else:
             print("Shadows are disabled (for performance)")
 
+    def toggle_shadows(self):
+        """Toggle shadows on/off."""
+        if self.shadows_enabled:
+            # Disable shadows
+            if self.shadow_manager:
+                self.shadow_manager.cleanup()
+                self.shadow_manager = None
+            self.shadows_enabled = False
+            self.hud.show_message("Shadows: OFF (Performance Mode)")
+            print("Shadows disabled - should see FPS increase")
+        else:
+            # Enable shadows
+            light_dir = Vec3(1, 1, -1)
+            self.shadow_manager = ShadowManager(self, self.render, light_dir)
+            self.shadow_manager.set_shader_inputs(self.render)
+            self.shadows_enabled = True
+            self.hud.show_message("Shadows: ON (Quality Mode)")
+            print("Shadows enabled")
+
     def toggle_post_process(self):
         """Toggle post-processing effects."""
         if self.post_process:
             enabled = self.post_process.toggle()
-            print(f"Post-processing: {'ON' if enabled else 'OFF'}")
+            self.hud.show_message(f"Post-processing: {'ON' if enabled else 'OFF'}")
         else:
             print("Post-processing is disabled (for performance)")
 
@@ -477,8 +502,9 @@ class Game(ShowBase):
         # Update effects
         self.effects_manager.update(dt)
 
-        # Update HUD
-        self.hud.update(dt)
+        # Update HUD with FPS
+        fps = globalClock.getAverageFrameRate()
+        self.hud.update(dt, fps)
 
         # Update player movement
         self.player.update(dt, self.camera_controller)
