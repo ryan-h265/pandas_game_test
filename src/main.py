@@ -1,6 +1,8 @@
 from direct.showbase.ShowBase import ShowBase
 from panda3d.bullet import BulletWorld, BulletDebugNode
 from panda3d.core import AmbientLight, DirectionalLight, Vec3, WindowProperties
+from direct.task import Task
+from direct.showbase.ShowBaseGlobal import globalClock
 
 from config.settings import configure, PHYSICS_FPS, GRAVITY
 from engine.world import World
@@ -17,6 +19,7 @@ from rendering.weapon_viewmodel import WeaponViewModel
 from tools.tool_manager import ToolManager, ToolType
 from ui.hud import HUD
 from ui.crosshair import CrosshairManager
+from ui.menu_system import MenuSystem
 
 
 class Game(ShowBase):
@@ -56,6 +59,9 @@ class Game(ShowBase):
 
         # Initialize crosshair system
         self.crosshair_manager = CrosshairManager(self)
+
+        # Initialize menu system
+        self.menu_system = MenuSystem(self)
 
         # Initialize effects manager
         self.effects_manager = EffectsManager(self.render)
@@ -133,7 +139,8 @@ class Game(ShowBase):
         print("  V - Toggle chunk debug colors")
         print("  B - Toggle wireframe debug")
         print("  R - Toggle raycast debug (shows gun ray paths)")
-        print("  ESC - Quit")
+        print("")
+        print("  ESC - Pause menu (Settings, Quit, etc.)")
 
     def print_gpu_info(self):
         """Print GPU and graphics information"""
@@ -265,8 +272,8 @@ class Game(ShowBase):
         self.accept("h", self.toggle_weapon_viewmodel)  # Toggle weapon viewmodel on/off
         self.accept("j", self.toggle_crosshair)  # Toggle crosshair on/off
 
-        # Quit
-        self.accept("escape", self.quit_game)
+        # Pause menu
+        self.accept("escape", self.toggle_pause_menu)
 
     def setup_mouse_control(self):
         """Setup mouse for FPS-style look control"""
@@ -527,6 +534,10 @@ class Game(ShowBase):
         else:
             self.hud.show_message("Terrain modes only work with Terrain tool! Press Q to switch.")
 
+    def toggle_pause_menu(self):
+        """Toggle the pause menu on/off"""
+        self.menu_system.toggle_pause()
+
     def quit_game(self):
         """Clean quit handler"""
         print("\nQuitting game...")
@@ -537,6 +548,12 @@ class Game(ShowBase):
     def update(self, task):
         """Main game loop"""
         dt = globalClock.getDt()
+
+        # Skip game logic if paused, but still update HUD
+        if self.menu_system.is_paused:
+            # Update HUD (for FPS counter if enabled)
+            self.hud.update(dt)
+            return task.cont
 
         # Update shadow cameras to follow player (if shadows enabled)
         player_pos = self.player.get_position()
