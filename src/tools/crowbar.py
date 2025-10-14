@@ -1,6 +1,7 @@
 """Crowbar tool - high-damage melee weapon for breaking structures."""
 
 from .base import Tool, ToolType
+from voxel.voxel_raycast import VoxelRaycaster
 
 
 class CrowbarTool(Tool):
@@ -18,7 +19,7 @@ class CrowbarTool(Tool):
         self.world = world
         self.camera = camera
         self.building_raycaster = building_raycaster
-        self.damage_per_hit = 75  # High damage for crowbar
+        self.damage_per_hit = 100  # Increased for voxels
         self.swing_cooldown = 0.5  # Seconds between swings
         self.last_swing_time = 0.0
         self.current_time = 0.0
@@ -41,32 +42,39 @@ class CrowbarTool(Tool):
         if self.current_time - self.last_swing_time < self.swing_cooldown:
             return False
 
-        # Use building raycaster for physics-based hit detection
-        hit_something = False
-        if self.building_raycaster:
-            physics_hit = self.building_raycaster.raycast_from_camera(self.camera, self.max_range)
-
-            if physics_hit["hit"]:
-                hit_pos = physics_hit["position"]
-                hit_something = True
-                
-                # Try to damage building at hit position
-                damaged = self.world.damage_building_at_position(hit_pos, damage=self.damage_per_hit)
-                
-                if damaged:
-                    self.last_swing_time = self.current_time
-                    print(f"Crowbar HIT building at distance {physics_hit['distance']:.2f}")
-                    return True
-        
-        # Fallback to terrain raycast if building raycaster not available
-        elif hit_info and hit_info.get("position"):
-            damaged = self.world.damage_building_at_position(
-                hit_info["position"], damage=self.damage_per_hit
+        # Check if using voxel system
+        if hasattr(self.world, 'use_voxels') and self.world.use_voxels and self.world.voxel_world:
+            # Use voxel raycasting
+            voxel_hit = VoxelRaycaster.raycast_from_camera(
+                self.world.voxel_world, self.camera, self.max_range
             )
 
-            if damaged:
+            if voxel_hit:
+                voxel_coords = voxel_hit['voxel_coords']
+                voxel_type = voxel_hit['voxel_type']
+
+                # Damage the voxel
+                destroyed = self.world.voxel_world.damage_voxel_at_world_pos(
+                    voxel_coords[0], voxel_coords[1], voxel_coords[2],
+                    self.damage_per_hit
+                )
+
+                print(f"Crowbar hit {voxel_type.name} voxel at {voxel_coords} (distance: {voxel_hit['distance']:.2f})")
                 self.last_swing_time = self.current_time
                 return True
+        else:
+            # Legacy building system
+            if self.building_raycaster:
+                physics_hit = self.building_raycaster.raycast_from_camera(self.camera, self.max_range)
+
+                if physics_hit["hit"]:
+                    hit_pos = physics_hit["position"]
+                    damaged = self.world.damage_building_at_position(hit_pos, damage=self.damage_per_hit)
+
+                    if damaged:
+                        self.last_swing_time = self.current_time
+                        print(f"Crowbar HIT building at distance {physics_hit['distance']:.2f}")
+                        return True
 
         return False
 

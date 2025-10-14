@@ -1,6 +1,7 @@
 """Gun tool - ranged weapon with visual effects."""
 
 from .base import Tool, ToolType
+from voxel.voxel_raycast import VoxelRaycaster
 
 
 class GunTool(Tool):
@@ -20,7 +21,7 @@ class GunTool(Tool):
         self.camera = camera
         self.effects_manager = effects_manager
         self.building_raycaster = building_raycaster
-        self.damage_per_shot = 100  # One-shot walls
+        self.damage_per_shot = 150  # Increased for voxels
         self.fire_rate = 0.3  # Seconds between shots
         self.last_shot_time = 0.0
         self.current_time = 0.0
@@ -53,48 +54,48 @@ class GunTool(Tool):
         forward = cam_mat.getRow3(1)  # Y-axis (forward) from transformation matrix
         forward.normalize()
 
-        # Debug: Get camera rotation
-        hpr = self.camera.getHpr(self.world.render)
-        print(f"\n=== GUN SHOT DEBUG ===")
-        print(f"Camera pos: {camera_pos}")
-        print(f"Camera HPR: {hpr}")
-        print(f"Forward vector: {forward}")
-
-        # Use building raycaster if available (physics-based)
+        # Check if using voxel system
         hit_something = False
-        if self.building_raycaster:
-            physics_hit = self.building_raycaster.raycast_from_camera(self.camera, self.max_range)
+        end_pos = camera_pos + forward * self.max_range  # Default miss position
 
-            if physics_hit["hit"]:
-                end_pos = physics_hit["position"]
+        if hasattr(self.world, 'use_voxels') and self.world.use_voxels and self.world.voxel_world:
+            # Use voxel raycasting
+            voxel_hit = VoxelRaycaster.raycast_from_camera(
+                self.world.voxel_world, self.camera, self.max_range
+            )
+
+            if voxel_hit:
+                voxel_coords = voxel_hit['voxel_coords']
+                voxel_type = voxel_hit['voxel_type']
+                end_pos = voxel_hit['position']
                 hit_something = True
-                print(f"Gun HIT physics object at {end_pos}, distance={physics_hit['distance']:.2f}")
 
-                # Try to damage building at hit position
-                damaged = self.world.damage_building_at_position(end_pos, damage=self.damage_per_shot)
-                print(f"  Damage result: {damaged}")
-            else:
-                # No physics hit - shoot into distance
-                end_pos = camera_pos + forward * self.max_range
-                print(f"Gun MISS - no physics hit")
+                # Damage the voxel
+                destroyed = self.world.voxel_world.damage_voxel_at_world_pos(
+                    voxel_coords[0], voxel_coords[1], voxel_coords[2],
+                    self.damage_per_shot
+                )
+
+                print(f"Gun shot {voxel_type.name} voxel at {voxel_coords} (distance: {voxel_hit['distance']:.2f}) - Destroyed: {destroyed}")
         else:
-            # Fallback to terrain raycast
-            if hit_info and hit_info.get("position"):
+            # Legacy building system
+            if self.building_raycaster:
+                physics_hit = self.building_raycaster.raycast_from_camera(self.camera, self.max_range)
+
+                if physics_hit["hit"]:
+                    end_pos = physics_hit["position"]
+                    hit_something = True
+                    damaged = self.world.damage_building_at_position(end_pos, damage=self.damage_per_shot)
+                    print(f"Gun HIT building at distance {physics_hit['distance']:.2f}")
+            elif hit_info and hit_info.get("position"):
                 end_pos = hit_info["position"]
                 hit_something = True
-                damaged = self.world.damage_building_at_position(end_pos, damage=self.damage_per_shot)
-            else:
-                end_pos = camera_pos + forward * self.max_range
+                self.world.damage_building_at_position(end_pos, damage=self.damage_per_shot)
 
         # Create visual effects
         if self.effects_manager:
             # Start bullet trail offset from camera (gun barrel position)
-            muzzle_pos = camera_pos + forward * 3.0  # 3 units forward from camera (increased from 2.0)
-            distance = (end_pos - muzzle_pos).length()
-            print(f"Muzzle pos: {muzzle_pos} (camera + forward*2.0)")
-            print(f"End pos: {end_pos}")
-            print(f"Trail distance: {distance:.2f}")
-            print(f"===================\n")
+            muzzle_pos = camera_pos + forward * 3.0  # 3 units forward from camera
             self.effects_manager.create_bullet_trail(muzzle_pos, end_pos)
             self.effects_manager.create_muzzle_flash(muzzle_pos, forward)
 
