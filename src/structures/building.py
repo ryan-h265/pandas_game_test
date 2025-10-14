@@ -741,6 +741,181 @@ class FaceChunk(BuildingPiece):
         # Call parent init (which creates the body and geometry)
         super().__init__(world, render, position, size, mass, color, name, "chunk", parent_building)
 
+    def _create_physics_body(self):
+        """Create the physics body with a convex hull shape matching the wedge geometry.
+
+        Returns:
+            NodePath of the created piece
+        """
+        from panda3d.bullet import BulletConvexHullShape
+
+        # Get half extents
+        half_extents = Vec3(self.size.x / 2, self.size.y / 2, self.size.z / 2)
+        s = half_extents
+
+        # Generate the wedge profile points (same as visual geometry)
+        wedge_profile = self._get_wedge_profile_points(s)
+
+        if not wedge_profile or len(wedge_profile) < 3:
+            # Fallback to box shape if wedge generation fails
+            return super()._create_physics_body()
+
+        # Create convex hull shape from the wedge points
+        shape = BulletConvexHullShape()
+
+        # Add all vertices of the wedge to the convex hull
+        for point in wedge_profile:
+            shape.addPoint(point)
+
+        # Create rigid body node
+        body_node = BulletRigidBodyNode(self.name)
+        body_node.setMass(0)  # Start as kinematic like other building pieces
+        body_node.addShape(shape)
+
+        # Set physics properties
+        body_node.setFriction(0.9)
+        body_node.setRestitution(0.05)
+        body_node.setLinearDamping(0.8)
+        body_node.setAngularDamping(0.9)
+
+        # Create NodePath and attach to scene
+        body_np = self.render.attachNewNode(body_node)
+        body_np.setPos(self.position)
+
+        # Add to physics world
+        self.world.attachRigidBody(body_node)
+
+        # Create visual geometry
+        self._create_visual_geometry(body_np, half_extents)
+
+        return body_np
+
+    def _get_wedge_profile_points(self, half_extents):
+        """Get all 3D vertices of the wedge for collision hull.
+
+        Args:
+            half_extents: Vec3 half extents
+
+        Returns:
+            List of Vec3 points forming the wedge shape
+        """
+        s = half_extents
+
+        # Generate wedge geometry
+        if self.depth_axis == 'x':
+            return self._get_wedge_points_yz_plane(s)
+        elif self.depth_axis == 'y':
+            return self._get_wedge_points_xz_plane(s)
+        else:  # z
+            return self._get_wedge_points_xy_plane(s)
+
+    def _get_wedge_points_xy_plane(self, s):
+        """Get wedge vertices for X-Y plane (Z-axis walls)."""
+        impact = self.impact_2d
+
+        max_radius = math.sqrt(
+            max(abs(impact.x - s.x), abs(impact.x + s.x))**2 +
+            max(abs(impact.y - s.y), abs(impact.y + s.y))**2
+        ) * 1.5
+
+        # Generate crack lines (simplified, no jagged edges for collision)
+        start_dir = Vec3(math.cos(self.start_angle), math.sin(self.start_angle), 0)
+        start_outer = impact + start_dir * max_radius
+
+        end_dir = Vec3(math.cos(self.end_angle), math.sin(self.end_angle), 0)
+        end_outer = impact + end_dir * max_radius
+
+        # Clip to bounds
+        start_outer.x = max(-s.x, min(s.x, start_outer.x))
+        start_outer.y = max(-s.y, min(s.y, start_outer.y))
+        end_outer.x = max(-s.x, min(s.x, end_outer.x))
+        end_outer.y = max(-s.y, min(s.y, end_outer.y))
+
+        # Generate outer arc points
+        outer_arc = self._generate_outer_arc_2d(impact, self.start_angle, self.end_angle, s.x, s.y)
+
+        # Build 2D profile
+        wedge_2d = [impact, start_outer] + outer_arc + [end_outer]
+
+        # Extrude to 3D through depth
+        front_z = s.z if self.hit_face == 'z+' else -s.z
+        back_z = -s.z if self.hit_face == 'z+' else s.z
+
+        points_3d = []
+        for p in wedge_2d:
+            points_3d.append(Vec3(p.x, p.y, front_z))
+            points_3d.append(Vec3(p.x, p.y, back_z))
+
+        return points_3d
+
+    def _get_wedge_points_xz_plane(self, s):
+        """Get wedge vertices for X-Z plane (Y-axis walls)."""
+        impact = self.impact_2d
+
+        max_radius = math.sqrt(
+            max(abs(impact.x - s.x), abs(impact.x + s.x))**2 +
+            max(abs(impact.y - s.z), abs(impact.y + s.z))**2
+        ) * 1.5
+
+        start_dir = Vec3(math.cos(self.start_angle), math.sin(self.start_angle), 0)
+        start_outer = impact + start_dir * max_radius
+
+        end_dir = Vec3(math.cos(self.end_angle), math.sin(self.end_angle), 0)
+        end_outer = impact + end_dir * max_radius
+
+        start_outer.x = max(-s.x, min(s.x, start_outer.x))
+        start_outer.y = max(-s.z, min(s.z, start_outer.y))
+        end_outer.x = max(-s.x, min(s.x, end_outer.x))
+        end_outer.y = max(-s.z, min(s.z, end_outer.y))
+
+        outer_arc = self._generate_outer_arc_2d(impact, self.start_angle, self.end_angle, s.x, s.z)
+
+        wedge_2d = [impact, start_outer] + outer_arc + [end_outer]
+
+        front_y = s.y if self.hit_face == 'y+' else -s.y
+        back_y = -s.y if self.hit_face == 'y+' else s.y
+
+        points_3d = []
+        for p in wedge_2d:
+            points_3d.append(Vec3(p.x, front_y, p.y))
+            points_3d.append(Vec3(p.x, back_y, p.y))
+
+        return points_3d
+
+    def _get_wedge_points_yz_plane(self, s):
+        """Get wedge vertices for Y-Z plane (X-axis walls)."""
+        impact = self.impact_2d
+
+        max_radius = math.sqrt(
+            max(abs(impact.x - s.y), abs(impact.x + s.y))**2 +
+            max(abs(impact.y - s.z), abs(impact.y + s.z))**2
+        ) * 1.5
+
+        start_dir = Vec3(math.cos(self.start_angle), math.sin(self.start_angle), 0)
+        start_outer = impact + start_dir * max_radius
+
+        end_dir = Vec3(math.cos(self.end_angle), math.sin(self.end_angle), 0)
+        end_outer = impact + end_dir * max_radius
+
+        start_outer.x = max(-s.y, min(s.y, start_outer.x))
+        start_outer.y = max(-s.z, min(s.z, start_outer.y))
+        end_outer.x = max(-s.y, min(s.y, end_outer.x))
+        end_outer.y = max(-s.z, min(s.z, end_outer.y))
+
+        outer_arc = self._generate_outer_arc_2d(impact, self.start_angle, self.end_angle, s.y, s.z)
+
+        wedge_2d = [impact, start_outer] + outer_arc + [end_outer]
+
+        front_x = s.x if self.hit_face == 'x+' else -s.x
+        back_x = -s.x if self.hit_face == 'x+' else s.x
+
+        points_3d = []
+        for p in wedge_2d:
+            points_3d.append(Vec3(front_x, p.x, p.y))
+            points_3d.append(Vec3(back_x, p.x, p.y))
+
+        return points_3d
+
     def _create_visual_geometry(self, parent_np, half_extents):
         """Create wedge-shaped visual mesh that extends through full wall depth.
 
