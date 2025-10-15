@@ -20,7 +20,7 @@ class GunTool(Tool):
         self.camera = camera
         self.effects_manager = effects_manager
         self.building_raycaster = building_raycaster
-        self.damage_per_shot = 25  # Reduced to allow multiple hits per piece
+        self.damage_per_shot = 100
         self.fire_rate = 0.3  # Seconds between shots
         self.last_shot_time = 0.0
         self.current_time = 0.0

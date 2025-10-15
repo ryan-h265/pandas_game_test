@@ -1692,7 +1692,7 @@ class Building:
             body_node.setActive(True, True)
             # Don't destroy them - let them fall naturally
 
-    def damage_piece(self, piece_name, amount, create_fragments=True, create_chunks=False, impact_pos=None):
+    def damage_piece(self, piece_name, amount, create_fragments=False, create_chunks=True, impact_pos=None):
         """Apply damage to a specific piece.
 
         Args:
@@ -1711,7 +1711,7 @@ class Building:
         piece = self.piece_map[piece_name]
 
         # Apply damage (destroy() will be called internally if health reaches 0)
-        destroyed = piece.take_damage(amount, create_fragments=create_fragments, impact_pos=impact_pos)
+        destroyed = piece.take_damage(amount, create_fragments=create_fragments, create_chunks=create_chunks, impact_pos=impact_pos)
 
         if destroyed:
             # Fragments are already stored in self.fragments by take_damage()
