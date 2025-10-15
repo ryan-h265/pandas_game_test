@@ -357,6 +357,11 @@ class Game(ShowBase):
         self.is_using_tool = False
         self.current_mouse_button = None
 
+        # Notify active tool that mouse button was released
+        active_tool = self.tool_manager.get_active_tool()
+        if active_tool:
+            active_tool.on_mouse_release(button)
+
     def adjust_brush_size(self, direction):
         """Adjust active tool's primary property (context-sensitive).
 

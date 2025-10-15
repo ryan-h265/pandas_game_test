@@ -471,14 +471,14 @@ class BuildingPiece:
         geom_node.addGeom(geom)
         self.body_np.attachNewNode(geom_node)
 
-    def take_damage(self, amount, create_fragments=True, create_chunks=False, impact_pos=None):
+    def take_damage(self, amount, create_fragments=True, create_chunks=True, impact_pos=None):
         """Apply damage to this piece.
 
         Args:
             amount: Damage amount (0-100)
             create_fragments: If True, create debris when destroyed
-            create_chunks: Unused, kept for compatibility
-            impact_pos: Unused, kept for compatibility
+            create_chunks: If True, create destructible chunks when destroyed
+            impact_pos: Vec3 world position where damage was applied (for break lines)
 
         Returns:
             bool: True if piece was destroyed
@@ -487,8 +487,8 @@ class BuildingPiece:
             return False
 
         # Add bullet hole mark at impact position
-        if impact_pos:
-            self.add_bullet_hole(impact_pos)
+        # if impact_pos:
+        #     self.add_bullet_hole(impact_pos)
 
         self.health -= amount
 
@@ -498,24 +498,24 @@ class BuildingPiece:
 
         if self.health <= 0:
             # Destroy the piece (it becomes dynamic and falls)
-            fragments = self.destroy(create_fragments=create_fragments)
-            
-            # Store fragment debris in parent building's fragments list
-            if fragments and self.parent_building:
-                current_time = time.time()
-                for fragment in fragments:
-                    # Set creation time for lifetime tracking
-                    fragment.creation_time = current_time
-                    self.parent_building.fragments.append(fragment)
-            elif fragments:
-                # If no parent building, store in class-level list to prevent GC
-                if not hasattr(BuildingPiece, '_orphan_fragments'):
-                    BuildingPiece._orphan_fragments = []
-                current_time = time.time()
-                for fragment in fragments:
-                    fragment.creation_time = current_time
-                    BuildingPiece._orphan_fragments.append(fragment)
+            chunks = self.destroy(create_fragments=create_fragments, create_chunks=create_chunks, impact_pos=impact_pos)
             return True
+            
+            # # Store fragment debris in parent building's fragments list
+            # if fragments and self.parent_building:
+            #     current_time = time.time()
+            #     for fragment in fragments:
+            #         # Set creation time for lifetime tracking
+            #         fragment.creation_time = current_time
+            #         self.parent_building.fragments.append(fragment)
+            # elif fragments:
+            #     # If no parent building, store in class-level list to prevent GC
+            #     if not hasattr(BuildingPiece, '_orphan_fragments'):
+            #         BuildingPiece._orphan_fragments = []
+            #     current_time = time.time()
+            #     for fragment in fragments:
+            #         fragment.creation_time = current_time
+            #         BuildingPiece._orphan_fragments.append(fragment)
 
         return False
 
@@ -545,55 +545,47 @@ class BuildingPiece:
         # Update the geometry colors
         self._apply_color_to_geometry(new_color)
 
-    def destroy(self, create_fragments=True, create_chunks=False, impact_pos=None):
+    def destroy(self, create_fragments=True, create_chunks=True, impact_pos=None):
         """Destroy this piece and remove all constraints.
 
         Args:
             create_fragments: If True, create debris fragments
-            create_chunks: Unused, kept for compatibility
+            create_chunks: If True, create destructible chunks
             impact_pos: Unused, kept for compatibility
         """
         if self.is_destroyed:
             return []
 
         self.is_destroyed = True
-        
-        # Mark destruction time for lifetime tracking
-        import time
-        self.destruction_time = time.time()
 
-        # Make the piece dynamic so it can fall
-        if self.body_np and not self.body_np.isEmpty():
-            body_node = self.body_np.node()
-            
-            # Validate current transform before making dynamic
-            current_pos = self.body_np.getPos()
-            if not (current_pos.x != current_pos.x or  # Check for NaN
-                    current_pos.y != current_pos.y or 
-                    current_pos.z != current_pos.z):
-                body_node.setMass(self.mass)  # Restore the original mass
-                body_node.setActive(True, True)  # Ensure it's active
-            else:
-                print(f"Warning: Piece {self.name} has invalid position, not making dynamic")
-                return []
-
-        # Remove all constraints so piece can fall freely
+        # Remove all constraints FIRST (before creating debris)
         for constraint_info in self.constraints:
             constraint = constraint_info["constraint"]
-            try:
-                self.world.removeConstraint(constraint)
-            except:
-                pass  # Constraint may already be removed
+            self.world.removeConstraint(constraint)
 
-        # Create small debris fragments
+        # Chunks should only break into fragments, not more chunks (to prevent infinite subdivision)
+        if self.piece_type == "chunk":
+            create_chunks = False
+
+        # Create both fragments and chunks (while node still exists to get position/velocity)
         fragments = []
+        chunks = []
+
         if create_fragments:
             fragments = self._create_fragments()
 
-        print(f"Building piece {self.name} destroyed!")
-        
-        # Return fragments for storage
-        return fragments
+        if create_chunks:
+            chunks = self._create_chunks(impact_pos=impact_pos)
+
+        # NOW remove the original piece from the physics world and scene
+        body_node = self.body_np.node()
+        self.world.removeRigidBody(body_node)
+        self.body_np.removeNode()
+
+        print(f"Building piece {self.name} destroyed and replaced with debris!")
+
+        # Return both fragments and chunks
+        return fragments + chunks
 
     def _create_fragments(self):
         """Create debris fragments from this piece.
@@ -658,89 +650,75 @@ class BuildingPiece:
         return fragments
 
     def _create_chunks(self, impact_pos=None):
-        """Create chunks with radial fracture pattern from impact point on wall face.
+        """Create chunks wall.
 
-        Creates irregular chunks radiating from the impact point across the 2D face,
-        like a shattered window. Each chunk extends through the full depth of the wall.
+        Splits the wall into 2-4 larger physics-enabled chunks that fall realistically.
+        Chunks are BuildingPiece objects, so they can also be damaged and break further.
 
         Args:
             impact_pos: Vec3 world position of impact (center of radial cracks)
 
         Returns:
-            List of FaceChunk objects (chunks created from face fracture)
+            List of BuildingPiece objects (destructible chunks)
         """
         chunks = []
+
+        # Determine how many chunks based on piece size
+        # Larger pieces break into more chunks
+        size_factor = (self.size.x + self.size.y + self.size.z) / 3
+        if size_factor > 5:
+            num_chunks = random.randint(3, 4)
+        else:
+            num_chunks = random.randint(2, 3)
 
         # Get current position and velocity
         piece_pos = self.body_np.getPos()
         piece_node = self.body_np.node()
         piece_velocity = piece_node.getLinearVelocity()
 
-        # Convert impact position to local coordinates
-        if impact_pos:
-            local_impact = impact_pos - piece_pos
+        # Determine dominant dimension (largest axis)
+        if self.size.x >= self.size.y and self.size.x >= self.size.z:
+            # Wall is wide (X-axis) - split horizontally
+            split_axis = 'x'
+            chunk_width = self.size.x / num_chunks
+            chunk_size_base = Vec3(chunk_width * 0.9, self.size.y, self.size.z)
+            spacing = chunk_width
+        elif self.size.y >= self.size.x and self.size.y >= self.size.z:
+            # Wall is deep (Y-axis) - split along depth
+            split_axis = 'y'
+            chunk_depth = self.size.y / num_chunks
+            chunk_size_base = Vec3(self.size.x, chunk_depth * 0.9, self.size.z)
+            spacing = chunk_depth
         else:
-            # Default to center if no impact position
-            local_impact = Vec3(0, 0, 0)
+            # Wall is tall (Z-axis) - split vertically
+            split_axis = 'z'
+            chunk_height = self.size.z / num_chunks
+            chunk_size_base = Vec3(self.size.x, self.size.y, chunk_height * 0.9)
+            spacing = chunk_height
 
-        # Determine which face was hit and project impact onto that face's 2D plane
-        # Also determine the 2D coordinate system for that face
-        half_size = self.size / 2
-
-        # Find which face the impact is closest to
-        face_distances = {
-            'x+': abs(local_impact.x - half_size.x),
-            'x-': abs(local_impact.x + half_size.x),
-            'y+': abs(local_impact.y - half_size.y),
-            'y-': abs(local_impact.y + half_size.y),
-            'z+': abs(local_impact.z - half_size.z),
-            'z-': abs(local_impact.z + half_size.z),
-        }
-
-        hit_face = min(face_distances, key=face_distances.get)
-
-        # Project impact onto face and get 2D coordinates
-        if hit_face.startswith('x'):
-            # Face perpendicular to X axis - use Y-Z plane
-            face_normal = Vec3(1 if hit_face == 'x+' else -1, 0, 0)
-            impact_2d = Vec3(local_impact.y, local_impact.z, 0)  # Y and Z coords
-            face_width = self.size.y
-            face_height = self.size.z
-            depth_axis = 'x'
-        elif hit_face.startswith('y'):
-            # Face perpendicular to Y axis - use X-Z plane
-            face_normal = Vec3(0, 1 if hit_face == 'y+' else -1, 0)
-            impact_2d = Vec3(local_impact.x, local_impact.z, 0)  # X and Z coords
-            face_width = self.size.x
-            face_height = self.size.z
-            depth_axis = 'y'
-        else:  # z face
-            # Face perpendicular to Z axis - use X-Y plane
-            face_normal = Vec3(0, 0, 1 if hit_face == 'z+' else -1)
-            impact_2d = Vec3(local_impact.x, local_impact.y, 0)  # X and Y coords
-            face_width = self.size.x
-            face_height = self.size.y
-            depth_axis = 'z'
-
-        # Generate radial crack pattern from impact point on the 2D face
-        num_chunks = random.randint(3, 5)  # 3-5 chunks radiating from impact
-
-        # Generate crack angles radiating from impact on the face
-        crack_angles = []
+        # Create chunks along the split axis
         for i in range(num_chunks):
-            # Distribute angles around impact point
-            base_angle = (i / num_chunks) * 2 * math.pi
-            # Add random variation
-            angle_variation = random.uniform(-0.4, 0.4)
-            crack_angles.append(base_angle + angle_variation)
+            # Calculate position along split axis
+            if split_axis == 'x':
+                offset_along_axis = -self.size.x / 2 + spacing * (i + 0.5)
+                chunk_offset = Vec3(offset_along_axis, 0, 0)
+            elif split_axis == 'y':
+                offset_along_axis = -self.size.y / 2 + spacing * (i + 0.5)
+                chunk_offset = Vec3(0, offset_along_axis, 0)
+            else:  # z
+                offset_along_axis = -self.size.z / 2 + spacing * (i + 0.5)
+                chunk_offset = Vec3(0, 0, offset_along_axis)
+            
+            chunk_pos = piece_pos + chunk_offset
+            
+            # Add slight random variation to chunk size
+            chunk_size = Vec3(
+                chunk_size_base.x * random.uniform(0.95, 1.0),
+                chunk_size_base.y * random.uniform(0.95, 1.0),
+                chunk_size_base.z * random.uniform(0.95, 1.0),
+            )
 
-        # Create chunks based on radial sectors on the face
-        for i in range(num_chunks):
-            # Calculate chunk's angular sector
-            start_angle = crack_angles[i]
-            end_angle = crack_angles[(i + 1) % num_chunks]
-
-            # Chunk color (slightly darker)
+            # Chunks have same color as original piece (slightly darker)
             chunk_color = Vec4(
                 self.color.x * 0.95,
                 self.color.y * 0.95,
@@ -748,68 +726,61 @@ class BuildingPiece:
                 self.color.w,
             )
 
-            # Create face chunk that extends through wall depth
-            chunk_mass = 5.0
-            chunk = FaceChunk(
+            # Create chunk as a BuildingPiece (so it can be damaged)
+            chunk_mass = 5.0  # Heavier than fragments
+            chunk = BuildingPiece(
                 self.world,
                 self.render,
-                piece_pos,
-                self.size,
+                chunk_pos,
+                chunk_size,
                 chunk_mass,
                 chunk_color,
                 f"{self.name}_chunk_{i}",
+                piece_type=self.piece_type,
                 parent_building=self.parent_building,
-                hit_face=hit_face,
-                depth_axis=depth_axis,
-                impact_2d=impact_2d,
-                face_width=face_width,
-                face_height=face_height,
-                start_angle=start_angle,
-                end_angle=end_angle,
-                chunk_index=i,
-                total_chunks=num_chunks,
             )
 
             # Reduce health (chunks are weaker)
             chunk.health = self.max_health * 0.4
             chunk.max_health = chunk.health
 
-            # Make chunk dynamic immediately (it's debris, not a building)
-            chunk_body = chunk.body_np.node()
-            chunk_body.setMass(chunk_mass)
-            chunk_body.setActive(True, True)
-
-            # Store chunk in parent building's fragments list (not pieces list)
-            # Chunks are temporary debris, not structural pieces
+            # Register chunk with parent building so it can be damaged
             if self.parent_building:
-                self.parent_building.fragments.append(chunk)
+                self.parent_building.add_piece(chunk)
 
-            # Apply outward impulse from impact point (in 3D space)
-            chunk_center = chunk.body_np.getPos()
-            direction_from_impact = chunk_center - (impact_pos if impact_pos else piece_pos)
+            # Apply outward impulse (perpendicular to split axis)
+            if split_axis == 'x':
+                # Push chunks apart along Y and Z
+                impulse_dir = Vec3(
+                    random.uniform(-2, 2),
+                    random.uniform(-5, 5),
+                    random.uniform(-3, 3),
+                )
+            elif split_axis == 'y':
+                impulse_dir = Vec3(
+                    random.uniform(-5, 5),
+                    random.uniform(-2, 2),
+                    random.uniform(-3, 3),
+                )
+            else:  # z
+                impulse_dir = Vec3(
+                    random.uniform(-5, 5),
+                    random.uniform(-5, 5),
+                    random.uniform(-2, 2),
+                )
 
-            if direction_from_impact.length() > 0.1:
-                direction_from_impact.normalize()
-            else:
-                # Fallback direction based on chunk angle
-                mid_angle = start_angle + (end_angle - start_angle) / 2
-                if depth_axis == 'x':
-                    direction_from_impact = Vec3(face_normal.x, math.cos(mid_angle), math.sin(mid_angle))
-                elif depth_axis == 'y':
-                    direction_from_impact = Vec3(math.cos(mid_angle), face_normal.y, math.sin(mid_angle))
-                else:
-                    direction_from_impact = Vec3(math.cos(mid_angle), math.sin(mid_angle), face_normal.z)
-                direction_from_impact.normalize()
-
-            impulse_strength = random.uniform(15, 25)
-            impulse = direction_from_impact * impulse_strength
-
+            impulse_strength = random.uniform(10, 20)
+            impulse = impulse_dir.normalized() * impulse_strength
+            
+            # Add parent velocity
             if piece_velocity.length() > 0.1:
-                impulse += piece_velocity * 0.5
+                impulse += piece_velocity * 0.7
 
-            # Apply physics
+            # Apply impulse to chunk
             chunk_node = chunk.body_np.node()
             chunk_node.applyCentralImpulse(impulse)
+
+            # Add some random spin
             torque = Vec3(
                 random.uniform(-10, 10),
                 random.uniform(-10, 10),
@@ -819,7 +790,9 @@ class BuildingPiece:
 
             chunks.append(chunk)
 
-        print(f"Created {len(chunks)} face chunks from impact at {impact_2d}")
+
+        print(f"Created {len(chunks)} destructible chunks along {split_axis}-axis")
+
         return chunks
 
     def remove_from_world(self):

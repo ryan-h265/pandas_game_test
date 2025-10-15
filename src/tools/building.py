@@ -42,6 +42,9 @@ class BuildingTool(Tool):
         self.snap_to_grid = True
         self.grid_size = 5.0  # Grid snap size
 
+        # Track if we've already placed a building on this mouse press
+        self.has_placed_this_click = False
+
     def on_activate(self):
         """Called when building tool is equipped."""
         self._create_ghost_building()
@@ -189,6 +192,10 @@ class BuildingTool(Tool):
         Returns:
             bool: True if building was placed
         """
+        # Only place one building per mouse click
+        if self.has_placed_this_click:
+            return False
+
         if not self.ghost_building or not self.placement_valid:
             print("Cannot place building here!")
             return False
@@ -207,6 +214,9 @@ class BuildingTool(Tool):
 
         # Add building to world
         self.world.add_building(new_building)
+
+        # Mark that we've placed a building on this click
+        self.has_placed_this_click = True
 
         print(f"Placed building at {self.ghost_position} (size: {self.building_width}x{self.building_depth}x{self.building_height})")
         return True
@@ -278,3 +288,12 @@ class BuildingTool(Tool):
         self._create_ghost_building()
 
         return ("Building Height", self.building_height)
+
+    def on_mouse_release(self, button):
+        """Called when mouse button is released - reset placement flag.
+
+        Args:
+            button: Mouse button number (1=left, 2=middle, 3=right)
+        """
+        if button == 1:  # Left mouse button
+            self.has_placed_this_click = False

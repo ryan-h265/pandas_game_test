@@ -100,3 +100,11 @@ class Tool:
             tuple: (property_name, new_value) or None if not applicable
         """
         return None
+
+    def on_mouse_release(self, button):
+        """Called when a mouse button is released.
+
+        Args:
+            button: Mouse button number (1=left, 2=middle, 3=right)
+        """
+        pass
