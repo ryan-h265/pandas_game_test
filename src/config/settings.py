@@ -53,3 +53,7 @@ TERRAIN_RESOLUTION = 32  # Reduced from 32 for better performance
 # Debug visualization
 DEBUG_CHUNK_COLORS = False  # Show each chunk with a different color
 DEBUG_CHUNK_WIREFRAME = False  # Show wireframe overlay on chunks
+
+# God mode settings
+GODMODE_ENABLED = True  # Enable god mode features (flying, etc.)
+GODMODE_FLY_SPEED = 30.0  # Speed when flying in god mode

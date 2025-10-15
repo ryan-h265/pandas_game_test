@@ -124,8 +124,8 @@ class Game(ShowBase):
         print("Game initialized successfully!")
         print("\nControls:")
         print("  WASD - Move")
-        print("  Shift - Run")
-        print("  Space - Jump")
+        print("  Shift - Run (or fly down in flying mode)")
+        print("  Space - Jump (or fly up in flying mode)")
         print("  Mouse - Look around")
         print("  M - Toggle mouse capture")
         print("")
@@ -142,6 +142,8 @@ class Game(ShowBase):
         print("  H - Toggle weapon viewmodel (FPS-style weapon display)")
         print("  J - Toggle crosshair on/off")
         print("")
+        print("  G - Toggle God Mode (enables double-tap space to fly)")
+        print("    When flying: WASD to move, Space to ascend, Shift to descend")
         print("")
         print("  ESC - Pause menu (Save/Load, Settings, Quit)")
         print("")
@@ -284,6 +286,9 @@ class Game(ShowBase):
         self.accept("r", self.toggle_raycast_debug)  # Toggle raycast debug visualization
         self.accept("h", self.toggle_weapon_viewmodel)  # Toggle weapon viewmodel on/off
         self.accept("j", self.toggle_crosshair)  # Toggle crosshair on/off
+
+        # God mode
+        self.accept("g", self.toggle_godmode)  # Toggle god mode
 
         # Pause menu
         self.accept("escape", self.toggle_pause_menu)
@@ -528,6 +533,16 @@ class Game(ShowBase):
                 self.hud.show_message("Crosshair: ON")
                 print("Crosshair shown")
 
+    def toggle_godmode(self):
+        """Toggle god mode on/off."""
+        enabled = self.player.set_godmode(not self.player.godmode_enabled)
+        status = "ON" if enabled else "OFF"
+        self.hud.show_message(f"God Mode: {status} (Double-tap Space to fly)")
+
+        # If disabling while flying, inform the user
+        if not enabled:
+            print("God mode disabled. Flying mode will be turned off if active.")
+
     def on_tool_change(self, message):
         """Handle tool change event.
 
@@ -682,6 +697,10 @@ class Game(ShowBase):
         camera_heading = self.camera_controller.heading
         active_tool = self.tool_manager.get_active_tool()
         self.hud.update(dt, fps=fps, camera_heading=camera_heading, player_pos=player_pos, tool=active_tool)
+
+        # Show flying status if active
+        if self.player.is_flying_mode():
+            self.hud.show_message("FLYING MODE (Double-tap Space to disable)", duration=0.1)
 
         # Update camera to follow player
         player_pos = self.player.get_position()
