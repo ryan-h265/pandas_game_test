@@ -470,17 +470,20 @@ class MountainSkybox:
             
             puff_node.setPos(puff_x, puff_y, 0)
             
-            # Set soft cloud appearance
+            # Set soft cloud appearance with enhanced blending
             puff_node.setColor(1.0, 1.0, 1.0, opacity)
             puff_node.setTransparency(TransparencyAttrib.MAlpha)
             # Remove billboard - use static orientation to avoid compression
             puff_node.lookAt(0, 0, 0)  # Face towards center instead of billboarding
             puff_node.setLightOff()
             
-            # Add soft rendering properties for background clouds
+            # Enhanced soft rendering for blurred edges
             puff_node.setBin("background", 2 + puff_idx)  # Just behind sky dome
-            puff_node.setDepthWrite(False)  # Soft blending
+            puff_node.setDepthWrite(False)  # Essential for soft blending
             puff_node.setDepthTest(False)  # Background elements don't need depth test
+            
+            # Enable additive blending for softer cloud overlap
+            puff_node.setAttrib(ColorBlendAttrib.make(ColorBlendAttrib.MAdd))
             
             # Vary scale for natural irregularity
             scale_variation = 0.8 + 0.4 * abs(math.sin(puff_idx * 3.1))
@@ -489,42 +492,71 @@ class MountainSkybox:
         return cloud_root
     
     def _create_soft_circle(self, radius, name):
-        """Create a soft circular geometry for cloud puffs."""
-        format = GeomVertexFormat.getV3()
+        """Create a soft oblong cloud geometry with feathered edges."""
+        format = GeomVertexFormat.getV3c4()  # Include color for feathered edges
         vdata = GeomVertexData(name, format, Geom.UHStatic)
         
-        # Create smooth circle with more segments for soft edges
-        segments = 24  # High segment count for smooth circles
+        # Create smooth oblong with more segments for soft edges
+        segments = 32  # Higher segment count for smoother feathered edges
         vertices = []
+        colors = []
         
-        # Center vertex
+        # Center vertex - fully opaque
         vertices.append((0, 0, 0))
+        colors.append(Vec4(1.0, 1.0, 1.0, 1.0))
         
-        # Create multiple concentric rings for soft falloff
-        rings = 3
+        # Create multiple concentric rings for ultra-smooth falloff
+        rings = 8  # Many more rings for very smooth gradient
         for ring in range(rings):
-            ring_radius = radius * (ring + 1) / rings
+            ring_progress = (ring + 1) / rings
             
             for i in range(segments):
                 angle = 2 * math.pi * i / segments
-                x = ring_radius * math.cos(angle)
-                z = ring_radius * math.sin(angle)  # Use Z instead of Y for proper orientation
                 
-                # Add slight randomness for natural edges
-                edge_variation = 1.0 + 0.1 * math.sin(angle * 7.3 + ring)
-                x *= edge_variation
-                z *= edge_variation
+                # Create oblong shape - stretch horizontally for natural cloud shape
+                horizontal_stretch = 1.8  # Make clouds wider than tall
+                vertical_compression = 0.6  # Flatten vertically
                 
-                # Create volume by slightly varying Y (height)
-                y = ring_radius * 0.1 * math.sin(angle * 4.1 + ring * 2.3)
+                base_x = radius * ring_progress * math.cos(angle) * horizontal_stretch
+                base_z = radius * ring_progress * math.sin(angle) * vertical_compression
+                
+                # Create smooth, soft edges instead of pointy variations
+                # Use smooth falloff instead of sharp edge variation
+                smooth_falloff = 1.0 - (ring_progress * 0.1)  # Very gentle size reduction
+                
+                # Add subtle, smooth variation for natural shape
+                gentle_variation = 0.05 * math.sin(angle * 3.1 + ring * 0.7)
+                
+                x = base_x * (smooth_falloff + gentle_variation)
+                z = base_z * (smooth_falloff + gentle_variation)
+                
+                # Create slight volume variation
+                y = radius * 0.08 * math.sin(angle * 5.1 + ring * 1.9) * ring_progress
                 
                 vertices.append((x, y, z))
+                
+                # Smooth opacity falloff for blurred edges
+                # Use smooth mathematical falloff for natural cloud transparency
+                center_distance = ring_progress
+                
+                # Smooth exponential falloff for soft edges
+                opacity = math.exp(-center_distance * 3.0)  # Exponential falloff
+                
+                # Additional smooth cosine falloff for even softer edges
+                opacity *= (math.cos(center_distance * math.pi * 0.5) ** 2)
+                
+                # Ensure minimum visibility but very soft edges
+                opacity = max(0.02, opacity * 0.8)
+                
+                colors.append(Vec4(1.0, 1.0, 1.0, opacity))
         
         vdata.setNumRows(len(vertices))
         vertex_writer = GeomVertexWriter(vdata, "vertex")
+        color_writer = GeomVertexWriter(vdata, "color")
         
-        for x, y, z in vertices:
+        for (x, y, z), color in zip(vertices, colors):
             vertex_writer.addData3(x, y, z)
+            color_writer.addData4(color)
         
         # Create triangles connecting rings
         geom = Geom(vdata)
