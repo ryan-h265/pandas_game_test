@@ -66,7 +66,8 @@ class BuildingTool(Tool):
         self.building_depth = self.building_types[1]["default_depth"]
         self.building_height = self.building_types[1]["default_height"]
 
-        # Ghost building preview
+        # Ghost building preview (cached per type to avoid memory leaks)
+        self.ghost_buildings_cache = {}  # {building_type: ghost_building}
         self.ghost_building = None
         self.ghost_position = Vec3(0, 0, 0)
         self.placement_valid = False
@@ -78,6 +79,9 @@ class BuildingTool(Tool):
 
         # Track if we've already placed a building on this mouse press
         self.has_placed_this_click = False
+
+        # Prevent rapid switching causing issues
+        self.is_switching_type = False
 
     def on_activate(self):
         """Called when building tool is equipped."""
@@ -91,48 +95,84 @@ class BuildingTool(Tool):
         self._remove_ghost_building()
 
     def _create_ghost_building(self):
-        """Create a transparent ghost preview of the building."""
+        """Create or retrieve cached ghost preview of the building."""
+        # Hide current ghost if visible
         if self.ghost_building:
-            self._remove_ghost_building()
+            self._hide_ghost_building()
 
-        # Get the current building type class
-        building_class = self.building_types[self.current_building_type]["class"]
+        # Check if we have this building type cached
+        cache_key = (self.current_building_type, self.building_width, self.building_depth, self.building_height)
 
-        # Create a building as the ghost using the selected type
-        self.ghost_building = building_class(
-            self.bullet_world,
-            self.render,
-            self.ghost_position,
-            width=self.building_width,
-            depth=self.building_depth,
-            height=self.building_height,
-            name="ghost_building"
-        )
+        if cache_key in self.ghost_buildings_cache:
+            # Reuse cached ghost
+            self.ghost_building = self.ghost_buildings_cache[cache_key]
+            self._show_ghost_building()
+            return
 
-        # Make all pieces transparent and greenish (valid placement color)
-        for piece in self.ghost_building.pieces:
-            # Set transparency
-            piece.body_np.setTransparency(TransparencyAttrib.MAlpha)
+        try:
+            # Get the current building type class
+            building_class = self.building_types[self.current_building_type]["class"]
 
-            # Update color to semi-transparent green (valid placement)
-            piece.body_np.setColorScale(0.2, 1.0, 0.2, 0.4)
+            # Create a NEW building as the ghost using the selected type
+            self.ghost_building = building_class(
+                self.bullet_world,
+                self.render,
+                self.ghost_position,
+                width=self.building_width,
+                depth=self.building_depth,
+                height=self.building_height,
+                name=f"ghost_building_{cache_key}"
+            )
 
-        # Remove all pieces from physics world (ghost shouldn't collide)
-        for piece in self.ghost_building.pieces:
-            try:
-                self.bullet_world.removeRigidBody(piece.body_np.node())
-            except:
-                pass  # May not be attached
+            # Make all pieces transparent and greenish (valid placement color)
+            for piece in self.ghost_building.pieces:
+                try:
+                    if piece.body_np and not piece.body_np.isEmpty():
+                        # Set transparency
+                        piece.body_np.setTransparency(TransparencyAttrib.MAlpha)
+                        # Update color to semi-transparent green (valid placement)
+                        piece.body_np.setColorScale(0.2, 1.0, 0.2, 0.4)
+
+                        # Disable collisions for ghost pieces
+                        body_node = piece.body_np.node()
+                        if body_node:
+                            body_node.setCollideMask(0)
+                            body_node.setIntoCollideMask(0)
+                except Exception as e:
+                    print(f"Warning: Error setting ghost piece appearance: {e}")
+                    pass
+
+            # Cache this ghost for reuse
+            self.ghost_buildings_cache[cache_key] = self.ghost_building
+
+        except Exception as e:
+            print(f"Error creating ghost building: {e}")
+            self.ghost_building = None
+
+    def _hide_ghost_building(self):
+        """Hide the current ghost building without destroying it."""
+        if self.ghost_building:
+            for piece in self.ghost_building.pieces:
+                try:
+                    if piece.body_np and not piece.body_np.isEmpty():
+                        piece.body_np.hide()
+                except:
+                    pass
+
+    def _show_ghost_building(self):
+        """Show the current ghost building."""
+        if self.ghost_building:
+            for piece in self.ghost_building.pieces:
+                try:
+                    if piece.body_np and not piece.body_np.isEmpty():
+                        piece.body_np.show()
+                except:
+                    pass
 
     def _remove_ghost_building(self):
-        """Remove the ghost building preview."""
+        """Hide the ghost building preview (keeps cache)."""
         if self.ghost_building:
-            # Remove all pieces from scene (but not from physics world, already removed)
-            for piece in self.ghost_building.pieces:
-                piece.body_np.removeNode()
-
-            self.ghost_building.pieces.clear()
-            self.ghost_building.piece_map.clear()
+            self._hide_ghost_building()
             self.ghost_building = None
 
     def _update_ghost_position(self, position):
@@ -274,8 +314,7 @@ class BuildingTool(Tool):
         # Swap width and depth to rotate 90 degrees
         self.building_width, self.building_depth = self.building_depth, self.building_width
 
-        # Recreate ghost with new dimensions
-        self._remove_ghost_building()
+        # Recreate ghost with new dimensions (will use cache if available)
         self._create_ghost_building()
 
         print(f"Rotated building (now {self.building_width}x{self.building_depth})")
@@ -306,8 +345,7 @@ class BuildingTool(Tool):
         # Adjust width
         self.building_width = max(5.0, min(30.0, self.building_width + delta))
 
-        # Recreate ghost with new size
-        self._remove_ghost_building()
+        # Recreate ghost with new size (will use cache if available)
         self._create_ghost_building()
 
         return ("Building Width", self.building_width)
@@ -324,8 +362,7 @@ class BuildingTool(Tool):
         # Adjust height
         self.building_height = max(4.0, min(20.0, self.building_height + delta))
 
-        # Recreate ghost with new size
-        self._remove_ghost_building()
+        # Recreate ghost with new size (will use cache if available)
         self._create_ghost_building()
 
         return ("Building Height", self.building_height)
@@ -351,16 +388,28 @@ class BuildingTool(Tool):
         if building_type_number not in self.building_types:
             return f"Invalid building type: {building_type_number}"
 
-        self.current_building_type = building_type_number
+        # Ignore if already this type
+        if self.current_building_type == building_type_number:
+            return f"Already selected: {self.building_types[building_type_number]['name']}"
 
-        # Load default dimensions for this building type
-        building_info = self.building_types[building_type_number]
-        self.building_width = building_info["default_width"]
-        self.building_depth = building_info["default_depth"]
-        self.building_height = building_info["default_height"]
+        # Prevent rapid switching
+        if self.is_switching_type:
+            return "Switching building type... please wait"
 
-        # Recreate ghost with new building type
-        self._remove_ghost_building()
-        self._create_ghost_building()
+        self.is_switching_type = True
 
-        return f"Selected: {building_info['name']} ({self.building_width}x{self.building_depth}x{self.building_height})"
+        try:
+            self.current_building_type = building_type_number
+
+            # Load default dimensions for this building type
+            building_info = self.building_types[building_type_number]
+            self.building_width = building_info["default_width"]
+            self.building_depth = building_info["default_depth"]
+            self.building_height = building_info["default_height"]
+
+            # Recreate ghost with new building type (will use cache if available)
+            self._create_ghost_building()
+
+            return f"Selected: {building_info['name']} ({self.building_width}x{self.building_depth}x{self.building_height})"
+        finally:
+            self.is_switching_type = False

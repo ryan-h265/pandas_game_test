@@ -141,7 +141,7 @@ class Fragment:
 class CurvedRoofPiece:
     """A curved roof piece for traditional Japanese-style architecture."""
 
-    def __init__(self, world, render, position, size, mass, color, name, parent_building=None, curve_amount=0.5, tier=1):
+    def __init__(self, world, render, position, size, mass, color, name, parent_building=None, curve_amount=0.5, tier=1, is_ghost=False):
         """Initialize a curved roof piece.
 
         Args:
@@ -155,6 +155,7 @@ class CurvedRoofPiece:
             parent_building: Optional reference to parent Building object
             curve_amount: How much upward curve at edges (0-1)
             tier: Roof tier number (affects size and position)
+            is_ghost: If True, don't add to physics world (for preview)
         """
         self.world = world
         self.render = render
@@ -167,6 +168,7 @@ class CurvedRoofPiece:
         self.parent_building = parent_building
         self.curve_amount = curve_amount
         self.tier = tier
+        self.is_ghost = is_ghost
 
         # Physics properties
         self.health = 100.0
@@ -198,7 +200,10 @@ class CurvedRoofPiece:
 
         body_np = self.render.attachNewNode(body_node)
         body_np.setPos(self.position)
-        self.world.attachRigidBody(body_node)
+
+        # Only add to physics world if not a ghost
+        if not self.is_ghost:
+            self.world.attachRigidBody(body_node)
 
         # Create curved visual geometry
         self._create_curved_visual(body_np, half_extents)
