@@ -55,7 +55,12 @@ class Game(ShowBase):
         self.building_raycaster = BuildingRaycaster(self.world, self.render)
 
         # Initialize HUD
-        self.hud = HUD()
+        self.hud = HUD(self.aspect2d, self.render)
+
+        # Set initial player health (for demonstration)
+        self.player_health = 100
+        self.player_max_health = 100
+        self.hud.set_health(self.player_health, self.player_max_health)
 
         # Initialize crosshair system
         self.crosshair_manager = CrosshairManager(self)
@@ -604,7 +609,8 @@ class Game(ShowBase):
         # Skip game logic if paused, but still update HUD
         if self.menu_system.is_paused:
             # Update HUD (for FPS counter if enabled)
-            self.hud.update(dt)
+            fps = globalClock.getAverageFrameRate()
+            self.hud.update(dt, fps=fps)
             return task.cont
 
         # Update shadow cameras to follow player (if shadows enabled)
@@ -671,9 +677,11 @@ class Game(ShowBase):
         # Update effects
         self.effects_manager.update(dt)
 
-        # Update HUD with FPS
+        # Update HUD with FPS, compass, minimap, and tool info
         fps = globalClock.getAverageFrameRate()
-        self.hud.update(dt, fps)
+        camera_heading = self.camera_controller.heading
+        active_tool = self.tool_manager.get_active_tool()
+        self.hud.update(dt, fps=fps, camera_heading=camera_heading, player_pos=player_pos, tool=active_tool)
 
         # Update camera to follow player
         player_pos = self.player.get_position()
