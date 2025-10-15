@@ -46,7 +46,7 @@ class PlayerController:
 
         # God mode settings
         self.godmode_enabled = GODMODE_ENABLED
-        self.is_flying = False
+        self.is_flying = False  # Start on ground at base camp
         self.fly_speed = GODMODE_FLY_SPEED
 
         # Double-press detection for space bar
@@ -74,7 +74,13 @@ class PlayerController:
         self.character.setMaxSlope(45)  # Max climbable slope in degrees
         self.character.setJumpSpeed(8.0)
         self.character.setFallSpeed(55.0)
-        self.character.setGravity(30.0)
+        
+        # Set gravity based on flying mode
+        if self.is_flying:
+            self.character.setGravity(0.0)  # No gravity when flying
+            print("Started in flying mode: gravity disabled")
+        else:
+            self.character.setGravity(30.0)  # Normal gravity
 
     def handle_input(self, key, pressed):
         """Handle keyboard input.

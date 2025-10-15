@@ -16,6 +16,7 @@ from rendering.shadow_manager import ShadowManager
 from rendering.post_process import PostProcessManager
 from rendering.effects import EffectsManager
 from rendering.weapon_viewmodel import WeaponViewModel
+from rendering.skybox import MountainSkybox
 from tools.tool_manager import ToolManager, ToolType
 from ui.hud import HUD
 from ui.crosshair import CrosshairManager
@@ -35,11 +36,16 @@ class Game(ShowBase):
         # Setup lighting
         self.setup_lighting()
 
+        # Initialize skybox with distant mountains, clouds, and sun
+        self.skybox = MountainSkybox(self.render, self.camera)
+        self.skybox.create_skybox()
+        print("Created mountain skybox with distant peaks, clouds, and sun")
+
         # Initialize world and terrain
         self.game_world = World(self.render, self.world)
 
-        # Initialize player (start at a good viewing position)
-        start_pos = Vec3(16, 16, 50)  # Start at center of terrain, high up
+        # Initialize player (start at the base of Mount Everest)
+        start_pos = Vec3(300, 300, 50)  # Start at base camp area, looking toward the mountain
         self.player = PlayerController(self.render, self.world, start_pos)
 
         # Initialize camera controller
@@ -212,19 +218,22 @@ class Game(ShowBase):
         # debugNP.show()  # Uncomment to see physics debug
 
     def setup_lighting(self):
-        """Setup basic lighting"""
-        # Ambient light
+        """Setup mountain environment lighting"""
+        # Ambient light - cooler mountain air
         alight = AmbientLight("alight")
-        alight.setColor((0.3, 0.3, 0.3, 1))
+        alight.setColor((0.4, 0.45, 0.5, 1))  # Slightly blue ambient for mountain atmosphere
         alnp = self.render.attachNewNode(alight)
         self.render.setLight(alnp)
 
-        # Directional light (sun)
+        # Directional light (sun) - warm mountain sun
         dlight = DirectionalLight("dlight")
-        dlight.setColor((0.8, 0.8, 0.7, 1))
+        dlight.setColor((1.0, 0.95, 0.8, 1))  # Warm yellowish sunlight
         dlnp = self.render.attachNewNode(dlight)
-        dlnp.setHpr(45, -60, 0)
+        dlnp.setHpr(45, -45, 0)  # Sun position matching skybox
         self.render.setLight(dlnp)
+        
+        # Store light reference for skybox coordination
+        self.sun_light = dlnp
 
     def setup_input(self):
         """Setup keyboard input handlers"""
@@ -682,6 +691,10 @@ class Game(ShowBase):
 
         # Update player movement
         self.player.update(dt, self.camera_controller)
+
+        # Update skybox to follow camera
+        camera_pos = self.camera.getPos()
+        self.skybox.update(camera_pos)
 
         # Check if player is moving (for weapon bob)
         is_moving = self.player.is_moving()

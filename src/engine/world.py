@@ -46,7 +46,7 @@ class World:
             # self._create_example_cubes()
 
             # Create example destructible buildings
-            self._create_example_buildings()
+            # self._create_example_buildings()
 
             # Create example destructible wall
             # self._create_example_wall()

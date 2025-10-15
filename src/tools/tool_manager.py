@@ -45,7 +45,7 @@ class ToolManager:
 
         # Default enabled tools (excluding fist and crowbar - player must find them)
         if enabled_tools is None:
-            enabled_tools = {ToolType.TERRAIN, ToolType.GUN, ToolType.BUILDING}
+            enabled_tools = {ToolType.FIST, ToolType.GUN, ToolType.BUILDING}
 
         # Create enabled tools (all melee weapons now use camera + building_raycaster for accurate hit detection)
         if ToolType.FIST in enabled_tools:
