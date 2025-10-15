@@ -33,6 +33,8 @@ class MountainSkybox:
         self.render = render
         self.camera = camera
         self.skybox_node = None
+        self.cloud_nodes = []  # Track cloud nodes for animation
+        self.animation_time = 0.0  # Track time for cloud movement
         self.sky_dome = None
         
     def create_skybox(self):
@@ -195,9 +197,10 @@ class MountainSkybox:
         return mountain_node
 
     def _create_gentle_mountain(self, width, max_height, name):
-        """Create simple mountain cards like the original implementation."""
+        """Create simple mountain cards that extend to ground level."""
         cm = CardMaker(f"mountain_{name}")
-        cm.setFrame(-width/2, width/2, 0, max_height)
+        # Extend mountains down below ground to eliminate floating appearance
+        cm.setFrame(-width/2, width/2, -max_height*0.2, max_height)
         
         return cm.generate()
 
@@ -222,10 +225,10 @@ class MountainSkybox:
             
             points.append((x, z, height))
         
-        # Add base points (at ground level)
+        # Add base points (below ground level to eliminate floating appearance)
         base_points = []
         for x, z, _ in points:
-            base_points.append((x, z, 0))
+            base_points.append((x, z, -50))  # Extend below ground level
         
         all_points = points + base_points
         vdata.setNumRows(len(all_points))
@@ -265,6 +268,11 @@ class MountainSkybox:
         # Enable transparency for atmospheric perspective
         mountain_np.setTransparency(TransparencyAttrib.MAlpha)
         
+        # Set mountains to render after clouds
+        mountain_np.setBin("background", 10)  # Higher priority than clouds
+        mountain_np.setDepthWrite(False)
+        mountain_np.setDepthTest(False)
+        
         return mountain_np
     
     def _simple_mountain_noise(self, angle, seed):
@@ -289,11 +297,11 @@ class MountainSkybox:
         """Create mountain cloud layers."""
         cloud_node = self.render.attachNewNode("mountain_clouds")
         
-        # Create realistic mountain clouds at different altitudes
+        # Create clouds farther than mountains (behind terrain)
         cloud_layers = [
-            {"distance": 1100, "height": 300, "size": 150, "density": 0.4, "color": Vec4(1.0, 1.0, 1.0, 0.7)},
-            {"distance": 1000, "height": 450, "size": 120, "density": 0.3, "color": Vec4(0.95, 0.95, 0.98, 0.6)},
-            {"distance": 900, "height": 600, "size": 100, "density": 0.25, "color": Vec4(0.9, 0.9, 0.95, 0.5)},
+            {"distance": 2200, "height": 400, "size": 180, "density": 0.3, "color": Vec4(1.0, 1.0, 1.0, 0.6)},
+            {"distance": 2000, "height": 550, "size": 150, "density": 0.25, "color": Vec4(0.95, 0.95, 0.98, 0.5)},
+            {"distance": 1900, "height": 700, "size": 120, "density": 0.2, "color": Vec4(0.9, 0.9, 0.95, 0.4)},
         ]
         
         for layer_idx, layer in enumerate(cloud_layers):
@@ -315,16 +323,33 @@ class MountainSkybox:
                 x = actual_distance * math.cos(actual_angle)
                 z = actual_distance * math.sin(actual_angle)
                 
-                # Create natural cloud with size variation
+                # Create fluffy cloud with size variation
                 cloud_base_size = layer["size"] + (i % 3) * 20
-                cloud_geom = self._create_fluffy_cloud(cloud_base_size, f"cloud_{layer_idx}_{i}")
+                cloud_cluster = self._create_fluffy_cloud(cloud_base_size, f"cloud_{layer_idx}_{i}")
                 
-                cloud_node_path = layer_node.attachNewNode(cloud_geom)
-                cloud_node_path.setPos(x, z, layer["height"])
-                cloud_node_path.setBillboardPointEye()  # Always face camera
-                cloud_node_path.setColor(layer["color"])
-                cloud_node_path.setTransparency(TransparencyAttrib.MAlpha)
-                cloud_node_path.setLightOff()
+                # Position cloud and set properties
+                cloud_cluster.setPos(x, z, layer["height"])
+                cloud_cluster.setColor(layer["color"])
+                cloud_cluster.setTransparency(TransparencyAttrib.MAlpha)
+                cloud_cluster.setLightOff()
+                
+                # Ensure clouds render behind terrain but still visible
+                cloud_cluster.setBin("background", 1 + layer_idx)  # Just behind sky dome
+                cloud_cluster.setDepthWrite(False)
+                cloud_cluster.setDepthTest(False)  # Background elements don't need depth test
+                
+                # Reparent to layer and track for animation
+                cloud_cluster.reparentTo(layer_node)
+                
+                # Store cloud info for animation
+                cloud_info = {
+                    'node': cloud_cluster,
+                    'original_x': x,
+                    'original_z': z,
+                    'speed': 0.5 + (i % 3) * 0.2,  # Varying speeds
+                    'layer': layer_idx
+                }
+                self.cloud_nodes.append(cloud_info)
             
             print(f"Created cloud layer {layer_idx} with {num_clouds} clouds at height {layer['height']}")
         
@@ -408,17 +433,248 @@ class MountainSkybox:
                 math.sin(x * 11.3 + seed * 1.8) * 0.25) / 1.75 + 0.5
     
     def _create_fluffy_cloud(self, base_size, name):
-        """Create a fluffy cloud using CardMaker for compatibility."""
-        # Create a single cloud card with natural proportions
-        cm_main = CardMaker(f"fluffy_cloud_{name}")
+        """Create a soft, natural-looking cloud using circular geometry."""
+        # Create cloud using circular puffs instead of rectangles
+        cloud_geom = self._create_soft_cloud_geometry(base_size, name)
+        return cloud_geom
+    
+    def _create_soft_cloud_geometry(self, size, name):
+        """Create natural cloud geometry with soft, rounded edges."""
+        # Create cloud root to hold multiple circular puffs
+        cloud_root = self.render.attachNewNode(f"soft_cloud_{name}")
         
-        # Make clouds horizontally stretched (natural cloud shape)
-        width = base_size * 1.4
-        height = base_size * 0.6
-        cm_main.setFrame(-width/2, width/2, -height/3, height*0.7)
+        # Create multiple overlapping circular puffs for soft appearance
+        num_puffs = 6 + int(size / 30)  # More puffs for smoother clouds
         
-        # Return the PandaNode from CardMaker
-        return cm_main.generate()
+        for puff_idx in range(num_puffs):
+            # Create circular puff geometry
+            puff_radius = size * (0.4 + 0.3 * abs(math.sin(puff_idx * 1.7)))
+            puff_geom = self._create_soft_circle(puff_radius, f"{name}_puff_{puff_idx}")
+            puff_node = cloud_root.attachNewNode(puff_geom)
+            
+            # Position puffs in natural clustering
+            if puff_idx == 0:
+                # Center puff
+                puff_x, puff_y = 0, 0
+                opacity = 0.8
+            else:
+                # Surrounding puffs with natural variation
+                angle = 2 * math.pi * (puff_idx - 1) / (num_puffs - 1)
+                # Add irregularity for natural shape
+                angle += 0.4 * math.sin(puff_idx * 2.3)
+                
+                distance = size * (0.2 + 0.3 * abs(math.sin(puff_idx * 1.9)))
+                puff_x = distance * math.cos(angle)
+                puff_y = distance * math.sin(angle)
+                opacity = 0.5 + 0.3 * abs(math.sin(puff_idx * 2.1))
+            
+            puff_node.setPos(puff_x, puff_y, 0)
+            
+            # Set soft cloud appearance
+            puff_node.setColor(1.0, 1.0, 1.0, opacity)
+            puff_node.setTransparency(TransparencyAttrib.MAlpha)
+            # Remove billboard - use static orientation to avoid compression
+            puff_node.lookAt(0, 0, 0)  # Face towards center instead of billboarding
+            puff_node.setLightOff()
+            
+            # Add soft rendering properties for background clouds
+            puff_node.setBin("background", 2 + puff_idx)  # Just behind sky dome
+            puff_node.setDepthWrite(False)  # Soft blending
+            puff_node.setDepthTest(False)  # Background elements don't need depth test
+            
+            # Vary scale for natural irregularity
+            scale_variation = 0.8 + 0.4 * abs(math.sin(puff_idx * 3.1))
+            puff_node.setScale(scale_variation)
+        
+        return cloud_root
+    
+    def _create_soft_circle(self, radius, name):
+        """Create a soft circular geometry for cloud puffs."""
+        format = GeomVertexFormat.getV3()
+        vdata = GeomVertexData(name, format, Geom.UHStatic)
+        
+        # Create smooth circle with more segments for soft edges
+        segments = 24  # High segment count for smooth circles
+        vertices = []
+        
+        # Center vertex
+        vertices.append((0, 0, 0))
+        
+        # Create multiple concentric rings for soft falloff
+        rings = 3
+        for ring in range(rings):
+            ring_radius = radius * (ring + 1) / rings
+            
+            for i in range(segments):
+                angle = 2 * math.pi * i / segments
+                x = ring_radius * math.cos(angle)
+                z = ring_radius * math.sin(angle)  # Use Z instead of Y for proper orientation
+                
+                # Add slight randomness for natural edges
+                edge_variation = 1.0 + 0.1 * math.sin(angle * 7.3 + ring)
+                x *= edge_variation
+                z *= edge_variation
+                
+                # Create volume by slightly varying Y (height)
+                y = ring_radius * 0.1 * math.sin(angle * 4.1 + ring * 2.3)
+                
+                vertices.append((x, y, z))
+        
+        vdata.setNumRows(len(vertices))
+        vertex_writer = GeomVertexWriter(vdata, "vertex")
+        
+        for x, y, z in vertices:
+            vertex_writer.addData3(x, y, z)
+        
+        # Create triangles connecting rings
+        geom = Geom(vdata)
+        tris = GeomTriangles(Geom.UHStatic)
+        
+        # Connect center to first ring
+        for i in range(segments):
+            next_i = (i + 1) % segments
+            tris.addVertices(0, i + 1, next_i + 1)
+        
+        # Connect rings together
+        for ring in range(rings - 1):
+            ring_start = 1 + ring * segments
+            next_ring_start = 1 + (ring + 1) * segments
+            
+            for i in range(segments):
+                next_i = (i + 1) % segments
+                
+                v0 = ring_start + i
+                v1 = ring_start + next_i
+                v2 = next_ring_start + i
+                v3 = next_ring_start + next_i
+                
+                # Two triangles per segment
+                tris.addVertices(v0, v2, v1)
+                tris.addVertices(v1, v2, v3)
+        
+        tris.closePrimitive()
+        geom.addPrimitive(tris)
+        
+        # Create geometry node
+        circle_geom_node = GeomNode(name)
+        circle_geom_node.addGeom(geom)
+        
+        return circle_geom_node
+    
+    def _animate_clouds(self):
+        """Animate cloud movement and subtle transformations."""
+        for cloud_info in self.cloud_nodes:
+            cloud_node = cloud_info['node']
+            if not cloud_node or cloud_node.isEmpty():
+                continue
+                
+            # Drift clouds slowly across the sky
+            drift_speed = cloud_info['speed'] * 2.0  # Units per second
+            drift_x = math.sin(self.animation_time * 0.1 * drift_speed) * 20
+            drift_z = self.animation_time * drift_speed
+            
+            # Wrap around when clouds drift too far
+            max_drift = 500
+            if drift_z > max_drift:
+                # Reset cloud position to other side
+                drift_z -= max_drift * 2
+            
+            new_x = cloud_info['original_x'] + drift_x
+            new_z = cloud_info['original_z'] + drift_z
+            
+            current_pos = cloud_node.getPos()
+            cloud_node.setPos(new_x, new_z, current_pos.z)
+            
+            # Subtle size pulsing for living clouds
+            pulse_scale = 1.0 + 0.05 * math.sin(self.animation_time * 0.5 + cloud_info['layer'])
+            cloud_node.setScale(pulse_scale, pulse_scale, 1.0)
+            
+            # Gentle rotation
+            rotation_speed = 5.0  # degrees per second
+            current_h = cloud_node.getH()
+            cloud_node.setH(current_h + rotation_speed * 0.016)  # Assuming 60fps
+    
+    def _create_natural_cloud_geometry(self, size, name):
+        """Create natural cloud geometry with irregular, fluffy shape."""
+        format = GeomVertexFormat.getV3()
+        vdata = GeomVertexData(name, format, Geom.UHStatic)
+        
+        vertices = []
+        
+        # Create cloud as collection of overlapping circular "puffs"
+        num_puffs = 5 + int(size / 30)  # More puffs for larger clouds
+        
+        for puff_idx in range(num_puffs):
+            # Position puffs in natural clustering pattern
+            if puff_idx == 0:
+                # Main center puff
+                center_x, center_y = 0, 0
+                puff_radius = size * 0.6
+            else:
+                # Surrounding puffs with some randomness
+                angle = 2 * math.pi * puff_idx / num_puffs
+                # Add some variation to make it irregular
+                angle += (puff_idx * 0.7) % 1.0  # Pseudo-random offset
+                
+                distance = size * (0.3 + 0.4 * abs(math.sin(puff_idx * 2.3)))
+                center_x = distance * math.cos(angle)
+                center_y = distance * math.sin(angle)
+                puff_radius = size * (0.3 + 0.4 * abs(math.sin(puff_idx * 1.7)))
+            
+            # Create circular puff vertices
+            puff_segments = 12  # Enough for smooth circles
+            for i in range(puff_segments):
+                puff_angle = 2 * math.pi * i / puff_segments
+                x = center_x + puff_radius * math.cos(puff_angle)
+                y = center_y + puff_radius * math.sin(puff_angle)
+                
+                # Vary height slightly for natural irregularity
+                z_variation = puff_radius * 0.1 * math.sin(puff_angle * 3.7)
+                z = z_variation
+                
+                vertices.append((x, y, z))
+        
+        # Add some random edge vertices for irregular cloud boundaries
+        for i in range(8):
+            # Create irregular edge points
+            angle = 2 * math.pi * i / 8
+            radius_variation = size * (0.8 + 0.6 * abs(math.sin(i * 2.1)))
+            x = radius_variation * math.cos(angle)
+            y = radius_variation * math.sin(angle) * 0.6  # Flatten vertically
+            z = size * 0.05 * math.sin(angle * 2.3)  # Slight height variation
+            vertices.append((x, y, z))
+        
+        # Set vertex data
+        vdata.setNumRows(len(vertices))
+        vertex_writer = GeomVertexWriter(vdata, "vertex")
+        
+        for x, y, z in vertices:
+            vertex_writer.addData3(x, y, z)
+        
+        # Create triangles for cloud surface (simplified approach)
+        geom = Geom(vdata)
+        tris = GeomTriangles(Geom.UHStatic)
+        
+        # Connect vertices to form cloud surface
+        # Use every 3 vertices to create triangles
+        for i in range(0, len(vertices) - 2, 3):
+            if i + 2 < len(vertices):
+                tris.addVertices(i, i + 1, i + 2)
+        
+        # Add some connecting triangles for better shape
+        for i in range(0, len(vertices) - 6, 6):
+            if i + 5 < len(vertices):
+                tris.addVertices(i, i + 3, i + 1)
+                tris.addVertices(i + 1, i + 3, i + 4)
+        
+        tris.closePrimitive()
+        geom.addPrimitive(tris)
+        
+        # Create geometry node
+        cloud_geom_node = GeomNode(name)
+        cloud_geom_node.addGeom(geom)
+        
+        return cloud_geom_node
     
     def _create_sun(self):
         """Create a bright, circular sun in the mountain sky."""
@@ -596,8 +852,17 @@ class MountainSkybox:
         
         return sun_geom_node
     
-    def update(self, camera_pos):
-        """Update skybox to follow camera."""
+    def update(self, camera_pos, dt=0.016):
+        """Update skybox to follow camera and animate clouds.
+        
+        Args:
+            camera_pos: Camera position
+            dt: Delta time for animation (default 60fps)
+        """
         if self.skybox_node:
-            # Keep skybox centered on camera (only X and Z, not Y)
+            # Keep skybox centered on camera (only X and Y, not Z)
             self.skybox_node.setPos(camera_pos.x, camera_pos.y, 0)
+            
+            # Animate clouds
+            self.animation_time += dt
+            self._animate_clouds()

@@ -692,9 +692,9 @@ class Game(ShowBase):
         # Update player movement
         self.player.update(dt, self.camera_controller)
 
-        # Update skybox to follow camera
+        # Update skybox to follow camera and animate clouds
         camera_pos = self.camera.getPos()
-        self.skybox.update(camera_pos)
+        self.skybox.update(camera_pos, dt)
 
         # Check if player is moving (for weapon bob)
         is_moving = self.player.is_moving()
