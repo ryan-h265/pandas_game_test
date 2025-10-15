@@ -2,7 +2,8 @@
 
 from .base import Tool, ToolType
 from panda3d.core import Vec3, Vec4, TransparencyAttrib
-from structures.building import SimpleBuilding
+from structures.simple_building import SimpleBuilding
+from structures.japanese_building import JapaneseBuilding
 
 
 class BuildingTool(Tool):
@@ -27,10 +28,43 @@ class BuildingTool(Tool):
         self.terrain_raycaster = terrain_raycaster
         self.mouse_watcher = mouse_watcher
 
+        # Building type selection
+        self.building_types = {
+            1: {
+                "name": "Simple Building",
+                "class": SimpleBuilding,
+                "default_width": 10.0,
+                "default_depth": 10.0,
+                "default_height": 8.0,
+            },
+            2: {
+                "name": "Japanese Building",
+                "class": JapaneseBuilding,
+                "default_width": 12.0,
+                "default_depth": 10.0,
+                "default_height": 6.0,
+            },
+            3: {
+                "name": "TODO: Building Type 3",
+                "class": SimpleBuilding,  # Placeholder
+                "default_width": 10.0,
+                "default_depth": 10.0,
+                "default_height": 8.0,
+            },
+            4: {
+                "name": "TODO: Building Type 4",
+                "class": SimpleBuilding,  # Placeholder
+                "default_width": 10.0,
+                "default_depth": 10.0,
+                "default_height": 8.0,
+            },
+        }
+        self.current_building_type = 1  # Start with Simple Building
+
         # Building parameters (adjustable)
-        self.building_width = 10.0
-        self.building_depth = 10.0
-        self.building_height = 8.0
+        self.building_width = self.building_types[1]["default_width"]
+        self.building_depth = self.building_types[1]["default_depth"]
+        self.building_height = self.building_types[1]["default_height"]
 
         # Ghost building preview
         self.ghost_building = None
@@ -48,7 +82,8 @@ class BuildingTool(Tool):
     def on_activate(self):
         """Called when building tool is equipped."""
         self._create_ghost_building()
-        return f"Equipped: Building Placer ({self.building_width}x{self.building_depth}x{self.building_height})"
+        building_name = self.building_types[self.current_building_type]["name"]
+        return f"Equipped: {building_name} ({self.building_width}x{self.building_depth}x{self.building_height})"
 
     def on_deactivate(self):
         """Called when tool is switched away from."""
@@ -60,8 +95,11 @@ class BuildingTool(Tool):
         if self.ghost_building:
             self._remove_ghost_building()
 
-        # Create a simple building as the ghost
-        self.ghost_building = SimpleBuilding(
+        # Get the current building type class
+        building_class = self.building_types[self.current_building_type]["class"]
+
+        # Create a building as the ghost using the selected type
+        self.ghost_building = building_class(
             self.bullet_world,
             self.render,
             self.ghost_position,
@@ -200,16 +238,19 @@ class BuildingTool(Tool):
             print("Cannot place building here!")
             return False
 
-        # Create the actual building at ghost position
+        # Create the actual building at ghost position using current building type
         building_count = len([b for b in self.world.buildings if not b.name.startswith("ghost")])
-        new_building = SimpleBuilding(
+        building_class = self.building_types[self.current_building_type]["class"]
+        building_type_name = self.building_types[self.current_building_type]["name"].lower().replace(" ", "_")
+
+        new_building = building_class(
             self.bullet_world,
             self.render,
             self.ghost_position,
             width=self.building_width,
             depth=self.building_depth,
             height=self.building_height,
-            name=f"building_{building_count}"
+            name=f"{building_type_name}_{building_count}"
         )
 
         # Add building to world
@@ -297,3 +338,29 @@ class BuildingTool(Tool):
         """
         if button == 1:  # Left mouse button
             self.has_placed_this_click = False
+
+    def set_building_type(self, building_type_number):
+        """Switch to a different building type.
+
+        Args:
+            building_type_number: Building type number (1-4)
+
+        Returns:
+            str: Status message
+        """
+        if building_type_number not in self.building_types:
+            return f"Invalid building type: {building_type_number}"
+
+        self.current_building_type = building_type_number
+
+        # Load default dimensions for this building type
+        building_info = self.building_types[building_type_number]
+        self.building_width = building_info["default_width"]
+        self.building_depth = building_info["default_depth"]
+        self.building_height = building_info["default_height"]
+
+        # Recreate ghost with new building type
+        self._remove_ghost_building()
+        self._create_ghost_building()
+
+        return f"Selected: {building_info['name']} ({self.building_width}x{self.building_depth}x{self.building_height})"

@@ -272,7 +272,8 @@ class WorldSerializer:
             data: List of dicts with building data
             world: World instance to add buildings to
         """
-        from structures.building import Building, BuildingPiece, SimpleBuilding
+        from structures.building import Building, BuildingPiece
+        from structures.simple_building import SimpleBuilding
 
         for building_data in data:
             building_type = building_data['type']

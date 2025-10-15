@@ -251,10 +251,13 @@ class Game(ShowBase):
         self.accept("mouse2", self.on_mouse_down, [2])  # Middle click
         self.accept("mouse2-up", self.on_mouse_up, [2])
 
-        # Terrain mode switching (only when terrain tool is active)
-        self.accept("1", self.set_terrain_mode, ["lower"])
-        self.accept("2", self.set_terrain_mode, ["raise"])
-        self.accept("3", self.set_terrain_mode, ["smooth"])
+        # Context-sensitive number keys (1-4)
+        # For terrain tool: terrain modes (1=lower, 2=raise, 3=smooth)
+        # For building tool: building types (1=simple, 2=japanese, 3=todo, 4=todo)
+        self.accept("1", self.on_number_key, [1])
+        self.accept("2", self.on_number_key, [2])
+        self.accept("3", self.on_number_key, [3])
+        self.accept("4", self.on_number_key, [4])
 
         # Brush size adjustment
         self.accept("wheel_up", self.adjust_brush_size, [1])
@@ -538,8 +541,41 @@ class Game(ShowBase):
         if active_tool:
             self.crosshair_manager.show_crosshair(active_tool.view_model_name)
 
+    def on_number_key(self, number):
+        """Handle number key press - context sensitive based on active tool.
+
+        Args:
+            number: Number key pressed (1-4)
+        """
+        active_tool = self.tool_manager.get_active_tool()
+
+        if not active_tool:
+            return
+
+        # Building tool: switch building type
+        if active_tool.tool_type == ToolType.BUILDING:
+            message = active_tool.set_building_type(number)
+            self.hud.show_message(message)
+            print(message)
+
+        # Terrain tool: switch terrain mode (only 1-3)
+        elif active_tool.tool_type == ToolType.TERRAIN:
+            if number == 1:
+                active_tool.set_mode("lower")
+                self.hud.show_message("Terrain Mode: Lower")
+            elif number == 2:
+                active_tool.set_mode("raise")
+                self.hud.show_message("Terrain Mode: Raise")
+            elif number == 3:
+                active_tool.set_mode("smooth")
+                self.hud.show_message("Terrain Mode: Smooth")
+
+        else:
+            self.hud.show_message(f"Number keys have no function for {active_tool.name}")
+
     def set_terrain_mode(self, mode):
         """Set terrain editing mode (only works with terrain tool).
+        [DEPRECATED: Use on_number_key instead]
 
         Args:
             mode: 'lower', 'raise', or 'smooth'

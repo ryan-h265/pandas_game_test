@@ -159,7 +159,7 @@ def example_save_load_usage(game):
         world._generate_initial_terrain()
         
         # Add multiple buildings in a grid
-        from src.structures.building import SimpleBuilding
+        from src.structures.simple_building import SimpleBuilding
         
         for x in range(0, 100, 30):
             for y in range(0, 100, 30):

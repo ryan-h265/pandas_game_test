@@ -4,7 +4,8 @@ from panda3d.core import Vec3, Vec4
 from panda3d.bullet import BulletRigidBodyNode, BulletBoxShape
 from config.settings import RENDER_DISTANCE
 from engine.terrain import Terrain
-from structures.building import SimpleBuilding
+from structures.simple_building import SimpleBuilding
+from structures.japanese_building import JapaneseBuilding
 from engine.world_serializer import WorldSerializer
 
 
@@ -207,19 +208,31 @@ class World:
         """Create example destructible buildings."""
         print("Creating example buildings...")
 
-        # Create a single large building
-        building = SimpleBuilding(
+        # Create a Western-style building
+        western_building = SimpleBuilding(
             self.bullet_world,
             self.render,
             Vec3(30, 30, 0),
-            width=20,
-            depth=16,
-            height=12,
-            name="large_building",
+            width=15,
+            depth=12,
+            height=10,
+            name="western_building",
         )
-        self.buildings.append(building)
+        self.buildings.append(western_building)
 
-        print(f"Created {len(self.buildings)} example building")
+        # Create a Japanese-style building
+        japanese_building = JapaneseBuilding(
+            self.bullet_world,
+            self.render,
+            Vec3(55, 30, 0),
+            width=14,
+            depth=11,
+            height=7,
+            name="japanese_building",
+        )
+        self.buildings.append(japanese_building)
+
+        print(f"Created {len(self.buildings)} example buildings (Western + Japanese)")
 
     def add_building(self, building):
         """Add a building to the world.
