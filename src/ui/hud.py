@@ -74,10 +74,10 @@ class HUD:
         )
 
         # Tool info panel (bottom-right)
-        self.tool_panel_bg = self._create_bar(0.7, -0.95, 0.5, 0.15, (0.15, 0.15, 0.15, 0.8))
+        self.tool_panel_bg = self._create_bar(0.7, -0.95, 0.5, 0.25, (0.15, 0.15, 0.15, 0.8))
         self.tool_name_text = OnscreenText(
             text="Tool: None",
-            pos=(0.72, -0.84),
+            pos=(0.72, -0.78),
             scale=0.045,
             fg=(1, 1, 0.5, 1),
             align=TextNode.ALeft,
@@ -85,7 +85,7 @@ class HUD:
         )
         self.tool_info_text = OnscreenText(
             text="",
-            pos=(0.72, -0.90),
+            pos=(0.72, -0.84),
             scale=0.035,
             fg=(0.9, 0.9, 0.9, 1),
             align=TextNode.ALeft,
@@ -93,9 +93,25 @@ class HUD:
         )
         self.tool_info_text2 = OnscreenText(
             text="",
-            pos=(0.72, -0.94),
+            pos=(0.72, -0.88),
             scale=0.035,
             fg=(0.9, 0.9, 0.9, 1),
+            align=TextNode.ALeft,
+            mayChange=True,
+        )
+        self.tool_info_text3 = OnscreenText(
+            text="",
+            pos=(0.72, -0.92),
+            scale=0.028,
+            fg=(0.7, 0.7, 0.7, 1),
+            align=TextNode.ALeft,
+            mayChange=True,
+        )
+        self.tool_info_text4 = OnscreenText(
+            text="",
+            pos=(0.72, -0.95),
+            scale=0.028,
+            fg=(0.7, 0.7, 0.7, 1),
             align=TextNode.ALeft,
             mayChange=True,
         )
@@ -297,6 +313,8 @@ class HUD:
             self.tool_name_text.setText("Tool: None")
             self.tool_info_text.setText("")
             self.tool_info_text2.setText("")
+            self.tool_info_text3.setText("")
+            self.tool_info_text4.setText("")
             return
 
         tool_type = tool.tool_type
@@ -310,17 +328,23 @@ class HUD:
             bullets = getattr(tool, 'bullets_fired', 0)
             self.tool_info_text.setText(f"Damage: {int(damage)}  Fire Rate: {fire_rate:.2f}s")
             self.tool_info_text2.setText(f"Bullets Fired: {bullets}")
+            self.tool_info_text3.setText("")
+            self.tool_info_text4.setText("")
 
         elif tool_type == ToolType.BUILDING:
-            # Building tool: show building type and size
+            # Building tool: show building type, size, and controls
             building_type = getattr(tool, 'current_building_type', 1)
             width = getattr(tool, 'building_width', 0)
             depth = getattr(tool, 'building_depth', 0)
             height = getattr(tool, 'building_height', 0)
             building_types = getattr(tool, 'building_types', {})
             type_name = building_types.get(building_type, {}).get('name', 'Unknown')
+            snap_to_grid = getattr(tool, 'snap_to_grid', False)
+
             self.tool_info_text.setText(f"Type: {type_name}")
-            self.tool_info_text2.setText(f"Size: {width:.0f}x{depth:.0f}x{height:.0f}")
+            self.tool_info_text2.setText(f"Size: {width:.0f}x{depth:.0f}x{height:.0f} | Grid: {'ON' if snap_to_grid else 'OFF'}")
+            self.tool_info_text3.setText("LClick:Place RClick:Rotate MClick:Grid")
+            self.tool_info_text4.setText("Scroll:Width [/]:Height 1-4:Type")
 
         elif tool_type == ToolType.TERRAIN:
             # Terrain tool: show mode and radius
@@ -329,20 +353,28 @@ class HUD:
             strength = getattr(tool, 'strength', 0)
             self.tool_info_text.setText(f"Mode: {mode}")
             self.tool_info_text2.setText(f"Radius: {radius:.1f}  Strength: {strength:.1f}")
+            self.tool_info_text3.setText("")
+            self.tool_info_text4.setText("")
 
         elif tool_type == ToolType.CROWBAR:
             # Crowbar: show damage
             damage = getattr(tool, 'damage_per_hit', 0)
             self.tool_info_text.setText(f"Damage: {int(damage)}")
             self.tool_info_text2.setText("Melee weapon")
+            self.tool_info_text3.setText("")
+            self.tool_info_text4.setText("")
 
         elif tool_type == ToolType.FIST:
             # Fist: show damage
             damage = getattr(tool, 'damage_per_hit', 0)
             self.tool_info_text.setText(f"Damage: {int(damage)}")
             self.tool_info_text2.setText("Melee weapon")
+            self.tool_info_text3.setText("")
+            self.tool_info_text4.setText("")
 
         else:
             # Default: just show tool name
             self.tool_info_text.setText("")
             self.tool_info_text2.setText("")
+            self.tool_info_text3.setText("")
+            self.tool_info_text4.setText("")

@@ -235,8 +235,55 @@ class BuildingTool(Tool):
         Returns:
             bool: True if placement is valid
         """
-        # For now, always valid (could add collision checking later)
-        # TODO: Check if position overlaps with existing buildings
+        if not self.ghost_building or not self.world:
+            return True
+
+        # Get all existing buildings (excluding ghost buildings)
+        existing_buildings = [b for b in self.world.buildings if not b.name.startswith("ghost")]
+
+        # Check each piece of the ghost building against all existing buildings
+        for ghost_piece in self.ghost_building.pieces:
+            ghost_pos = ghost_piece.position
+            ghost_size = ghost_piece.size
+
+            # Calculate ghost piece bounding box
+            ghost_min = Vec3(
+                ghost_pos.x - ghost_size.x / 2,
+                ghost_pos.y - ghost_size.y / 2,
+                ghost_pos.z - ghost_size.z / 2
+            )
+            ghost_max = Vec3(
+                ghost_pos.x + ghost_size.x / 2,
+                ghost_pos.y + ghost_size.y / 2,
+                ghost_pos.z + ghost_size.z / 2
+            )
+
+            # Check against all pieces of all existing buildings
+            for building in existing_buildings:
+                for piece in building.pieces:
+                    piece_pos = piece.position
+                    piece_size = piece.size
+
+                    # Calculate existing piece bounding box
+                    piece_min = Vec3(
+                        piece_pos.x - piece_size.x / 2,
+                        piece_pos.y - piece_size.y / 2,
+                        piece_pos.z - piece_size.z / 2
+                    )
+                    piece_max = Vec3(
+                        piece_pos.x + piece_size.x / 2,
+                        piece_pos.y + piece_size.y / 2,
+                        piece_pos.z + piece_size.z / 2
+                    )
+
+                    # Check for AABB (Axis-Aligned Bounding Box) collision
+                    if (ghost_min.x < piece_max.x and ghost_max.x > piece_min.x and
+                        ghost_min.y < piece_max.y and ghost_max.y > piece_min.y and
+                        ghost_min.z < piece_max.z and ghost_max.z > piece_min.z):
+                        # Collision detected
+                        return False
+
+        # No collisions found
         return True
 
     def update(self, dt):
@@ -274,8 +321,12 @@ class BuildingTool(Tool):
         if self.has_placed_this_click:
             return False
 
-        if not self.ghost_building or not self.placement_valid:
-            print("Cannot place building here!")
+        if not self.ghost_building:
+            print("Cannot place building - no ghost building!")
+            return False
+
+        if not self.placement_valid:
+            print("Cannot place building - overlapping with existing building!")
             return False
 
         # Create the actual building at ghost position using current building type
