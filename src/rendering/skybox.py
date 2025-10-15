@@ -424,10 +424,9 @@ class MountainSkybox:
         """Create a bright, circular sun in the mountain sky."""
         sun_node = self.render.attachNewNode("sun_system")
         
-        # Create main sun disk using simple CardMaker but with multiple layers for depth
-        cm_sun = CardMaker("sun_disk")
-        cm_sun.setFrame(-60, 60, -60, 60)  # Main sun disk
-        sun_disk = sun_node.attachNewNode(cm_sun.generate())
+        # Create circular sun disk using geometry
+        sun_geom = self._create_circular_sun(60)  # Radius 60
+        sun_disk = sun_node.attachNewNode(sun_geom)
         
         # Position sun higher and more visible
         sun_distance = 1400
@@ -439,6 +438,8 @@ class MountainSkybox:
         sun_y = sun_distance * math.sin(sun_elevation)
         
         sun_disk.setPos(sun_x, sun_z, sun_y)
+        # Make sun face directly towards the camera by using billboard point eye
+        # but constrain it to avoid rotation with camera movement
         sun_disk.setBillboardPointEye()
         
         # Brightest center core
@@ -447,20 +448,20 @@ class MountainSkybox:
         sun_disk.setBin("fixed", 102)
         sun_disk.setDepthTest(False)
         sun_disk.setDepthWrite(False)
+        sun_disk.setRenderModeWireframe(False)  # Ensure it's solid
         
-        # Create layered glow for 3D depth effect
+        # Create circular layered glow for 3D depth effect
         glow_layers = [
-            {"size": 120, "color": Vec4(1.3, 1.2, 0.8, 0.7)},
-            {"size": 180, "color": Vec4(1.1, 1.0, 0.6, 0.4)},
-            {"size": 250, "color": Vec4(1.0, 0.8, 0.5, 0.2)},
+            {"radius": 90, "color": Vec4(1.3, 1.2, 0.8, 0.7)},
+            {"radius": 130, "color": Vec4(1.1, 1.0, 0.6, 0.4)},
+            {"radius": 180, "color": Vec4(1.0, 0.8, 0.5, 0.2)},
         ]
         
         for i, layer in enumerate(glow_layers):
-            cm_glow = CardMaker(f"sun_glow_{i}")
-            cm_glow.setFrame(-layer["size"]/2, layer["size"]/2, -layer["size"]/2, layer["size"]/2)
-            
-            glow_card = sun_node.attachNewNode(cm_glow.generate())
+            glow_geom = self._create_simple_circle(layer["radius"])
+            glow_card = sun_node.attachNewNode(glow_geom)
             glow_card.setPos(sun_x, sun_z, sun_y)
+            # Make glow face camera with billboard
             glow_card.setBillboardPointEye()
             glow_card.setColor(layer["color"])
             glow_card.setTransparency(TransparencyAttrib.MAlpha)
@@ -473,6 +474,48 @@ class MountainSkybox:
         print(f"Sun elevation: {math.degrees(sun_elevation):.1f}°, azimuth: {math.degrees(sun_azimuth):.1f}°")
         
         return sun_node
+    
+    def _create_simple_circle(self, radius):
+        """Create a perfect circular geometry that maintains shape."""
+        format = GeomVertexFormat.getV3()
+        vdata = GeomVertexData("simple_circle", format, Geom.UHStatic)
+        
+        # Create perfect circle vertices with high segment count for smoothness
+        segments = 32  # Higher segments for perfect circle
+        vertices = []
+        
+        # Center vertex
+        vertices.append((0, 0, 0))
+        
+        # Circle edge vertices - create in XZ plane so it faces forward when billboarded
+        for i in range(segments):
+            angle = 2 * math.pi * i / segments
+            x = radius * math.cos(angle)
+            z = radius * math.sin(angle)
+            vertices.append((x, 0, z))  # XZ plane so it faces towards camera
+        
+        vdata.setNumRows(len(vertices))
+        vertex_writer = GeomVertexWriter(vdata, "vertex")
+        
+        for x, y, z in vertices:
+            vertex_writer.addData3(x, y, z)
+        
+        # Create triangles from center to edge
+        geom = Geom(vdata)
+        tris = GeomTriangles(Geom.UHStatic)
+        
+        for i in range(segments):
+            next_i = (i + 1) % segments
+            tris.addVertices(0, i + 1, next_i + 1)
+        
+        tris.closePrimitive()
+        geom.addPrimitive(tris)
+        
+        # Create geometry node
+        circle_geom_node = GeomNode("simple_circle")
+        circle_geom_node.addGeom(geom)
+        
+        return circle_geom_node
     
     def _create_circular_sun(self, radius):
         """Create a realistic circular sun with gradient effect."""
@@ -496,8 +539,8 @@ class MountainSkybox:
             for i in range(segments):
                 angle = 2 * math.pi * i / segments
                 x = ring_radius * math.cos(angle)
-                y = ring_radius * math.sin(angle)
-                vertices.append((x, y, 0))
+                z = ring_radius * math.sin(angle)
+                vertices.append((x, 0, z))
                 
                 # Sun gradient colors
                 colors.append(Vec4(
