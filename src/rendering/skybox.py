@@ -1,6 +1,7 @@
 """Skybox system for creating atmospheric mountain environments."""
 
 import math
+import os
 from panda3d.core import (
     GeomVertexFormat,
     GeomVertexData,
@@ -25,7 +26,7 @@ class MountainSkybox:
     
     def __init__(self, render, camera):
         """Initialize the skybox.
-        
+
         Args:
             render: Panda3D render node
             camera: Camera node for positioning
@@ -36,7 +37,25 @@ class MountainSkybox:
         self.cloud_nodes = []  # Track cloud nodes for animation
         self.animation_time = 0.0  # Track time for cloud movement
         self.sky_dome = None
-        
+        self.cloud_shader = None  # Cloud shader reference
+        self._load_cloud_shader()
+
+    def _load_cloud_shader(self):
+        """Load the cloud shader for realistic cloud rendering."""
+        shader_dir = os.path.join(
+            os.path.dirname(__file__), "..", "..", "assets", "shaders"
+        )
+        vert_path = os.path.join(shader_dir, "cloud.vert")
+        frag_path = os.path.join(shader_dir, "cloud.frag")
+
+        # Load cloud shader
+        self.cloud_shader = Shader.load(Shader.SL_GLSL, vertex=vert_path, fragment=frag_path)
+
+        if self.cloud_shader:
+            print("Cloud shader loaded successfully")
+        else:
+            print(f"Warning: Failed to load cloud shader from {shader_dir}")
+
     def create_skybox(self):
         """Create complete mountain skybox with sky dome, mountains, sun, and clouds."""
         # Create the base skybox structure
@@ -332,7 +351,17 @@ class MountainSkybox:
                 cloud_cluster.setColor(layer["color"])
                 cloud_cluster.setTransparency(TransparencyAttrib.MAlpha)
                 cloud_cluster.setLightOff()
-                
+
+                # Apply cloud shader for realistic rendering
+                if self.cloud_shader:
+                    cloud_cluster.setShader(self.cloud_shader)
+                    # Set shader inputs
+                    cloud_cluster.setShaderInput("lightDirection", Vec3(1, 1, -1))  # Sun direction
+                    cloud_cluster.setShaderInput("sunColor", Vec3(1.0, 0.95, 0.8))  # Warm sun color
+                    cloud_cluster.setShaderInput("time", 0.0)  # Will be updated in update()
+                    cloud_cluster.setShaderInput("cloudDensity", 0.8 + layer_idx * 0.1)  # Vary density by layer
+                    cloud_cluster.setShaderInput("camera", self.camera.getPos())
+
                 # Ensure clouds render behind terrain but still visible
                 cloud_cluster.setBin("background", 1 + layer_idx)  # Just behind sky dome
                 cloud_cluster.setDepthWrite(False)
@@ -599,28 +628,33 @@ class MountainSkybox:
             cloud_node = cloud_info['node']
             if not cloud_node or cloud_node.isEmpty():
                 continue
-                
+
+            # Update shader time for procedural animation
+            if self.cloud_shader:
+                cloud_node.setShaderInput("time", self.animation_time)
+                cloud_node.setShaderInput("camera", self.camera.getPos())
+
             # Drift clouds slowly across the sky
             drift_speed = cloud_info['speed'] * 2.0  # Units per second
             drift_x = math.sin(self.animation_time * 0.1 * drift_speed) * 20
             drift_z = self.animation_time * drift_speed
-            
+
             # Wrap around when clouds drift too far
             max_drift = 500
             if drift_z > max_drift:
                 # Reset cloud position to other side
                 drift_z -= max_drift * 2
-            
+
             new_x = cloud_info['original_x'] + drift_x
             new_z = cloud_info['original_z'] + drift_z
-            
+
             current_pos = cloud_node.getPos()
             cloud_node.setPos(new_x, new_z, current_pos.z)
-            
+
             # Subtle size pulsing for living clouds
             pulse_scale = 1.0 + 0.05 * math.sin(self.animation_time * 0.5 + cloud_info['layer'])
             cloud_node.setScale(pulse_scale, pulse_scale, 1.0)
-            
+
             # Gentle rotation
             rotation_speed = 5.0  # degrees per second
             current_h = cloud_node.getH()

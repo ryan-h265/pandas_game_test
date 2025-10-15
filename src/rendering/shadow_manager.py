@@ -145,11 +145,12 @@ class ShadowManager:
             lens = camera_np.node().getLens()
             lens.setFilmSize(size, size)
 
-    def set_shader_inputs(self, node_path):
+    def set_shader_inputs(self, node_path, ssao_enabled=True):
         """Set shader inputs for shadow rendering.
 
         Args:
             node_path: NodePath to apply shadow inputs to
+            ssao_enabled: Enable ambient occlusion (default: True)
         """
         # Set shadow map textures
         for i, tex in enumerate(self.shadow_textures):
@@ -189,6 +190,12 @@ class ShadowManager:
         node_path.setShaderInput("shadowSoftness", self.shadow_softness)
         node_path.setShaderInput("useVertexColor", 0)  # Default to not using vertex colors
 
+        # Set SSAO uniforms
+        node_path.setShaderInput("ssaoEnabled", 1 if ssao_enabled else 0)
+        node_path.setShaderInput("ssaoRadius", 1.5)  # Occlusion radius
+        node_path.setShaderInput("ssaoBias", 0.025)  # Depth bias
+        node_path.setShaderInput("ssaoStrength", 0.8)  # AO strength (0.0-2.0)
+
     def set_light_direction(self, direction):
         """Update light direction.
 
@@ -204,6 +211,33 @@ class ShadowManager:
             softness: Softness factor (1.0-10.0 recommended)
         """
         self.shadow_softness = max(0.1, softness)
+
+    def set_ssao_enabled(self, node_path, enabled):
+        """Enable or disable SSAO.
+
+        Args:
+            node_path: NodePath to update
+            enabled: True to enable, False to disable
+        """
+        node_path.setShaderInput("ssaoEnabled", 1 if enabled else 0)
+
+    def set_ssao_strength(self, node_path, strength):
+        """Adjust SSAO strength.
+
+        Args:
+            node_path: NodePath to update
+            strength: AO strength (0.0-2.0 recommended)
+        """
+        node_path.setShaderInput("ssaoStrength", max(0.0, min(2.0, strength)))
+
+    def set_ssao_radius(self, node_path, radius):
+        """Adjust SSAO radius.
+
+        Args:
+            node_path: NodePath to update
+            radius: Occlusion radius (0.5-5.0 recommended)
+        """
+        node_path.setShaderInput("ssaoRadius", max(0.5, min(5.0, radius)))
 
     def cleanup(self):
         """Clean up shadow resources."""

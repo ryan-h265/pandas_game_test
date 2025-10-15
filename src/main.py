@@ -99,14 +99,14 @@ class Game(ShowBase):
         # Show initial crosshair (fist tool is default)
         self.crosshair_manager.show_crosshair("fist")
 
-        # Initialize shadow system (disabled by default for performance)
-        self.shadows_enabled = False
-        self.shadow_manager = None
-        # Uncomment to enable shadows:
-        # light_dir = Vec3(1, 1, -1)  # Sun direction
-        # self.shadow_manager = ShadowManager(self, self.render, light_dir)
-        # self.shadow_manager.set_shader_inputs(self.render)
-        # self.shadows_enabled = True
+        # Initialize shadow system (enabled by default)
+        self.shadows_enabled = True
+        self.ssao_enabled = False  # Ambient occlusion enabled by default
+        self.ssao_strength = 0.8  # Default AO strength
+        light_dir = Vec3(1, 1, -1)  # Sun direction
+        self.shadow_manager = ShadowManager(self, self.render, light_dir)
+        self.shadow_manager.set_shader_inputs(self.render, ssao_enabled=self.ssao_enabled)
+        print("Shadows and ambient occlusion enabled by default")
 
         # Initialize post-processing
         self.post_process = PostProcessManager(self.render, self.cam)
@@ -155,6 +155,8 @@ class Game(ShowBase):
         print("")
         print("  N - Toggle shadows on/off")
         print("  Z/X - Adjust shadow softness")
+        print("  O - Toggle ambient occlusion (SSAO) on/off")
+        print("  ,/. - Adjust ambient occlusion strength")
         print("  C - Toggle post-processing")
         print("  V - Toggle chunk debug colors")
         print("  B - Toggle wireframe debug")
@@ -288,6 +290,11 @@ class Game(ShowBase):
         self.accept("x", self.adjust_shadow_softness, [0.5])  # Increase softness
         self.accept("c", self.toggle_post_process)  # Toggle post-processing
         self.accept("n", self.toggle_shadows)  # Toggle shadows on/off
+
+        # SSAO (Ambient Occlusion) controls
+        self.accept("o", self.toggle_ssao)  # Toggle SSAO on/off
+        self.accept(",", self.adjust_ssao_strength, [-0.1])  # Decrease AO strength
+        self.accept(".", self.adjust_ssao_strength, [0.1])  # Increase AO strength
 
         # Debug visualization
         self.accept("v", self.toggle_chunk_colors)  # Toggle chunk debug colors
@@ -459,10 +466,39 @@ class Game(ShowBase):
             # Enable shadows
             light_dir = Vec3(1, 1, -1)
             self.shadow_manager = ShadowManager(self, self.render, light_dir)
-            self.shadow_manager.set_shader_inputs(self.render)
+            self.shadow_manager.set_shader_inputs(self.render, ssao_enabled=self.ssao_enabled)
             self.shadows_enabled = True
             self.hud.show_message("Shadows: ON (Quality Mode)")
             print("Shadows enabled")
+
+    def toggle_ssao(self):
+        """Toggle ambient occlusion (SSAO) on/off."""
+        if self.shadow_manager:
+            self.ssao_enabled = not self.ssao_enabled
+            self.shadow_manager.set_ssao_enabled(self.render, self.ssao_enabled)
+            status = "ON" if self.ssao_enabled else "OFF"
+            self.hud.show_message(f"Ambient Occlusion: {status}")
+            print(f"Ambient occlusion {status}")
+        else:
+            print("Shadows must be enabled to use ambient occlusion")
+            self.hud.show_message("Enable shadows first (press N)")
+
+    def adjust_ssao_strength(self, delta):
+        """Adjust ambient occlusion strength.
+
+        Args:
+            delta: Amount to adjust strength by
+        """
+        if self.shadow_manager and self.ssao_enabled:
+            self.ssao_strength = max(0.0, min(2.0, self.ssao_strength + delta))
+            self.shadow_manager.set_ssao_strength(self.render, self.ssao_strength)
+            self.hud.show_message(f"AO Strength: {self.ssao_strength:.1f}")
+            print(f"Ambient occlusion strength: {self.ssao_strength:.1f}")
+        else:
+            if not self.shadow_manager:
+                print("Shadows must be enabled to adjust ambient occlusion")
+            else:
+                print("Ambient occlusion is disabled (press O to enable)")
 
     def toggle_post_process(self):
         """Toggle post-processing effects."""

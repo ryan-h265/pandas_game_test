@@ -54,24 +54,24 @@ class HUD:
         )
 
         # Minimap (top-right)
-        self.minimap_size = 0.25
-        self.minimap_bg = self._create_bar(0.95, 0.65, self.minimap_size, self.minimap_size, (0.1, 0.1, 0.1, 0.8))
-        self.minimap_text = OnscreenText(
-            text="MAP",
-            pos=(1.08, 0.88),
-            scale=0.03,
-            fg=(0.7, 0.7, 0.7, 1),
-            align=TextNode.ACenter,
-            mayChange=True,
-        )
-        self.minimap_pos_text = OnscreenText(
-            text="X: 0, Y: 0",
-            pos=(1.08, 0.62),
-            scale=0.025,
-            fg=(0.6, 0.6, 0.6, 1),
-            align=TextNode.ACenter,
-            mayChange=True,
-        )
+        # self.minimap_size = 0.25
+        # self.minimap_bg = self._create_bar(0.95, 0.65, self.minimap_size, self.minimap_size, (0.1, 0.1, 0.1, 0.8))
+        # self.minimap_text = OnscreenText(
+        #     text="MAP",
+        #     pos=(1.08, 0.88),
+        #     scale=0.03,
+        #     fg=(0.7, 0.7, 0.7, 1),
+        #     align=TextNode.ACenter,
+        #     mayChange=True,
+        # )
+        # self.minimap_pos_text = OnscreenText(
+        #     text="X: 0, Y: 0",
+        #     pos=(1.08, 0.62),
+        #     scale=0.025,
+        #     fg=(0.6, 0.6, 0.6, 1),
+        #     align=TextNode.ACenter,
+        #     mayChange=True,
+        # )
 
         # Tool info panel (bottom-right)
         self.tool_panel_bg = self._create_bar(0.7, -0.95, 0.5, 0.25, (0.15, 0.15, 0.15, 0.8))
@@ -206,8 +206,8 @@ class HUD:
             self.update_compass(camera_heading)
 
         # Update minimap position
-        if player_pos is not None:
-            self.update_minimap(player_pos)
+        # if player_pos is not None:
+        #     self.update_minimap(player_pos)
 
         # Update tool info
         if tool is not None:
@@ -293,13 +293,13 @@ class HUD:
         self.compass_text.setText(direction)
         self.compass_degree_text.setText(f"{int(heading)}°")
 
-    def update_minimap(self, player_pos):
-        """Update minimap with player position.
+    # def update_minimap(self, player_pos):
+    #     """Update minimap with player position.
 
-        Args:
-            player_pos: Player position Vec3
-        """
-        self.minimap_pos_text.setText(f"X: {int(player_pos.x)}, Y: {int(player_pos.y)}")
+    #     Args:
+    #         player_pos: Player position Vec3
+    #     """
+    #     self.minimap_pos_text.setText(f"X: {int(player_pos.x)}, Y: {int(player_pos.y)}")
 
     def update_tool_info(self, tool):
         """Update tool info panel with tool-specific information.
