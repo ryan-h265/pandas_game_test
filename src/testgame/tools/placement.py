@@ -129,6 +129,7 @@ class PlacementTool(Tool):
             # Reuse cached ghost
             self.ghost_building = self.ghost_buildings_cache[cache_key]
             self._show_ghost_building()
+            print(f"Reusing cached ghost for {self.placement_types[self.current_placement_type]['name']}")
             return
 
         try:
@@ -136,6 +137,8 @@ class PlacementTool(Tool):
             building_info = self.placement_types[self.current_placement_type]
             building_class = building_info["class"]
             building_type = building_info.get("type", "building")
+
+            print(f"Creating new ghost for {building_info['name']} (type: {building_type})")
 
             # Create ghost based on type
             if building_type == "prop":
@@ -149,15 +152,20 @@ class PlacementTool(Tool):
                     is_ghost=True,  # Mark as ghost preview
                 )
 
+                print(f"Created ghost prop, has model_node: {hasattr(self.ghost_building, 'model_node')}")
+
                 # Make the model semi-transparent green
                 if (
                     hasattr(self.ghost_building, "model_node")
                     and self.ghost_building.model_node
                 ):
+                    print(f"Setting transparency on ghost prop model_node")
                     self.ghost_building.model_node.setTransparency(
                         TransparencyAttrib.MAlpha
                     )
                     self.ghost_building.model_node.setColorScale(0.2, 1.0, 0.2, 0.4)
+                    # Clear any shaders that might interfere with visibility
+                    self.ghost_building.model_node.clearShader()
 
                 # Disable collision for ghost physics body
                 if (
@@ -185,6 +193,8 @@ class PlacementTool(Tool):
                     name=f"ghost_building_{cache_key}",
                 )
 
+                print(f"Created ghost building with {len(self.ghost_building.pieces)} pieces")
+
                 # Make all pieces transparent and greenish (valid placement color)
                 for piece in self.ghost_building.pieces:
                     try:
@@ -193,6 +203,8 @@ class PlacementTool(Tool):
                             piece.body_np.setTransparency(TransparencyAttrib.MAlpha)
                             # Update color to semi-transparent green (valid placement)
                             piece.body_np.setColorScale(0.2, 1.0, 0.2, 0.4)
+                            # Clear any shaders that might interfere with visibility
+                            piece.body_np.clearShader()
 
                             # Disable collisions for ghost pieces (remove from physics world)
                             body_node = piece.body_np.node()
@@ -207,6 +219,7 @@ class PlacementTool(Tool):
 
             # Cache this ghost for reuse
             self.ghost_buildings_cache[cache_key] = self.ghost_building
+            print(f"Ghost cached and ready")
 
         except Exception as e:
             print(f"Error creating ghost building/prop: {e}")
@@ -242,12 +255,22 @@ class PlacementTool(Tool):
                     try:
                         if piece.body_np and not piece.body_np.isEmpty():
                             piece.body_np.show()
-                    except:
-                        pass
+                            # Ensure it's visible by setting a bright color and clearing shaders
+                            piece.body_np.setColorScale(0.2, 1.0, 0.2, 0.4)
+                            piece.body_np.clearShader()
+                            # Set render priority to ensure it renders on top
+                            piece.body_np.setBin("fixed", 40)
+                    except Exception as e:
+                        print(f"Error showing ghost piece: {e}")
             elif hasattr(self.ghost_building, "model_node"):
                 # Prop with model_node
                 if self.ghost_building.model_node:
                     self.ghost_building.model_node.show()
+                    # Ensure it's visible
+                    self.ghost_building.model_node.setColorScale(0.2, 1.0, 0.2, 0.4)
+                    self.ghost_building.model_node.clearShader()
+                    # Set render priority to ensure it renders on top
+                    self.ghost_building.model_node.setBin("fixed", 40)
 
     def _remove_ghost_building(self):
         """Hide the ghost building preview (keeps cache)."""

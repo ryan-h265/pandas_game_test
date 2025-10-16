@@ -344,11 +344,20 @@ class HUD:
 
         elif tool_type == ToolType.BUILDING:
             # Building tool: show building type, size, and controls
-            building_type = getattr(tool, "current_building_type", 1)
+            # Support both old (building_types) and new (placement_types) naming
+            building_type = getattr(tool, "current_building_type", None)
+            if building_type is None:
+                building_type = getattr(tool, "current_placement_type", 1)
+            
             width = getattr(tool, "building_width", 0)
             depth = getattr(tool, "building_depth", 0)
             height = getattr(tool, "building_height", 0)
-            building_types = getattr(tool, "building_types", {})
+            
+            # Support both attribute names
+            building_types = getattr(tool, "building_types", None)
+            if building_types is None:
+                building_types = getattr(tool, "placement_types", {})
+            
             type_name = building_types.get(building_type, {}).get("name", "Unknown")
             snap_to_grid = getattr(tool, "snap_to_grid", False)
 

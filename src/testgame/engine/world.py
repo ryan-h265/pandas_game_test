@@ -3,8 +3,9 @@
 from panda3d.core import Vec3, Vec4
 from panda3d.bullet import BulletRigidBodyNode, BulletBoxShape
 
-from testgame.config.settings import RENDER_DISTANCE
+from testgame.config.settings import RENDER_DISTANCE, MAP_MODE, MAP_MODEL_PATH
 from testgame.engine.terrain import Terrain
+from testgame.engine.map_loader import MapLoader
 from testgame.structures.simple_building import SimpleBuilding
 from testgame.structures.japanese_building import JapaneseBuilding
 from testgame.engine.world_serializer import WorldSerializer
@@ -24,10 +25,16 @@ class World:
         self.render = render
         self.bullet_world = bullet_world
 
-        # Initialize terrain system
+        # Initialize terrain system (for procedural mode)
         self.terrain = Terrain(render, bullet_world)
 
-        # Track loaded chunks
+        # Initialize map loader (for model-based maps)
+        self.map_loader = MapLoader(render, bullet_world)
+
+        # Track map mode
+        self.map_mode = MAP_MODE
+
+        # Track loaded chunks (procedural mode only)
         self.loaded_chunks = set()
 
         # Track physics objects
@@ -43,8 +50,8 @@ class World:
         self.serializer = WorldSerializer()
 
         if auto_generate:
-            # Generate initial terrain chunks
-            self._generate_initial_terrain()
+            # Generate initial world based on map mode
+            self._generate_initial_world()
 
             # Add example cubes to demonstrate physics and shadows
             # self._create_example_cubes()
@@ -55,8 +62,34 @@ class World:
             # Create example destructible wall
             # self._create_example_wall()
 
+    def _generate_initial_world(self):
+        """Generate initial world based on MAP_MODE setting."""
+        if self.map_mode == "MODEL":
+            self._load_model_map()
+        else:
+            self._generate_initial_terrain()
+
+    def _load_model_map(self):
+        """Load a 3D model-based map."""
+        print(f"Loading model-based map: {MAP_MODEL_PATH}")
+        map_node = self.map_loader.load_map(MAP_MODEL_PATH)
+
+        if map_node:
+            print(f"Model map loaded successfully: {MAP_MODEL_PATH}")
+
+            # Get map bounds for debugging
+            bounds = self.map_loader.get_map_bounds()
+            if bounds:
+                min_point, max_point = bounds
+                print(
+                    f"Map bounds: min={min_point}, max={max_point}"
+                )
+        else:
+            print(f"ERROR: Failed to load model map, falling back to procedural terrain")
+            self._generate_initial_terrain()
+
     def _generate_initial_terrain(self):
-        """Generate initial terrain chunks around spawn point."""
+        """Generate initial terrain chunks around spawn point (procedural mode)."""
         print("Generating initial terrain...")
 
         # Generate chunks in a grid around the origin
@@ -257,6 +290,39 @@ class World:
         """
         self.props.append(prop)
         print(f"Added prop to world (total: {len(self.props)} props)")
+
+    def switch_map_mode(self, mode, model_path=None):
+        """Switch between procedural terrain and model-based maps.
+
+        Args:
+            mode: "PROCEDURAL" or "MODEL"
+            model_path: Path to map model (required if mode="MODEL")
+        """
+        if mode == self.map_mode:
+            print(f"Already in {mode} mode")
+            return
+
+        print(f"Switching map mode from {self.map_mode} to {mode}")
+
+        # Cleanup current world
+        if self.map_mode == "MODEL":
+            self.map_loader.unload_map()
+        elif self.map_mode == "PROCEDURAL":
+            # Unload all terrain chunks
+            for chunk_x, chunk_z in list(self.loaded_chunks):
+                self.terrain.remove_chunk(chunk_x, chunk_z)
+            self.loaded_chunks.clear()
+
+        # Load new world
+        self.map_mode = mode
+        if mode == "MODEL":
+            if not model_path:
+                model_path = MAP_MODEL_PATH
+            self.map_loader.load_map(model_path)
+        else:
+            self._generate_initial_terrain()
+
+        print(f"Successfully switched to {mode} mode")
 
     def damage_building_at_position(self, position, damage=50):
         """Damage a building piece at or near a position.

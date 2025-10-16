@@ -45,10 +45,10 @@ class Game(ShowBase):
         # Initialize world and terrain
         self.game_world = World(self.render, self.world)
 
-        # Initialize player (start at the base of Mount Everest)
-        start_pos = Vec3(
-            300, 300, 50
-        )  # Start at base camp area, looking toward the mountain
+        # Determine spawn position based on map mode
+        start_pos = self._get_spawn_position()
+        print(f"Player spawning at: {start_pos}")
+        
         self.player = PlayerController(self.render, self.world, start_pos)
 
         # Initialize camera controller
@@ -233,6 +233,29 @@ class Game(ShowBase):
             print("WARNING: Could not retrieve graphics information!")
 
         print("=" * 60 + "\n")
+
+    def _get_spawn_position(self):
+        """Determine appropriate spawn position based on map mode.
+        
+        Returns:
+            Vec3 spawn position with some height above the map
+        """
+        from testgame.config.settings import MAP_MODE
+        
+        if MAP_MODE == "MODEL":
+            # For model-based maps, spawn at the center with some height
+            bounds = self.game_world.map_loader.get_map_bounds()
+            if bounds:
+                min_point, max_point = bounds
+                # Calculate center position
+                center_x = (min_point.x + max_point.x) / 2
+                center_y = (min_point.y + max_point.y) / 2
+                # Spawn well above the highest point of the map
+                spawn_height = max_point.z + 20
+                return Vec3(center_x, center_y, spawn_height)
+        
+        # Default procedural terrain spawn (base camp area)
+        return Vec3(300, 300, 50)
 
     def setup_physics(self):
         """Initialize Bullet physics world"""

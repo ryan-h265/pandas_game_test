@@ -37,6 +37,10 @@ PHYSICS_FPS = 60
 GRAVITY = -9.81
 
 # World generation
+MAP_MODE = "MODEL"  # "PROCEDURAL" for generated terrain, "MODEL" for 3D map asset
+MAP_MODEL_PATH = "assets/models/maps/rocks/scene.gltf"  # Path to map model when MAP_MODE="MODEL"
+MAP_MODEL_SCALE = 50  # Scale factor for map models (increase for larger playable area)
+
 FLAT_WORLD = False  # Set to True for a completely flat world at height 0
 MODIFIABLE_TERRAIN = True  # Set to False to disable terrain editing
 # When False + FLAT_WORLD=True: uses minimal geometry (2 triangles/chunk)
