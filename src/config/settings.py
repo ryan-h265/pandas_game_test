@@ -3,7 +3,7 @@ from panda3d.core import loadPrcFileData
 
 def configure():
     # Window settings
-    loadPrcFileData("", "window-title Terrain Builder Game")
+    loadPrcFileData("", "window-title Mountain Game")
     loadPrcFileData("", "win-size 1920 1080")
     loadPrcFileData("", "fullscreen false")
     loadPrcFileData("", "framebuffer-multisample 1")
