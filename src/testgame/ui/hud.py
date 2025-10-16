@@ -3,6 +3,8 @@
 from direct.gui.OnscreenText import OnscreenText
 from panda3d.core import TextNode, CardMaker, TransparencyAttrib
 
+from testgame.tools.base import ToolType
+
 
 class HUD:
     """Manages the in-game heads-up display."""
@@ -316,8 +318,6 @@ class HUD:
         Args:
             tool: Active tool instance
         """
-        from tools.base import ToolType
-
         if not tool:
             self.tool_name_text.setText("Tool: None")
             self.tool_info_text.setText("")

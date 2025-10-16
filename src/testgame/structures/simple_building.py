@@ -2,7 +2,7 @@
 
 from panda3d.core import Vec3, Vec4
 
-from .building import Building, BuildingPiece
+from testgame.structures.building import Building, BuildingPiece
 
 
 class SimpleBuilding(Building):

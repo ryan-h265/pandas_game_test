@@ -1,11 +1,11 @@
 """Placement tool - for placing buildings, props, and models with ghost preview."""
 
-from .base import Tool, ToolType
 from panda3d.core import Vec3, TransparencyAttrib
-from structures.simple_building import SimpleBuilding
-from structures.japanese_building import JapaneseBuilding
-from props.lantern_prop import LanternProp
-from props.japanese_bar_prop import JapaneseBarProp
+from testgame.props.lantern_prop import LanternProp
+from testgame.props.japanese_bar_prop import JapaneseBarProp
+from testgame.structures.simple_building import SimpleBuilding
+from testgame.structures.japanese_building import JapaneseBuilding
+from testgame.tools.base import Tool, ToolType
 
 
 class PlacementTool(Tool):
