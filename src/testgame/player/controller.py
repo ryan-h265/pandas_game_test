@@ -7,7 +7,7 @@ from panda3d.bullet import (
     BulletCharacterControllerNode,
     ZUp,
 )
-from config.settings import GODMODE_ENABLED, GODMODE_FLY_SPEED
+from testgame.config.settings import GODMODE_ENABLED, GODMODE_FLY_SPEED
 
 
 class PlayerController:

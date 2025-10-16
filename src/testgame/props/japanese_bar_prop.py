@@ -1,7 +1,7 @@
 """Japanese bar prop with glTF model."""
 
 from panda3d.core import Vec3, Vec4
-from props.base_prop import BaseProp
+from testgame.props.base_prop import BaseProp
 
 
 class JapaneseBarProp(BaseProp):

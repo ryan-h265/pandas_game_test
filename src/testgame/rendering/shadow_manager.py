@@ -1,6 +1,6 @@
 """Cascaded shadow map manager with PCF and denoising."""
 
-import os
+from pathlib import Path
 from panda3d.core import (
     OrthographicLens,
     Texture,
@@ -103,14 +103,12 @@ class ShadowManager:
     def _setup_shaders(self):
         """Load and configure shadow shaders."""
         # Get absolute path to shaders
-        shader_dir = os.path.join(
-            os.path.dirname(__file__), "..", "..", "assets", "shaders"
-        )
-        vert_path = os.path.join(shader_dir, "terrain.vert")
-        frag_path = os.path.join(shader_dir, "terrain.frag")
+        shader_dir = Path(__file__).resolve().parents[3] / "assets" / "shaders"
+        vert_path = shader_dir / "terrain.vert"
+        frag_path = shader_dir / "terrain.frag"
 
         # Load terrain shader
-        shader = Shader.load(Shader.SL_GLSL, vertex=vert_path, fragment=frag_path)
+        shader = Shader.load(Shader.SL_GLSL, vertex=str(vert_path), fragment=str(frag_path))
 
         if shader:
             self.render.setShader(shader)

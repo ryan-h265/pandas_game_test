@@ -1,7 +1,7 @@
 """Terrain editing tools for modifying the game world."""
 
 import math
-from config.settings import CHUNK_SIZE, TERRAIN_RESOLUTION, MODIFIABLE_TERRAIN
+from testgame.config.settings import CHUNK_SIZE, TERRAIN_RESOLUTION, MODIFIABLE_TERRAIN
 
 
 class TerrainEditor:

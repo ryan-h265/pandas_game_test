@@ -9,7 +9,7 @@ from direct.gui.DirectGui import (
     DGG,
 )
 from panda3d.core import TextNode, TransparencyAttrib
-from config.settings import RENDER_DISTANCE, TERRAIN_RESOLUTION
+from testgame.config.settings import RENDER_DISTANCE, TERRAIN_RESOLUTION
 
 
 class MenuSystem:

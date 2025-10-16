@@ -1,7 +1,7 @@
 """Japanese stone lantern prop with glTF model and lighting."""
 
 from panda3d.core import Vec3, Vec4
-from props.base_prop import BaseProp
+from testgame.props.base_prop import BaseProp
 
 
 class LanternProp(BaseProp):

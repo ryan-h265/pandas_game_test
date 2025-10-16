@@ -2,11 +2,12 @@
 
 from panda3d.core import Vec3, Vec4
 from panda3d.bullet import BulletRigidBodyNode, BulletBoxShape
-from config.settings import RENDER_DISTANCE
-from engine.terrain import Terrain
-from structures.simple_building import SimpleBuilding
-from structures.japanese_building import JapaneseBuilding
-from engine.world_serializer import WorldSerializer
+
+from testgame.config.settings import RENDER_DISTANCE
+from testgame.engine.terrain import Terrain
+from testgame.structures.simple_building import SimpleBuilding
+from testgame.structures.japanese_building import JapaneseBuilding
+from testgame.engine.world_serializer import WorldSerializer
 
 
 class World:

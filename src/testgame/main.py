@@ -3,25 +3,25 @@ from panda3d.bullet import BulletWorld, BulletDebugNode
 from panda3d.core import AmbientLight, DirectionalLight, Vec3, WindowProperties
 from direct.showbase.ShowBaseGlobal import globalClock
 
-from config.settings import configure, PHYSICS_FPS, GRAVITY
-from engine.world import World
-from player.controller import PlayerController
-from player.camera import CameraController
-from player.character_model import CharacterModel
-from interaction.raycast import TerrainRaycaster
-from interaction.terrain_editor import TerrainEditor
-from interaction.building_raycast import BuildingRaycaster
-from rendering.brush_indicator import BrushIndicator
-from rendering.shadow_manager import ShadowManager
-from rendering.post_process import PostProcessManager
-from rendering.effects import EffectsManager
-from rendering.weapon_viewmodel import WeaponViewModel
-from rendering.skybox import MountainSkybox
-from rendering.point_light_manager import PointLightManager
-from tools.tool_manager import ToolManager, ToolType
-from ui.hud import HUD
-from ui.crosshair import CrosshairManager
-from ui.menu_system import MenuSystem
+from testgame.config.settings import configure, PHYSICS_FPS, GRAVITY
+from testgame.engine.world import World
+from testgame.player.controller import PlayerController
+from testgame.player.camera import CameraController
+from testgame.player.character_model import CharacterModel
+from testgame.interaction.raycast import TerrainRaycaster
+from testgame.interaction.terrain_editor import TerrainEditor
+from testgame.interaction.building_raycast import BuildingRaycaster
+from testgame.rendering.brush_indicator import BrushIndicator
+from testgame.rendering.shadow_manager import ShadowManager
+from testgame.rendering.post_process import PostProcessManager
+from testgame.rendering.effects import EffectsManager
+from testgame.rendering.weapon_viewmodel import WeaponViewModel
+from testgame.rendering.skybox import MountainSkybox
+from testgame.rendering.point_light_manager import PointLightManager
+from testgame.tools.tool_manager import ToolManager, ToolType
+from testgame.ui.hud import HUD
+from testgame.ui.crosshair import CrosshairManager
+from testgame.ui.menu_system import MenuSystem
 
 
 class Game(ShowBase):
@@ -1009,6 +1009,10 @@ class Game(ShowBase):
                 self.hud.show_message("Load failed!", duration=2.0)
 
 
-if __name__ == "__main__":
+def main():
     app = Game()
     app.run()
+
+
+if __name__ == "__main__":
+    main()

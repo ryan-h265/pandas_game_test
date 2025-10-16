@@ -4,7 +4,7 @@ from panda3d.core import Vec3, Vec4, NodePath, PandaNode
 from panda3d.core import GeomVertexFormat, GeomVertexData, GeomVertexWriter
 from panda3d.core import Geom, GeomTriangles, GeomNode, Shader
 from panda3d.bullet import BulletRigidBodyNode, BulletBoxShape
-from rendering.model_loader import get_model_loader
+from testgame.rendering.model_loader import get_model_loader
 import os
 
 
