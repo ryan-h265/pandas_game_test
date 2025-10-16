@@ -189,7 +189,9 @@ class ShadowManager:
             "shadowMapSize", Vec4(self.shadow_map_size, self.shadow_map_size, 0, 0)
         )
         node_path.setShaderInput("shadowSoftness", self.shadow_softness)
-        node_path.setShaderInput("useVertexColor", 0)  # Default to not using vertex colors
+        node_path.setShaderInput(
+            "useVertexColor", 0
+        )  # Default to not using vertex colors
 
         # Set SSAO uniforms
         node_path.setShaderInput("ssaoEnabled", 1 if ssao_enabled else 0)

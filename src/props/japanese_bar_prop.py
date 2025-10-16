@@ -9,13 +9,21 @@ class JapaneseBarProp(BaseProp):
 
     # Model configuration
     MODEL_PATH = "assets/models/props/japanese_bar/scene.gltf"
-    DEFAULT_SCALE_TARGET = ('width', 8.0)  # Scale to 8m wide
-    FALLBACK_DIMENSIONS = (8.0, 6.0, 4.0)  # width, depth, height
+    DEFAULT_SCALE_TARGET = ("width", 24.0)  # Scale to 24m wide
+    FALLBACK_DIMENSIONS = (24.0, 18.0, 12.0)  # width, depth, height
     FALLBACK_COLOR = Vec4(0.6, 0.4, 0.2, 1.0)  # Wood color
-    PHYSICS_HALF_EXTENTS = Vec3(4.0, 3.0, 2.0)  # Collision box
+    PHYSICS_HALF_EXTENTS = Vec3(12.0, 9.0, 6.0)  # Collision box
     PHYSICS_MASS = 500.0  # Buildings are very heavy
 
-    def __init__(self, world, render, position, point_light_manager=None, static=True, is_ghost=False):
+    def __init__(
+        self,
+        world,
+        render,
+        position,
+        point_light_manager=None,
+        static=True,
+        is_ghost=False,
+    ):
         """Create a Japanese bar.
 
         Args:

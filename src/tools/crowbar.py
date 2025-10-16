@@ -43,15 +43,21 @@ class CrowbarTool(Tool):
 
         # Legacy building system
         if self.building_raycaster:
-            physics_hit = self.building_raycaster.raycast_from_camera(self.camera, self.max_range)
+            physics_hit = self.building_raycaster.raycast_from_camera(
+                self.camera, self.max_range
+            )
 
             if physics_hit["hit"]:
                 hit_pos = physics_hit["position"]
-                damaged = self.world.damage_building_at_position(hit_pos, damage=self.damage_per_hit)
+                damaged = self.world.damage_building_at_position(
+                    hit_pos, damage=self.damage_per_hit
+                )
 
                 if damaged:
                     self.last_swing_time = self.current_time
-                    print(f"Crowbar HIT building at distance {physics_hit['distance']:.2f}")
+                    print(
+                        f"Crowbar HIT building at distance {physics_hit['distance']:.2f}"
+                    )
                     return True
         return False
 

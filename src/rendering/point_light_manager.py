@@ -46,7 +46,9 @@ class PointLight:
 
             # Apply flicker to intensity
             variation = flicker * self.flicker_amount
-            self.intensity = self._base_intensity * (1.0 - self.flicker_amount + variation)
+            self.intensity = self._base_intensity * (
+                1.0 - self.flicker_amount + variation
+            )
 
     def set_flicker(self, enabled, speed=5.0, amount=0.15):
         """Enable/disable flickering effect.
@@ -66,7 +68,9 @@ class PointLight:
 class PointLightManager:
     """Manages dynamic point lights for the scene."""
 
-    MAX_LIGHTS = 32  # Must match shader MAX_POINT_LIGHTS (increased from 8)
+    MAX_LIGHTS = (
+        32  # Must match shader MAX_POINT_LIGHTS (see shaders/lighting.glsl, line 12)
+    )
 
     def __init__(self):
         """Initialize the point light manager."""
@@ -138,7 +142,9 @@ class PointLightManager:
                 # If light is beyond its radius + safety margin, it won't affect the camera
                 effective_distance = max(0.1, distance - light.radius)
                 # Importance = brightness / distance (inverse square-ish)
-                importance = (light.intensity * light.radius) / (effective_distance * effective_distance)
+                importance = (light.intensity * light.radius) / (
+                    effective_distance * effective_distance
+                )
                 return importance
 
             # Sort by importance (highest first)

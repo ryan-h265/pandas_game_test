@@ -10,7 +10,7 @@ import os
 
 class BaseProp:
     """Base class for placeable props with glTF models and physics.
-    
+
     Subclasses should define:
         - MODEL_PATH: Path to glTF model file
         - DEFAULT_SCALE_TARGET: Tuple of ('width'|'height'|'depth', desired_meters)
@@ -19,16 +19,24 @@ class BaseProp:
         - PHYSICS_HALF_EXTENTS: Vec3 half extents for collision box
         - PHYSICS_MASS: Float mass (0 = static)
     """
-    
+
     # Subclasses should override these
     MODEL_PATH = None
-    DEFAULT_SCALE_TARGET = ('height', 1.5)  # ('dimension', meters)
+    DEFAULT_SCALE_TARGET = ("height", 1.5)  # ('dimension', meters)
     FALLBACK_DIMENSIONS = (1.0, 1.0, 1.5)  # width, depth, height
     FALLBACK_COLOR = Vec4(0.7, 0.7, 0.7, 1.0)
     PHYSICS_HALF_EXTENTS = Vec3(0.5, 0.5, 0.75)
     PHYSICS_MASS = 50.0
-    
-    def __init__(self, world, render, position, point_light_manager=None, static=True, is_ghost=False):
+
+    def __init__(
+        self,
+        world,
+        render,
+        position,
+        point_light_manager=None,
+        static=True,
+        is_ghost=False,
+    ):
         """Create a prop.
 
         Args:
@@ -62,7 +70,7 @@ class BaseProp:
             print(f"ERROR: {self.__class__.__name__} has no MODEL_PATH defined")
             self._create_fallback_geometry()
             return
-            
+
         loader = get_model_loader()
         model = loader.load_gltf(self.MODEL_PATH, cache=True)
 
@@ -91,22 +99,24 @@ class BaseProp:
         if bounds:
             min_point, max_point = bounds
             dimension, target_size = self.DEFAULT_SCALE_TARGET
-            
+
             # Get the appropriate dimension
-            if dimension == 'width':
+            if dimension == "width":
                 current_size = max_point.x - min_point.x
-            elif dimension == 'height':
+            elif dimension == "height":
                 current_size = max_point.z - min_point.z
-            elif dimension == 'depth':
+            elif dimension == "depth":
                 current_size = max_point.y - min_point.y
             else:
                 print(f"ERROR: Unknown scale dimension '{dimension}'")
                 current_size = 1.0
-                
+
             scale_factor = target_size / current_size if current_size > 0 else 0.01
             self.model_node.setScale(scale_factor)
-            print(f"{self.__class__.__name__} original {dimension}: {current_size:.2f}, "
-                  f"scaled by {scale_factor:.4f} to {target_size}m")
+            print(
+                f"{self.__class__.__name__} original {dimension}: {current_size:.2f}, "
+                f"scaled by {scale_factor:.4f} to {target_size}m"
+            )
 
         # Only apply final colors/shaders if this is NOT a ghost preview
         if not self.is_ghost:
@@ -121,23 +131,27 @@ class BaseProp:
             frag_path = os.path.join(shader_dir, "gltf_model.frag")
 
             gltf_shader = Shader.load(
-                Shader.SL_GLSL,
-                vertex=vert_path,
-                fragment=frag_path
+                Shader.SL_GLSL, vertex=vert_path, fragment=frag_path
             )
 
             if gltf_shader:
                 self.model_node.setShader(gltf_shader)
-                print(f"Loaded {self.__class__.__name__} with custom shader at {self.position}")
+                print(
+                    f"Loaded {self.__class__.__name__} with custom shader at {self.position}"
+                )
             else:
-                print(f"ERROR: Failed to load glTF shader for {self.__class__.__name__}")
+                print(
+                    f"ERROR: Failed to load glTF shader for {self.__class__.__name__}"
+                )
         else:
             print(f"Loaded ghost {self.__class__.__name__} preview at {self.position}")
 
     def _create_fallback_geometry(self):
         """Create simple fallback geometry if model fails to load."""
         vformat = GeomVertexFormat.getV3n3c4()
-        vdata = GeomVertexData(f"{self.__class__.__name__}_fallback", vformat, Geom.UHStatic)
+        vdata = GeomVertexData(
+            f"{self.__class__.__name__}_fallback", vformat, Geom.UHStatic
+        )
 
         vertex = GeomVertexWriter(vdata, "vertex")
         normal = GeomVertexWriter(vdata, "normal")
@@ -213,7 +227,9 @@ class BaseProp:
 
         # Create node path and position it
         self.physics_body = self.render.attachNewNode(body_node)
-        self.physics_body.setPos(self.position + Vec3(0, 0, self.PHYSICS_HALF_EXTENTS.z))
+        self.physics_body.setPos(
+            self.position + Vec3(0, 0, self.PHYSICS_HALF_EXTENTS.z)
+        )
 
         # Add to physics world
         self.world.attachRigidBody(body_node)
@@ -223,7 +239,9 @@ class BaseProp:
             self.model_node.reparentTo(self.physics_body)
             self.model_node.setPos(0, 0, -self.PHYSICS_HALF_EXTENTS.z)
 
-        print(f"Created {'static' if self.static else 'dynamic'} physics body for {self.__class__.__name__}")
+        print(
+            f"Created {'static' if self.static else 'dynamic'} physics body for {self.__class__.__name__}"
+        )
 
     def get_position(self):
         """Get the current world position of the prop.

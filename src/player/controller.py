@@ -74,7 +74,7 @@ class PlayerController:
         self.character.setMaxSlope(45)  # Max climbable slope in degrees
         self.character.setJumpSpeed(8.0)
         self.character.setFallSpeed(55.0)
-        
+
         # Set gravity based on flying mode
         if self.is_flying:
             self.character.setGravity(0.0)  # No gravity when flying

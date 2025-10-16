@@ -1,7 +1,6 @@
 """World save/load system for persisting game state."""
 
 import json
-import os
 import numpy as np
 from pathlib import Path
 from datetime import datetime
@@ -40,13 +39,13 @@ class WorldSerializer:
         saves = []
         for save_file in self.saves_dir.glob("*.json"):
             try:
-                with open(save_file, 'r') as f:
+                with open(save_file, "r") as f:
                     data = json.load(f)
-                    metadata = data.get('metadata', {})
+                    metadata = data.get("metadata", {})
                     saves.append((save_file.stem, metadata))
             except Exception as e:
                 print(f"Error reading save {save_file}: {e}")
-        return sorted(saves, key=lambda x: x[1].get('timestamp', ''), reverse=True)
+        return sorted(saves, key=lambda x: x[1].get("timestamp", ""), reverse=True)
 
     def save_world(self, world, player, save_name, metadata=None):
         """Save the current world state to a file.
@@ -62,23 +61,25 @@ class WorldSerializer:
         """
         try:
             save_data = {
-                'metadata': {
-                    'version': '1.0',
-                    'timestamp': datetime.now().isoformat(),
-                    'save_name': save_name,
-                    **(metadata or {})
+                "metadata": {
+                    "version": "1.0",
+                    "timestamp": datetime.now().isoformat(),
+                    "save_name": save_name,
+                    **(metadata or {}),
                 },
-                'player': self._serialize_player(player),
-                'terrain': self._serialize_terrain(world.terrain),
-                'buildings': self._serialize_buildings(world.buildings),
-                'physics_objects': self._serialize_physics_objects(world.physics_objects),
-                'world_state': {
-                    'loaded_chunks': list(world.loaded_chunks),
-                }
+                "player": self._serialize_player(player),
+                "terrain": self._serialize_terrain(world.terrain),
+                "buildings": self._serialize_buildings(world.buildings),
+                "physics_objects": self._serialize_physics_objects(
+                    world.physics_objects
+                ),
+                "world_state": {
+                    "loaded_chunks": list(world.loaded_chunks),
+                },
             }
 
             save_path = self.get_save_path(save_name)
-            with open(save_path, 'w') as f:
+            with open(save_path, "w") as f:
                 json.dump(save_data, f, indent=2)
 
             print(f"World saved successfully to {save_path}")
@@ -87,6 +88,7 @@ class WorldSerializer:
         except Exception as e:
             print(f"Error saving world: {e}")
             import traceback
+
             traceback.print_exc()
             return False
 
@@ -107,26 +109,28 @@ class WorldSerializer:
                 print(f"Save file not found: {save_path}")
                 return False
 
-            with open(save_path, 'r') as f:
+            with open(save_path, "r") as f:
                 save_data = json.load(f)
 
             # Clear existing world state
             self._clear_world(world)
 
             # Load terrain
-            self._deserialize_terrain(save_data['terrain'], world.terrain)
+            self._deserialize_terrain(save_data["terrain"], world.terrain)
 
             # Load buildings
-            self._deserialize_buildings(save_data['buildings'], world)
+            self._deserialize_buildings(save_data["buildings"], world)
 
             # Load physics objects
-            self._deserialize_physics_objects(save_data['physics_objects'], world)
+            self._deserialize_physics_objects(save_data["physics_objects"], world)
 
             # Load player state
-            self._deserialize_player(save_data['player'], player)
+            self._deserialize_player(save_data["player"], player)
 
             # Restore world state
-            world.loaded_chunks = set(tuple(chunk) for chunk in save_data['world_state']['loaded_chunks'])
+            world.loaded_chunks = set(
+                tuple(chunk) for chunk in save_data["world_state"]["loaded_chunks"]
+            )
 
             print(f"World loaded successfully from {save_path}")
             return True
@@ -134,6 +138,7 @@ class WorldSerializer:
         except Exception as e:
             print(f"Error loading world: {e}")
             import traceback
+
             traceback.print_exc()
             return False
 
@@ -147,12 +152,12 @@ class WorldSerializer:
             dict with player state
         """
         position = player.character_np.getPos()
-        
+
         # Character controllers don't have getLinearVelocity like rigid bodies
         # We'll just save the position and let the player start stationary
         return {
-            'position': [position.x, position.y, position.z],
-            'on_ground': player.character.isOnGround(),
+            "position": [position.x, position.y, position.z],
+            "on_ground": player.character.isOnGround(),
         }
 
     def _deserialize_player(self, data, player):
@@ -162,10 +167,10 @@ class WorldSerializer:
             data: Dict with player state
             player: PlayerController instance to update
         """
-        pos = Vec3(*data['position'])
+        pos = Vec3(*data["position"])
         player.character_np.setPos(pos)
         player.position = pos  # Update the cached position too
-        
+
         # Character controllers don't need velocity restoration
         # They start stationary which is fine for loading a save
 
@@ -181,14 +186,14 @@ class WorldSerializer:
         chunks = {}
         for (chunk_x, chunk_z), chunk in terrain.chunks.items():
             chunks[f"{chunk_x},{chunk_z}"] = {
-                'chunk_x': chunk_x,
-                'chunk_z': chunk_z,
-                'height_data': chunk.height_data.tolist(),  # Convert numpy array to list
-                'resolution': chunk.resolution,
+                "chunk_x": chunk_x,
+                "chunk_z": chunk_z,
+                "height_data": chunk.height_data.tolist(),  # Convert numpy array to list
+                "resolution": chunk.resolution,
             }
 
         return {
-            'chunks': chunks,
+            "chunks": chunks,
         }
 
     def _deserialize_terrain(self, data, terrain):
@@ -203,15 +208,15 @@ class WorldSerializer:
             terrain.remove_chunk(chunk_coord[0], chunk_coord[1])
 
         # Load saved chunks
-        for chunk_key, chunk_data in data['chunks'].items():
-            chunk_x = chunk_data['chunk_x']
-            chunk_z = chunk_data['chunk_z']
+        for chunk_key, chunk_data in data["chunks"].items():
+            chunk_x = chunk_data["chunk_x"]
+            chunk_z = chunk_data["chunk_z"]
 
             # Generate chunk
             chunk = terrain.generate_chunk(chunk_x, chunk_z)
 
             # Restore height data
-            chunk.height_data = np.array(chunk_data['height_data'])
+            chunk.height_data = np.array(chunk_data["height_data"])
 
             # Rebuild mesh and collision with restored data
             chunk._update_mesh()
@@ -229,24 +234,24 @@ class WorldSerializer:
         serialized = []
         for building in buildings:
             building_data = {
-                'type': building.__class__.__name__,
-                'name': building.name,
-                'position': self._vec3_to_list(building.position),
-                'pieces': []
+                "type": building.__class__.__name__,
+                "name": building.name,
+                "position": self._vec3_to_list(building.position),
+                "pieces": [],
             }
 
             # Serialize each piece (building.pieces is a list, not a dict)
             for piece in building.pieces:
                 if not piece.is_destroyed:
                     piece_data = {
-                        'name': piece.name,
-                        'position': self._vec3_to_list(piece.body_np.getPos()),
-                        'rotation': self._quat_to_list(piece.body_np.getQuat()),
-                        'size': self._vec3_to_list(piece.size),
-                        'color': self._vec4_to_list(piece.color),
-                        'mass': piece.mass,
-                        'health': piece.health,
-                        'piece_type': piece.piece_type,
+                        "name": piece.name,
+                        "position": self._vec3_to_list(piece.body_np.getPos()),
+                        "rotation": self._quat_to_list(piece.body_np.getQuat()),
+                        "size": self._vec3_to_list(piece.size),
+                        "color": self._vec4_to_list(piece.color),
+                        "mass": piece.mass,
+                        "health": piece.health,
+                        "piece_type": piece.piece_type,
                     }
 
                     # Store velocity if piece is moving
@@ -254,13 +259,15 @@ class WorldSerializer:
                     velocity = body_node.getLinearVelocity()
                     angular_velocity = body_node.getAngularVelocity()
 
-                    piece_data['velocity'] = self._vec3_to_list(velocity)
-                    piece_data['angular_velocity'] = self._vec3_to_list(angular_velocity)
+                    piece_data["velocity"] = self._vec3_to_list(velocity)
+                    piece_data["angular_velocity"] = self._vec3_to_list(
+                        angular_velocity
+                    )
 
-                    building_data['pieces'].append(piece_data)
+                    building_data["pieces"].append(piece_data)
 
             # Only save building if it has pieces
-            if building_data['pieces']:
+            if building_data["pieces"]:
                 serialized.append(building_data)
 
         return serialized
@@ -273,50 +280,53 @@ class WorldSerializer:
             world: World instance to add buildings to
         """
         from structures.building import Building, BuildingPiece
-        from structures.simple_building import SimpleBuilding
 
         for building_data in data:
-            building_type = building_data['type']
-            position = Vec3(*building_data['position'])
+            building_type = building_data["type"]
+            position = Vec3(*building_data["position"])
 
             # Create appropriate building type
-            if building_type == 'SimpleBuilding':
+            if building_type == "SimpleBuilding":
                 # For SimpleBuilding, we need to reconstruct it manually
                 # since it has special constructor parameters
                 building = Building(
                     world.bullet_world,
                     world.render,
                     position,
-                    name=building_data['name']
+                    name=building_data["name"],
                 )
 
                 # Add each piece
-                for piece_data in building_data['pieces']:
-                    piece_pos = Vec3(*piece_data['position'])
-                    piece_size = Vec3(*piece_data['size'])
-                    piece_color = Vec4(*piece_data['color'])
+                for piece_data in building_data["pieces"]:
+                    piece_pos = Vec3(*piece_data["position"])
+                    piece_size = Vec3(*piece_data["size"])
+                    piece_color = Vec4(*piece_data["color"])
 
                     piece = BuildingPiece(
                         world.bullet_world,
                         world.render,
                         piece_pos,
                         piece_size,
-                        piece_data['mass'],
+                        piece_data["mass"],
                         piece_color,
-                        piece_data['name'],
-                        piece_type=piece_data['piece_type'],
-                        parent_building=building
+                        piece_data["name"],
+                        piece_type=piece_data["piece_type"],
+                        parent_building=building,
                     )
 
                     # Restore rotation
-                    piece.body_np.setQuat(Quat(*piece_data['rotation']))
+                    piece.body_np.setQuat(Quat(*piece_data["rotation"]))
 
                     # Restore velocity
-                    piece.body_np.node().setLinearVelocity(Vec3(*piece_data['velocity']))
-                    piece.body_np.node().setAngularVelocity(Vec3(*piece_data['angular_velocity']))
+                    piece.body_np.node().setLinearVelocity(
+                        Vec3(*piece_data["velocity"])
+                    )
+                    piece.body_np.node().setAngularVelocity(
+                        Vec3(*piece_data["angular_velocity"])
+                    )
 
                     # Restore health
-                    piece.health = piece_data['health']
+                    piece.health = piece_data["health"]
 
                     building.add_piece(piece)
 
@@ -327,30 +337,34 @@ class WorldSerializer:
                     world.bullet_world,
                     world.render,
                     position,
-                    name=building_data['name']
+                    name=building_data["name"],
                 )
 
-                for piece_data in building_data['pieces']:
-                    piece_pos = Vec3(*piece_data['position'])
-                    piece_size = Vec3(*piece_data['size'])
-                    piece_color = Vec4(*piece_data['color'])
+                for piece_data in building_data["pieces"]:
+                    piece_pos = Vec3(*piece_data["position"])
+                    piece_size = Vec3(*piece_data["size"])
+                    piece_color = Vec4(*piece_data["color"])
 
                     piece = BuildingPiece(
                         world.bullet_world,
                         world.render,
                         piece_pos,
                         piece_size,
-                        piece_data['mass'],
+                        piece_data["mass"],
                         piece_color,
-                        piece_data['name'],
-                        piece_type=piece_data['piece_type'],
-                        parent_building=building
+                        piece_data["name"],
+                        piece_type=piece_data["piece_type"],
+                        parent_building=building,
                     )
 
-                    piece.body_np.setQuat(Quat(*piece_data['rotation']))
-                    piece.body_np.node().setLinearVelocity(Vec3(*piece_data['velocity']))
-                    piece.body_np.node().setAngularVelocity(Vec3(*piece_data['angular_velocity']))
-                    piece.health = piece_data['health']
+                    piece.body_np.setQuat(Quat(*piece_data["rotation"]))
+                    piece.body_np.node().setLinearVelocity(
+                        Vec3(*piece_data["velocity"])
+                    )
+                    piece.body_np.node().setAngularVelocity(
+                        Vec3(*piece_data["angular_velocity"])
+                    )
+                    piece.health = piece_data["health"]
 
                     building.add_piece(piece)
 
@@ -371,12 +385,14 @@ class WorldSerializer:
                 body_node = obj_np.node()
 
                 obj_data = {
-                    'name': obj_np.getName(),
-                    'position': self._vec3_to_list(obj_np.getPos()),
-                    'rotation': self._quat_to_list(obj_np.getQuat()),
-                    'velocity': self._vec3_to_list(body_node.getLinearVelocity()),
-                    'angular_velocity': self._vec3_to_list(body_node.getAngularVelocity()),
-                    'mass': body_node.getMass(),
+                    "name": obj_np.getName(),
+                    "position": self._vec3_to_list(obj_np.getPos()),
+                    "rotation": self._quat_to_list(obj_np.getQuat()),
+                    "velocity": self._vec3_to_list(body_node.getLinearVelocity()),
+                    "angular_velocity": self._vec3_to_list(
+                        body_node.getAngularVelocity()
+                    ),
+                    "mass": body_node.getMass(),
                 }
 
                 # Try to extract size and color from the object
@@ -387,18 +403,23 @@ class WorldSerializer:
                     if shape:
                         # For box shapes, try to get half extents
                         from panda3d.bullet import BulletBoxShape
+
                         if isinstance(shape, BulletBoxShape):
                             half_extents = shape.getHalfExtentsWithoutMargin()
-                            obj_data['size'] = self._vec3_to_list(half_extents * 2)  # Convert to full size
+                            obj_data["size"] = self._vec3_to_list(
+                                half_extents * 2
+                            )  # Convert to full size
 
                     # Try to extract color from geometry
                     # This is approximate - you may want to store this explicitly
-                    obj_data['color'] = [0.7, 0.7, 0.7, 1.0]  # Default gray
+                    obj_data["color"] = [0.7, 0.7, 0.7, 1.0]  # Default gray
 
                 except Exception as e:
-                    print(f"Warning: Could not extract full data for {obj_np.getName()}: {e}")
-                    obj_data['size'] = [1.0, 1.0, 1.0]
-                    obj_data['color'] = [0.7, 0.7, 0.7, 1.0]
+                    print(
+                        f"Warning: Could not extract full data for {obj_np.getName()}: {e}"
+                    )
+                    obj_data["size"] = [1.0, 1.0, 1.0]
+                    obj_data["color"] = [0.7, 0.7, 0.7, 1.0]
 
                 serialized.append(obj_data)
 
@@ -412,24 +433,24 @@ class WorldSerializer:
             world: World instance to add objects to
         """
         for obj_data in data:
-            position = Vec3(*obj_data['position'])
-            size = Vec3(*obj_data.get('size', [1.0, 1.0, 1.0]))
-            mass = obj_data['mass']
+            position = Vec3(*obj_data["position"])
+            size = Vec3(*obj_data.get("size", [1.0, 1.0, 1.0]))
+            mass = obj_data["mass"]
 
             # Recreate the physics cube
             obj_np = world._create_physics_cube(
                 position,
                 size.x,  # Assuming cube (size is half-extent * 2)
                 mass,
-                obj_data['name']
+                obj_data["name"],
             )
 
             # Restore rotation
-            obj_np.setQuat(Quat(*obj_data['rotation']))
+            obj_np.setQuat(Quat(*obj_data["rotation"]))
 
             # Restore velocities
-            obj_np.node().setLinearVelocity(Vec3(*obj_data['velocity']))
-            obj_np.node().setAngularVelocity(Vec3(*obj_data['angular_velocity']))
+            obj_np.node().setLinearVelocity(Vec3(*obj_data["velocity"]))
+            obj_np.node().setAngularVelocity(Vec3(*obj_data["angular_velocity"]))
 
             world.physics_objects.append(obj_np)
 
@@ -490,13 +511,13 @@ class WorldTemplateManager:
             dict with template metadata
         """
         template_data = {
-            'name': name,
-            'description': description,
-            'created': datetime.now().isoformat(),
+            "name": name,
+            "description": description,
+            "created": datetime.now().isoformat(),
         }
 
         template_path = self.templates_dir / f"{name}.json"
-        with open(template_path, 'w') as f:
+        with open(template_path, "w") as f:
             json.dump(template_data, f, indent=2)
 
         return template_data
@@ -510,7 +531,7 @@ class WorldTemplateManager:
         templates = []
         for template_file in self.templates_dir.glob("*.json"):
             try:
-                with open(template_file, 'r') as f:
+                with open(template_file, "r") as f:
                     template_data = json.load(f)
                     templates.append(template_data)
             except Exception as e:

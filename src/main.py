@@ -1,7 +1,6 @@
 from direct.showbase.ShowBase import ShowBase
 from panda3d.bullet import BulletWorld, BulletDebugNode
 from panda3d.core import AmbientLight, DirectionalLight, Vec3, WindowProperties
-from direct.task import Task
 from direct.showbase.ShowBaseGlobal import globalClock
 
 from config.settings import configure, PHYSICS_FPS, GRAVITY
@@ -47,7 +46,9 @@ class Game(ShowBase):
         self.game_world = World(self.render, self.world)
 
         # Initialize player (start at the base of Mount Everest)
-        start_pos = Vec3(300, 300, 50)  # Start at base camp area, looking toward the mountain
+        start_pos = Vec3(
+            300, 300, 50
+        )  # Start at base camp area, looking toward the mountain
         self.player = PlayerController(self.render, self.world, start_pos)
 
         # Initialize camera controller
@@ -103,7 +104,7 @@ class Game(ShowBase):
             self.world,
             self.raycaster,
             self.mouseWatcherNode,
-            self.point_light_manager
+            self.point_light_manager,
         )
         # Set up tool message callback to display on HUD
         self.tool_manager.tool_message_callback = self.on_tool_change
@@ -124,7 +125,9 @@ class Game(ShowBase):
             point_light_manager=self.point_light_manager,
         )
         print("Shadows and ambient occlusion enabled by default")
-        print(f"Point light system supports up to {self.point_light_manager.MAX_LIGHTS} visible lights with smart culling")
+        print(
+            f"Point light system supports up to {self.point_light_manager.MAX_LIGHTS} visible lights with smart culling"
+        )
 
         # Initialize post-processing
         self.post_process = PostProcessManager(self.render, self.cam)
@@ -161,9 +164,13 @@ class Game(ShowBase):
         print("  Middle Click - Tertiary action (smooth terrain/toggle grid snap)")
         print("")
         print("  Scroll Wheel - Adjust tool property 1 (context-sensitive)")
-        print("    • Terrain: Brush size  • Fist: Damage  • Crowbar: Damage  • Gun: Damage  • Placement: Width")
+        print(
+            "    • Terrain: Brush size  • Fist: Damage  • Crowbar: Damage  • Gun: Damage  • Placement: Width"
+        )
         print("  [ / ] - Adjust tool property 2 (context-sensitive)")
-        print("    • Terrain: Strength  • Fist: Range  • Crowbar: Cooldown  • Gun: Fire rate  • Placement: Height")
+        print(
+            "    • Terrain: Strength  • Fist: Range  • Crowbar: Cooldown  • Gun: Fire rate  • Placement: Height"
+        )
         print("  1/2/3 - Set terrain mode (lower/raise/smooth)")
         print("  H - Toggle weapon viewmodel (FPS-style weapon display)")
         print("  J - Toggle crosshair on/off")
@@ -196,13 +203,17 @@ class Game(ShowBase):
             print(f"Graphics API: {gsg.getDriverRenderer()}")
             print(f"Driver Vendor: {gsg.getDriverVendor()}")
             print(f"Driver Version: {gsg.getDriverVersion()}")
-            print(f"GLSL Version: {gsg.getDriverShaderVersionMajor()}.{gsg.getDriverShaderVersionMinor()}")
+            print(
+                f"GLSL Version: {gsg.getDriverShaderVersionMajor()}.{gsg.getDriverShaderVersionMinor()}"
+            )
 
             # Check if using hardware rendering
             if gsg.isHardware():
                 print("Hardware Acceleration: ENABLED (Using GPU)")
             else:
-                print("Hardware Acceleration: DISABLED (Using CPU - Software Rendering)")
+                print(
+                    "Hardware Acceleration: DISABLED (Using CPU - Software Rendering)"
+                )
 
             # Shader support
             if gsg.getSupportsBasicShaders():
@@ -214,9 +225,9 @@ class Game(ShowBase):
             print(f"Max Texture Stages: {gsg.getMaxTextureStages()}")
 
             # Additional GPU capabilities
-            if hasattr(gsg, 'getMaxVertexTextureImages'):
+            if hasattr(gsg, "getMaxVertexTextureImages"):
                 print(f"Max Vertex Textures: {gsg.getMaxVertexTextureImages()}")
-            if hasattr(gsg, 'getMaxLights'):
+            if hasattr(gsg, "getMaxLights"):
                 print(f"Max Lights: {gsg.getMaxLights()}")
         else:
             print("WARNING: Could not retrieve graphics information!")
@@ -243,7 +254,9 @@ class Game(ShowBase):
         """Setup mountain environment lighting"""
         # Ambient light - cooler mountain air
         alight = AmbientLight("alight")
-        alight.setColor((0.4, 0.45, 0.5, 1))  # Slightly blue ambient for mountain atmosphere
+        alight.setColor(
+            (0.4, 0.45, 0.5, 1)
+        )  # Slightly blue ambient for mountain atmosphere
         alnp = self.render.attachNewNode(alight)
         self.render.setLight(alnp)
 
@@ -253,7 +266,7 @@ class Game(ShowBase):
         dlnp = self.render.attachNewNode(dlight)
         dlnp.setHpr(45, -45, 0)  # Sun position matching skybox
         self.render.setLight(dlnp)
-        
+
         # Store light reference for skybox coordination
         self.sun_light = dlnp
 
@@ -281,7 +294,7 @@ class Game(ShowBase):
         # Camera mode switching
         self.accept("f", self.toggle_camera_mode)
         self.accept("t", self.adjust_camera_distance, [-0.5])  # Closer
-        self.accept("y", self.adjust_camera_distance, [0.5])   # Farther
+        self.accept("y", self.adjust_camera_distance, [0.5])  # Farther
 
         # Tool switching
         self.accept("q", self.tool_manager.cycle_tool)
@@ -327,7 +340,9 @@ class Game(ShowBase):
         # Debug visualization
         self.accept("v", self.toggle_chunk_colors)  # Toggle chunk debug colors
         self.accept("b", self.toggle_wireframe)  # Toggle wireframe
-        self.accept("r", self.toggle_raycast_debug)  # Toggle raycast debug visualization
+        self.accept(
+            "r", self.toggle_raycast_debug
+        )  # Toggle raycast debug visualization
         self.accept("h", self.toggle_weapon_viewmodel)  # Toggle weapon viewmodel on/off
         self.accept("j", self.toggle_crosshair)  # Toggle crosshair on/off
 
@@ -392,7 +407,11 @@ class Game(ShowBase):
 
         # For gun/crowbar/fist, fire immediately on click (not continuous)
         active_tool = self.tool_manager.get_active_tool()
-        if active_tool and active_tool.tool_type in [ToolType.GUN, ToolType.CROWBAR, ToolType.FIST]:
+        if active_tool and active_tool.tool_type in [
+            ToolType.GUN,
+            ToolType.CROWBAR,
+            ToolType.FIST,
+        ]:
             # Get hit info for these tools
             hit = self.raycaster.get_terrain_hit(self.mouseWatcherNode)
 
@@ -435,11 +454,11 @@ class Game(ShowBase):
                     value_str = f"{value:.2f}"
                 else:
                     value_str = f"{value}"
-                
+
                 message = f"{active_tool.name} - {prop_name}: {value_str}"
                 self.hud.show_message(message)
                 print(message)
-                
+
                 # Update brush indicator if terrain tool
                 if active_tool.tool_type == ToolType.TERRAIN:
                     self.brush_indicator.update_size(self.terrain_editor.brush_size)
@@ -460,7 +479,7 @@ class Game(ShowBase):
                     value_str = f"{value:.3f}"
                 else:
                     value_str = f"{value}"
-                
+
                 message = f"{active_tool.name} - {prop_name}: {value_str}"
                 self.hud.show_message(message)
                 print(message)
@@ -581,8 +600,11 @@ class Game(ShowBase):
         """Toggle debug chunk colors."""
         try:
             import config.settings as settings
+
             settings.DEBUG_CHUNK_COLORS = not settings.DEBUG_CHUNK_COLORS
-            print(f"\n=== Chunk debug colors: {'ON' if settings.DEBUG_CHUNK_COLORS else 'OFF'} ===")
+            print(
+                f"\n=== Chunk debug colors: {'ON' if settings.DEBUG_CHUNK_COLORS else 'OFF'} ==="
+            )
             # Regenerate all chunks to apply the change
             chunk_count = 0
             for chunk in self.game_world.terrain.chunks.values():
@@ -592,14 +614,18 @@ class Game(ShowBase):
         except Exception as e:
             print(f"Error toggling chunk colors: {e}")
             import traceback
+
             traceback.print_exc()
 
     def toggle_wireframe(self):
         """Toggle debug wireframe."""
         try:
             import config.settings as settings
+
             settings.DEBUG_CHUNK_WIREFRAME = not settings.DEBUG_CHUNK_WIREFRAME
-            print(f"\n=== Wireframe debug: {'ON' if settings.DEBUG_CHUNK_WIREFRAME else 'OFF'} ===")
+            print(
+                f"\n=== Wireframe debug: {'ON' if settings.DEBUG_CHUNK_WIREFRAME else 'OFF'} ==="
+            )
             # Regenerate all chunks to apply the change
             chunk_count = 0
             for chunk in self.game_world.terrain.chunks.values():
@@ -609,6 +635,7 @@ class Game(ShowBase):
         except Exception as e:
             print(f"Error toggling wireframe: {e}")
             import traceback
+
             traceback.print_exc()
 
     def toggle_raycast_debug(self):
@@ -661,7 +688,7 @@ class Game(ShowBase):
         """Toggle between first-person and third-person camera modes."""
         new_mode = self.camera_controller.toggle_camera_mode()
 
-        if new_mode == 'third_person':
+        if new_mode == "third_person":
             # Show character model in third-person
             self.character_model.show()
             # Hide weapon viewmodel in third-person
@@ -705,7 +732,7 @@ class Game(ShowBase):
             tool_name = tool_name.split("(")[0].strip()
             self.hud.set_tool_name(tool_name)
         self.hud.show_message(message)
-        
+
         # Update crosshair for new tool
         active_tool = self.tool_manager.get_active_tool()
         if active_tool:
@@ -741,7 +768,9 @@ class Game(ShowBase):
                 self.hud.show_message("Terrain Mode: Smooth")
 
         else:
-            self.hud.show_message(f"Number keys have no function for {active_tool.name}")
+            self.hud.show_message(
+                f"Number keys have no function for {active_tool.name}"
+            )
 
     def set_terrain_mode(self, mode):
         """Set terrain editing mode (only works with terrain tool).
@@ -754,7 +783,9 @@ class Game(ShowBase):
         if active_tool and active_tool.tool_type == ToolType.TERRAIN:
             active_tool.set_mode(mode)
         else:
-            self.hud.show_message("Terrain modes only work with Terrain tool! Press Q to switch.")
+            self.hud.show_message(
+                "Terrain modes only work with Terrain tool! Press Q to switch."
+            )
 
     def toggle_pause_menu(self):
         """Toggle the pause menu on/off"""
@@ -820,7 +851,7 @@ class Game(ShowBase):
 
             # Use tool if mouse button is held
             if self.is_using_tool:
-                button = getattr(self, 'current_mouse_button', 1)
+                button = getattr(self, "current_mouse_button", 1)
                 if button == 1:  # Left click
                     self.tool_manager.use_primary(hit)
                 elif button == 3:  # Right click
@@ -852,17 +883,27 @@ class Game(ShowBase):
         # Update point light shader inputs with camera position for smart culling
         if self.shadow_manager and len(self.point_light_manager.lights) > 0:
             camera_pos = self.camera.getPos()
-            self.point_light_manager.set_shader_inputs(self.render, camera_pos=camera_pos)
+            self.point_light_manager.set_shader_inputs(
+                self.render, camera_pos=camera_pos
+            )
 
         # Update HUD with FPS, compass, minimap, and tool info
         fps = globalClock.getAverageFrameRate()
         camera_heading = self.camera_controller.heading
         active_tool = self.tool_manager.get_active_tool()
-        self.hud.update(dt, fps=fps, camera_heading=camera_heading, player_pos=player_pos, tool=active_tool)
+        self.hud.update(
+            dt,
+            fps=fps,
+            camera_heading=camera_heading,
+            player_pos=player_pos,
+            tool=active_tool,
+        )
 
         # Show flying status if active
         if self.player.is_flying_mode():
-            self.hud.show_message("FLYING MODE (Double-tap Space to disable)", duration=0.1)
+            self.hud.show_message(
+                "FLYING MODE (Double-tap Space to disable)", duration=0.1
+            )
 
         # Update camera to follow player
         player_pos = self.player.get_position()
@@ -891,11 +932,8 @@ class Game(ShowBase):
     def quick_save(self):
         """Quick save to 'quicksave' slot."""
         print("Quick saving...")
-        metadata = {
-            'title': 'Quick Save',
-            'description': 'Auto-saved game state'
-        }
-        success = self.game_world.save_to_file('quicksave', self.player, metadata)
+        metadata = {"title": "Quick Save", "description": "Auto-saved game state"}
+        success = self.game_world.save_to_file("quicksave", self.player, metadata)
         if success:
             self.hud.show_message("Game saved!", duration=2.0)
         else:
@@ -904,7 +942,7 @@ class Game(ShowBase):
     def quick_load(self):
         """Quick load from 'quicksave' slot."""
         print("Quick loading...")
-        success = self.game_world.load_from_file('quicksave', self.player)
+        success = self.game_world.load_from_file("quicksave", self.player)
         if success:
             self.hud.show_message("Game loaded!", duration=2.0)
         else:
@@ -912,20 +950,21 @@ class Game(ShowBase):
 
     def open_save_dialog(self):
         """Open a simple save dialog (text input for now)."""
-        print("\n" + "="*50)
+        print("\n" + "=" * 50)
         print("SAVE GAME")
-        print("="*50)
+        print("=" * 50)
         print("Enter save name (or press Enter for 'save_1'):")
         # Note: In a real game, you'd use a proper GUI dialog
         # For now, we'll use the quick save with a timestamped name
         import datetime
+
         save_name = f"save_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        
+
         metadata = {
-            'title': f'Manual Save {datetime.datetime.now().strftime("%Y-%m-%d %H:%M")}',
-            'description': 'Manually saved game state'
+            "title": f"Manual Save {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}",
+            "description": "Manually saved game state",
         }
-        
+
         success = self.game_world.save_to_file(save_name, self.player, metadata)
         if success:
             print(f"Game saved as: {save_name}")
@@ -936,29 +975,29 @@ class Game(ShowBase):
 
     def open_load_dialog(self):
         """Open a simple load dialog (list saves)."""
-        print("\n" + "="*50)
+        print("\n" + "=" * 50)
         print("LOAD GAME")
-        print("="*50)
-        
+        print("=" * 50)
+
         saves = self.game_world.list_saves()
-        
+
         if not saves:
             print("No saved games found!")
             self.hud.show_message("No saves found!", duration=2.0)
             return
-        
+
         print(f"Found {len(saves)} saved game(s):\n")
         for i, (save_name, metadata) in enumerate(saves):
-            timestamp = metadata.get('timestamp', 'Unknown')
-            title = metadata.get('title', 'Untitled')
-            print(f"  {i+1}. {save_name}")
+            timestamp = metadata.get("timestamp", "Unknown")
+            title = metadata.get("title", "Untitled")
+            print(f"  {i + 1}. {save_name}")
             print(f"     Title: {title}")
             print(f"     Date: {timestamp}")
             print()
-        
+
         print("Note: Use F9 to load 'quicksave', or edit code to load specific saves")
-        print("="*50 + "\n")
-        
+        print("=" * 50 + "\n")
+
         # For now, just load the most recent save
         if saves:
             most_recent = saves[0][0]

@@ -59,12 +59,16 @@ class GunTool(Tool):
 
         # Legacy building system
         if self.building_raycaster:
-            physics_hit = self.building_raycaster.raycast_from_camera(self.camera, self.max_range)
+            physics_hit = self.building_raycaster.raycast_from_camera(
+                self.camera, self.max_range
+            )
 
             if physics_hit["hit"]:
                 end_pos = physics_hit["position"]
                 hit_something = True
-                damaged = self.world.damage_building_at_position(end_pos, damage=self.damage_per_shot)
+                damaged = self.world.damage_building_at_position(
+                    end_pos, damage=self.damage_per_shot
+                )
                 print(f"Gun HIT building at distance {physics_hit['distance']:.2f}")
         elif hit_info and hit_info.get("position"):
             end_pos = hit_info["position"]

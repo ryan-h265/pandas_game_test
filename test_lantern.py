@@ -4,7 +4,7 @@ import sys
 import os
 
 # Add src to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
 from direct.showbase.ShowBase import ShowBase
 from panda3d.bullet import BulletWorld
@@ -28,6 +28,7 @@ class LanternTest(ShowBase):
 
         # Setup lighting
         from panda3d.core import AmbientLight, DirectionalLight
+
         alight = AmbientLight("alight")
         alight.setColor((0.5, 0.5, 0.5, 1))
         alnp = self.render.attachNewNode(alight)
@@ -43,9 +44,9 @@ class LanternTest(ShowBase):
         self.point_light_manager = PointLightManager()
 
         # Try to create a lantern
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("TESTING LANTERN LOADING")
-        print("="*60)
+        print("=" * 60)
 
         try:
             lantern = LanternProp(
@@ -53,7 +54,7 @@ class LanternTest(ShowBase):
                 self.render,
                 Vec3(0, 0, 0),
                 self.point_light_manager,
-                static=True
+                static=True,
             )
             print("\nSUCCESS! Lantern loaded successfully!")
             print(f"Lantern position: {lantern.get_position()}")
@@ -62,9 +63,10 @@ class LanternTest(ShowBase):
         except Exception as e:
             print(f"\nERROR loading lantern: {e}")
             import traceback
+
             traceback.print_exc()
 
-        print("="*60 + "\n")
+        print("=" * 60 + "\n")
         print("Close the window to exit")
 
 

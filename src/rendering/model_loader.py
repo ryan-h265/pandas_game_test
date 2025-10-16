@@ -17,10 +17,13 @@ class ModelLoader:
             # Try to get the global loader from builtins (set by ShowBase)
             try:
                 import builtins
-                if hasattr(builtins, 'loader'):
+
+                if hasattr(builtins, "loader"):
                     self.loader = builtins.loader
                 else:
-                    print("WARNING: No global loader found. ModelLoader may not work correctly.")
+                    print(
+                        "WARNING: No global loader found. ModelLoader may not work correctly."
+                    )
                     self.loader = None
             except:
                 self.loader = None
@@ -67,7 +70,7 @@ class ModelLoader:
             import gltf
 
             model = gltf.load_model(abs_path)
-            print(f"Successfully loaded glTF model via panda3d-gltf (load_model)")
+            print("Successfully loaded glTF model via panda3d-gltf (load_model)")
 
             if model is None:
                 raise Exception("panda3d-gltf returned None")
@@ -85,6 +88,7 @@ class ModelLoader:
         except Exception as e:
             print(f"ERROR: Exception while loading model {abs_path}: {e}")
             import traceback
+
             traceback.print_exc()
             return None
 
@@ -101,7 +105,7 @@ class ModelLoader:
         extension = os.path.splitext(path)[1].lower()
 
         # For glTF/GLB, use the dedicated loader
-        if extension in ['.gltf', '.glb']:
+        if extension in [".gltf", ".glb"]:
             return self.load_gltf(path, cache)
 
         # For other formats, use standard Panda3D loader
@@ -129,6 +133,7 @@ class ModelLoader:
         except Exception as e:
             print(f"ERROR: Exception while loading model {path}: {e}")
             import traceback
+
             traceback.print_exc()
             return None
 

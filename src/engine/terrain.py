@@ -18,37 +18,43 @@ from panda3d.bullet import (
     BulletTriangleMeshShape,
 )
 
-from config.settings import CHUNK_SIZE, FLAT_WORLD, TERRAIN_RESOLUTION, MODIFIABLE_TERRAIN
+from config.settings import (
+    CHUNK_SIZE,
+    FLAT_WORLD,
+    TERRAIN_RESOLUTION,
+    MODIFIABLE_TERRAIN,
+)
 import config.settings
 
 
 def simple_noise(x, y, seed=0):
     """Simple pseudo-noise function using sine waves and random-like behavior.
-    
+
     Args:
         x: X coordinate
-        y: Y coordinate  
+        y: Y coordinate
         seed: Random seed for variation
-        
+
     Returns:
         Float value between -1 and 1
     """
     # Use multiple sine waves with different frequencies and phases for more dramatic terrain
     n = (
-        math.sin(x * 0.1 + seed) * 0.6 +
-        math.sin(y * 0.1 + seed * 1.1) * 0.6 +
-        math.sin((x + y) * 0.05 + seed * 1.3) * 0.4 +
-        math.sin((x - y) * 0.08 + seed * 1.7) * 0.3 +
+        math.sin(x * 0.1 + seed) * 0.6
+        + math.sin(y * 0.1 + seed * 1.1) * 0.6
+        + math.sin((x + y) * 0.05 + seed * 1.3) * 0.4
+        + math.sin((x - y) * 0.08 + seed * 1.7) * 0.3
+        +
         # Add sharper features for mountain ridges
-        math.sin(x * 0.03 + y * 0.02 + seed * 2.1) * 0.7 +
-        math.sin(math.sqrt(x*x + y*y) * 0.02 + seed * 3.7) * 0.5
+        math.sin(x * 0.03 + y * 0.02 + seed * 2.1) * 0.7
+        + math.sin(math.sqrt(x * x + y * y) * 0.02 + seed * 3.7) * 0.5
     )
     return n / 2.5  # Normalize to roughly -1 to 1
 
 
 def fractal_noise(x, y, octaves=4, persistence=0.5, lacunarity=2.0, seed=0):
     """Generate fractal noise by combining multiple octaves.
-    
+
     Args:
         x: X coordinate
         y: Y coordinate
@@ -56,7 +62,7 @@ def fractal_noise(x, y, octaves=4, persistence=0.5, lacunarity=2.0, seed=0):
         persistence: How much each octave contributes (amplitude multiplier)
         lacunarity: Frequency multiplier for each octave
         seed: Random seed
-        
+
     Returns:
         Float noise value
     """
@@ -64,13 +70,13 @@ def fractal_noise(x, y, octaves=4, persistence=0.5, lacunarity=2.0, seed=0):
     amplitude = 1.0
     frequency = 1.0
     max_value = 0.0
-    
+
     for i in range(octaves):
         value += simple_noise(x * frequency, y * frequency, seed + i) * amplitude
         max_value += amplitude
         amplitude *= persistence
         frequency *= lacunarity
-    
+
     return value / max_value
 
 
@@ -96,7 +102,9 @@ class TerrainChunk:
         self.size = CHUNK_SIZE  # World size of chunk
         # Use minimal resolution for non-modifiable flat terrain (just 2x2 = 2 triangles)
         # Otherwise use configured resolution for detailed terrain
-        self.resolution = 1 if (not MODIFIABLE_TERRAIN and FLAT_WORLD) else TERRAIN_RESOLUTION
+        self.resolution = (
+            1 if (not MODIFIABLE_TERRAIN and FLAT_WORLD) else TERRAIN_RESOLUTION
+        )
         self.world_x = chunk_x * self.size
         self.world_z = chunk_z * self.size
 
@@ -121,6 +129,7 @@ class TerrainChunk:
             Vec4 color
         """
         import random
+
         # Use chunk coordinates as seed for consistent colors
         seed = (self.chunk_x * 73856093) ^ (self.chunk_z * 19349663)
         rng = random.Random(seed)
@@ -160,14 +169,18 @@ class TerrainChunk:
                 base_radius = 400  # Large base area radius
                 if center_dist > base_radius:
                     # Far from mountain - create gentle rolling hills at base level
-                    base_height = 20 + fractal_noise(
-                        world_x * 0.002,
-                        world_z * 0.002,
-                        octaves=3,
-                        persistence=0.3,
-                        lacunarity=2.0,
-                        seed=10,
-                    ) * 15
+                    base_height = (
+                        20
+                        + fractal_noise(
+                            world_x * 0.002,
+                            world_z * 0.002,
+                            octaves=3,
+                            persistence=0.3,
+                            lacunarity=2.0,
+                            seed=10,
+                        )
+                        * 15
+                    )
                 else:
                     # Within base area - gradually rise toward mountain
                     base_height = 20 + (base_radius - center_dist) / base_radius * 50
@@ -178,7 +191,9 @@ class TerrainChunk:
                 mountain_radius = 300
                 if center_dist < mountain_radius:
                     # Mountain influence factor (1.0 at center, 0.0 at mountain_radius)
-                    mountain_factor = max(0, (mountain_radius - center_dist) / mountain_radius)
+                    mountain_factor = max(
+                        0, (mountain_radius - center_dist) / mountain_radius
+                    )
 
                     # Primary mountain mass - creates the main peak structure
                     primary_mountain = (
@@ -190,19 +205,22 @@ class TerrainChunk:
                             lacunarity=2.3,
                             seed=0,
                         )
-                        * 650 * mountain_factor  # Slightly taller for more dramatic peaks
+                        * 650
+                        * mountain_factor  # Slightly taller for more dramatic peaks
                     )
                     height += max(0, primary_mountain)
 
                     # Sharp ridges and knife-edge features (aretes)
-                    ridge_noise = abs(fractal_noise(
-                        world_x * 0.006,
-                        world_z * 0.006,
-                        octaves=6,
-                        persistence=0.9,
-                        lacunarity=2.8,
-                        seed=1,
-                    ))
+                    ridge_noise = abs(
+                        fractal_noise(
+                            world_x * 0.006,
+                            world_z * 0.006,
+                            octaves=6,
+                            persistence=0.9,
+                            lacunarity=2.8,
+                            seed=1,
+                        )
+                    )
                     height += ridge_noise * 450 * mountain_factor
 
                     # Vertical cliff faces and ice walls
@@ -230,19 +248,22 @@ class TerrainChunk:
                             lacunarity=2.2,
                             seed=2,
                         )
-                        * 280 * mountain_factor
+                        * 280
+                        * mountain_factor
                     )
                     height += max(0, secondary_peaks)
 
                     # Ice walls and seracs (ice formations)
-                    ice_wall_noise = abs(fractal_noise(
-                        world_x * 0.012,
-                        world_z * 0.012,
-                        octaves=5,
-                        persistence=0.75,
-                        lacunarity=2.6,
-                        seed=6,
-                    ))
+                    ice_wall_noise = abs(
+                        fractal_noise(
+                            world_x * 0.012,
+                            world_z * 0.012,
+                            octaves=5,
+                            persistence=0.75,
+                            lacunarity=2.6,
+                            seed=6,
+                        )
+                    )
                     # Create steep ice wall sections
                     if ice_wall_noise > 0.4:
                         ice_wall_height = (ice_wall_noise - 0.4) * 200 * mountain_factor
@@ -269,7 +290,8 @@ class TerrainChunk:
                             lacunarity=2.0,
                             seed=4,
                         )
-                        * 60 * mountain_factor
+                        * 60
+                        * mountain_factor
                     )
                     height += max(0, surface_detail)
 
@@ -283,7 +305,8 @@ class TerrainChunk:
                             lacunarity=2.1,
                             seed=5,
                         )
-                        * 100 * mountain_factor
+                        * 100
+                        * mountain_factor
                     )
                     height += max(0, glacial_features)
 
@@ -298,7 +321,7 @@ class TerrainChunk:
                             seed=8,
                         )
                         height += abs(cornice_noise) * 40 * mountain_factor
-                
+
                 # Ensure reasonable minimum height
                 height = max(height, 15)
 
@@ -471,7 +494,7 @@ class TerrainChunk:
 
     def _create_wireframe(self):
         """Create a wireframe overlay for debugging chunk boundaries."""
-        from panda3d.core import GeomLines, LineSegs
+        from panda3d.core import LineSegs
 
         # Create line segments for the wireframe
         lines = LineSegs()

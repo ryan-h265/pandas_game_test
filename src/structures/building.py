@@ -1,9 +1,7 @@
 """Building system with destructible physics-based structures."""
 
 import random
-import math
-import time
-from panda3d.core import Vec3, Vec4, NodePath
+from panda3d.core import Vec3, Vec4
 from panda3d.core import GeomNode, GeomVertexFormat, GeomVertexData, GeomVertexWriter
 from panda3d.core import Geom, GeomTriangles
 from panda3d.bullet import (
@@ -69,7 +67,7 @@ class Fragment:
     def _create_visual(self, half_extents, color):
         """Create simple visual geometry for fragment."""
         vformat = GeomVertexFormat.getV3n3c4()
-        vdata = GeomVertexData(f"fragment_vdata", vformat, Geom.UHStatic)
+        vdata = GeomVertexData("fragment_vdata", vformat, Geom.UHStatic)
 
         vertex = GeomVertexWriter(vdata, "vertex")
         normal = GeomVertexWriter(vdata, "normal")
@@ -141,7 +139,20 @@ class Fragment:
 class CurvedRoofPiece:
     """A curved roof piece for traditional Japanese-style architecture."""
 
-    def __init__(self, world, render, position, size, mass, color, name, parent_building=None, curve_amount=0.5, tier=1, is_ghost=False):
+    def __init__(
+        self,
+        world,
+        render,
+        position,
+        size,
+        mass,
+        color,
+        name,
+        parent_building=None,
+        curve_amount=0.5,
+        tier=1,
+        is_ghost=False,
+    ):
         """Initialize a curved roof piece.
 
         Args:
@@ -212,7 +223,12 @@ class CurvedRoofPiece:
 
     def _create_curved_visual(self, parent_np, half_extents):
         """Create curved roof visual geometry."""
-        from panda3d.core import GeomNode, GeomVertexFormat, GeomVertexData, GeomVertexWriter
+        from panda3d.core import (
+            GeomNode,
+            GeomVertexFormat,
+            GeomVertexData,
+            GeomVertexWriter,
+        )
         from panda3d.core import Geom, GeomTriangles
 
         vformat = GeomVertexFormat.getV3n3c4()
@@ -246,7 +262,9 @@ class CurvedRoofPiece:
 
                 # Also curve along Y axis slightly
                 y_edge_dist = abs(v - 0.5) * 2
-                z_curve += y_edge_dist * y_edge_dist * self.curve_amount * half_extents.z * 1.5
+                z_curve += (
+                    y_edge_dist * y_edge_dist * self.curve_amount * half_extents.z * 1.5
+                )
 
                 z = half_extents.z + z_curve
 
@@ -489,8 +507,14 @@ class CurvedRoofPiece:
         for constraint_info in self.constraints:
             try:
                 other_piece = constraint_info.get("piece")
-                if other_piece and hasattr(other_piece, 'is_destroyed') and not other_piece.is_destroyed:
-                    if hasattr(other_piece, 'is_stable') and other_piece.is_stable(checked_pieces):
+                if (
+                    other_piece
+                    and hasattr(other_piece, "is_destroyed")
+                    and not other_piece.is_destroyed
+                ):
+                    if hasattr(other_piece, "is_stable") and other_piece.is_stable(
+                        checked_pieces
+                    ):
                         return True
             except Exception as e:
                 # Skip this constraint if there's any issue
@@ -544,7 +568,9 @@ class CurvedRoofPiece:
         print(f"Curved roof piece {self.name} destroyed!")
         return []
 
-    def take_damage(self, amount, create_fragments=True, create_chunks=True, impact_pos=None):
+    def take_damage(
+        self, amount, create_fragments=True, create_chunks=True, impact_pos=None
+    ):
         """Apply damage to this piece.
 
         Args:
@@ -572,7 +598,18 @@ class CurvedRoofPiece:
 class BuildingPiece:
     """A single piece of a building (wall, floor, roof, etc.)."""
 
-    def __init__(self, world, render, position, size, mass, color, name, piece_type="wall", parent_building=None):
+    def __init__(
+        self,
+        world,
+        render,
+        position,
+        size,
+        mass,
+        color,
+        name,
+        piece_type="wall",
+        parent_building=None,
+    ):
         """Initialize a building piece.
 
         Args:
@@ -604,11 +641,11 @@ class BuildingPiece:
 
         # Constraints connecting this piece to others
         self.constraints = []
-        
+
         # Track bullet holes to limit accumulation
         self.bullet_hole_count = 0
         self.max_bullet_holes = 20  # Limit to prevent too many geometry nodes
-        
+
         # Lifetime tracking for destroyed pieces
         self.destruction_time = None
         self.destroyed_lifetime = 5.0  # Destroyed pieces disappear after 5 seconds
@@ -742,7 +779,12 @@ class BuildingPiece:
             opening_size: Vec3(width, depth, height) of the opening
             color: Vec4 color for the opening (default: dark for doors, light blue for windows)
         """
-        from panda3d.core import GeomNode, GeomVertexFormat, GeomVertexData, GeomVertexWriter
+        from panda3d.core import (
+            GeomNode,
+            GeomVertexFormat,
+            GeomVertexData,
+            GeomVertexWriter,
+        )
         from panda3d.core import Geom, GeomTriangles
 
         # Default colors
@@ -765,12 +807,12 @@ class BuildingPiece:
 
         # Find closest face
         distances = {
-            'x+': abs(local_center.x - half_size.x),
-            'x-': abs(local_center.x + half_size.x),
-            'y+': abs(local_center.y - half_size.y),
-            'y-': abs(local_center.y + half_size.y),
-            'z+': abs(local_center.z - half_size.z),
-            'z-': abs(local_center.z + half_size.z),
+            "x+": abs(local_center.x - half_size.x),
+            "x-": abs(local_center.x + half_size.x),
+            "y+": abs(local_center.y - half_size.y),
+            "y-": abs(local_center.y + half_size.y),
+            "z+": abs(local_center.z - half_size.z),
+            "z-": abs(local_center.z + half_size.z),
         }
 
         closest_face = min(distances, key=distances.get)
@@ -780,58 +822,106 @@ class BuildingPiece:
         half_opening = opening_size / 2
 
         # Generate quad vertices based on which face
-        if closest_face == 'x+':
+        if closest_face == "x+":
             x = half_size.x + offset
             vertices = [
-                Vec3(x, local_center.y - half_opening.y, local_center.z - half_opening.z),
-                Vec3(x, local_center.y + half_opening.y, local_center.z - half_opening.z),
-                Vec3(x, local_center.y + half_opening.y, local_center.z + half_opening.z),
-                Vec3(x, local_center.y - half_opening.y, local_center.z + half_opening.z),
+                Vec3(
+                    x, local_center.y - half_opening.y, local_center.z - half_opening.z
+                ),
+                Vec3(
+                    x, local_center.y + half_opening.y, local_center.z - half_opening.z
+                ),
+                Vec3(
+                    x, local_center.y + half_opening.y, local_center.z + half_opening.z
+                ),
+                Vec3(
+                    x, local_center.y - half_opening.y, local_center.z + half_opening.z
+                ),
             ]
             face_normal = Vec3(1, 0, 0)
-        elif closest_face == 'x-':
+        elif closest_face == "x-":
             x = -half_size.x - offset
             vertices = [
-                Vec3(x, local_center.y + half_opening.y, local_center.z - half_opening.z),
-                Vec3(x, local_center.y - half_opening.y, local_center.z - half_opening.z),
-                Vec3(x, local_center.y - half_opening.y, local_center.z + half_opening.z),
-                Vec3(x, local_center.y + half_opening.y, local_center.z + half_opening.z),
+                Vec3(
+                    x, local_center.y + half_opening.y, local_center.z - half_opening.z
+                ),
+                Vec3(
+                    x, local_center.y - half_opening.y, local_center.z - half_opening.z
+                ),
+                Vec3(
+                    x, local_center.y - half_opening.y, local_center.z + half_opening.z
+                ),
+                Vec3(
+                    x, local_center.y + half_opening.y, local_center.z + half_opening.z
+                ),
             ]
             face_normal = Vec3(-1, 0, 0)
-        elif closest_face == 'y+':
+        elif closest_face == "y+":
             y = half_size.y + offset
             vertices = [
-                Vec3(local_center.x + half_opening.x, y, local_center.z - half_opening.z),
-                Vec3(local_center.x - half_opening.x, y, local_center.z - half_opening.z),
-                Vec3(local_center.x - half_opening.x, y, local_center.z + half_opening.z),
-                Vec3(local_center.x + half_opening.x, y, local_center.z + half_opening.z),
+                Vec3(
+                    local_center.x + half_opening.x, y, local_center.z - half_opening.z
+                ),
+                Vec3(
+                    local_center.x - half_opening.x, y, local_center.z - half_opening.z
+                ),
+                Vec3(
+                    local_center.x - half_opening.x, y, local_center.z + half_opening.z
+                ),
+                Vec3(
+                    local_center.x + half_opening.x, y, local_center.z + half_opening.z
+                ),
             ]
             face_normal = Vec3(0, 1, 0)
-        elif closest_face == 'y-':
+        elif closest_face == "y-":
             y = -half_size.y - offset
             vertices = [
-                Vec3(local_center.x - half_opening.x, y, local_center.z - half_opening.z),
-                Vec3(local_center.x + half_opening.x, y, local_center.z - half_opening.z),
-                Vec3(local_center.x + half_opening.x, y, local_center.z + half_opening.z),
-                Vec3(local_center.x - half_opening.x, y, local_center.z + half_opening.z),
+                Vec3(
+                    local_center.x - half_opening.x, y, local_center.z - half_opening.z
+                ),
+                Vec3(
+                    local_center.x + half_opening.x, y, local_center.z - half_opening.z
+                ),
+                Vec3(
+                    local_center.x + half_opening.x, y, local_center.z + half_opening.z
+                ),
+                Vec3(
+                    local_center.x - half_opening.x, y, local_center.z + half_opening.z
+                ),
             ]
             face_normal = Vec3(0, -1, 0)
-        elif closest_face == 'z+':
+        elif closest_face == "z+":
             z = half_size.z + offset
             vertices = [
-                Vec3(local_center.x - half_opening.x, local_center.y - half_opening.y, z),
-                Vec3(local_center.x + half_opening.x, local_center.y - half_opening.y, z),
-                Vec3(local_center.x + half_opening.x, local_center.y + half_opening.y, z),
-                Vec3(local_center.x - half_opening.x, local_center.y + half_opening.y, z),
+                Vec3(
+                    local_center.x - half_opening.x, local_center.y - half_opening.y, z
+                ),
+                Vec3(
+                    local_center.x + half_opening.x, local_center.y - half_opening.y, z
+                ),
+                Vec3(
+                    local_center.x + half_opening.x, local_center.y + half_opening.y, z
+                ),
+                Vec3(
+                    local_center.x - half_opening.x, local_center.y + half_opening.y, z
+                ),
             ]
             face_normal = Vec3(0, 0, 1)
         else:  # z-
             z = -half_size.z - offset
             vertices = [
-                Vec3(local_center.x + half_opening.x, local_center.y - half_opening.y, z),
-                Vec3(local_center.x - half_opening.x, local_center.y - half_opening.y, z),
-                Vec3(local_center.x - half_opening.x, local_center.y + half_opening.y, z),
-                Vec3(local_center.x + half_opening.x, local_center.y + half_opening.y, z),
+                Vec3(
+                    local_center.x + half_opening.x, local_center.y - half_opening.y, z
+                ),
+                Vec3(
+                    local_center.x - half_opening.x, local_center.y - half_opening.y, z
+                ),
+                Vec3(
+                    local_center.x - half_opening.x, local_center.y + half_opening.y, z
+                ),
+                Vec3(
+                    local_center.x + half_opening.x, local_center.y + half_opening.y, z
+                ),
             ]
             face_normal = Vec3(0, 0, -1)
 
@@ -866,11 +956,12 @@ class BuildingPiece:
         # Enable transparency for windows
         if opening_type == "window":
             from panda3d.core import TransparencyAttrib
+
             opening_np.setTransparency(TransparencyAttrib.MAlpha)
 
     def _apply_color_to_geometry(self, new_color):
         """Apply a new color to all vertices in the piece's geometry.
-        
+
         Args:
             new_color: Vec4 RGBA color to apply
         """
@@ -880,17 +971,17 @@ class BuildingPiece:
             if isinstance(child.node(), GeomNode):
                 geom_node_path = child
                 break
-        
+
         if not geom_node_path:
             return
-        
+
         geom_node = geom_node_path.node()
-        
+
         # Update all geoms in the node
         for i in range(geom_node.getNumGeoms()):
             geom = geom_node.modifyGeom(i)
             vdata = geom.modifyVertexData()
-            
+
             # Make vertex data writable
             if vdata.getUsageHint() == Geom.UHStatic:
                 # Create a modifiable copy
@@ -898,66 +989,71 @@ class BuildingPiece:
                 new_vdata.setUsageHint(Geom.UHDynamic)
                 geom.setVertexData(new_vdata)
                 vdata = new_vdata
-            
+
             # Update color data
             color_writer = GeomVertexWriter(vdata, "color")
             num_vertices = vdata.getNumRows()
-            
+
             for v in range(num_vertices):
                 color_writer.setRow(v)
                 color_writer.setData4(new_color)
 
     def add_bullet_hole(self, world_impact_pos):
         """Add a black bullet hole mark at the impact position.
-        
+
         Args:
             world_impact_pos: Vec3 world position where bullet hit
         """
         # Limit number of bullet holes to prevent performance issues
         if self.bullet_hole_count >= self.max_bullet_holes:
             return
-        
+
         self.bullet_hole_count += 1
-        
+
         # Convert world position to local position
         local_pos = self.body_np.getRelativePoint(self.render, world_impact_pos)
-        
+
         # Create a small black sphere as a bullet hole mark
-        from panda3d.core import GeomNode, GeomVertexFormat, GeomVertexData, GeomVertexWriter
+        from panda3d.core import (
+            GeomNode,
+            GeomVertexFormat,
+            GeomVertexData,
+            GeomVertexWriter,
+        )
         from panda3d.core import Geom, GeomTriangles
-        
+
         bullet_hole_size = 0.15  # Small hole
-        
+
         # Create a simple black quad as the bullet hole
         vformat = GeomVertexFormat.getV3n3c4()
         vdata = GeomVertexData("bullet_hole", vformat, Geom.UHStatic)
-        
+
         vertex = GeomVertexWriter(vdata, "vertex")
         normal = GeomVertexWriter(vdata, "normal")
         color_writer = GeomVertexWriter(vdata, "color")
-        
+
         # Determine which face was hit based on local position
         half_size = self.size / 2
-        
+
         # Find closest face
         distances = {
-            'x+': abs(local_pos.x - half_size.x),
-            'x-': abs(local_pos.x + half_size.x),
-            'y+': abs(local_pos.y - half_size.y),
-            'y-': abs(local_pos.y + half_size.y),
-            'z+': abs(local_pos.z - half_size.z),
-            'z-': abs(local_pos.z + half_size.z),
+            "x+": abs(local_pos.x - half_size.x),
+            "x-": abs(local_pos.x + half_size.x),
+            "y+": abs(local_pos.y - half_size.y),
+            "y-": abs(local_pos.y + half_size.y),
+            "z+": abs(local_pos.z - half_size.z),
+            "z-": abs(local_pos.z + half_size.z),
         }
-        
+
         closest_face = min(distances, key=distances.get)
-        
+
         # Create a small quad on the hit face
         black = Vec4(0.1, 0.1, 0.1, 1.0)  # Dark gray/black
         offset = 0.01  # Slight offset to prevent z-fighting
-        
+
         # Generate quad vertices based on which face was hit
         # All quads use CCW winding when viewed from outside (from the normal direction)
-        if closest_face == 'x+':
+        if closest_face == "x+":
             x = half_size.x + offset
             vertices = [
                 Vec3(x, local_pos.y - bullet_hole_size, local_pos.z - bullet_hole_size),
@@ -966,7 +1062,7 @@ class BuildingPiece:
                 Vec3(x, local_pos.y - bullet_hole_size, local_pos.z + bullet_hole_size),
             ]
             face_normal = Vec3(1, 0, 0)
-        elif closest_face == 'x-':
+        elif closest_face == "x-":
             x = -half_size.x - offset
             vertices = [
                 Vec3(x, local_pos.y + bullet_hole_size, local_pos.z - bullet_hole_size),
@@ -975,7 +1071,7 @@ class BuildingPiece:
                 Vec3(x, local_pos.y + bullet_hole_size, local_pos.z + bullet_hole_size),
             ]
             face_normal = Vec3(-1, 0, 0)
-        elif closest_face == 'y+':
+        elif closest_face == "y+":
             y = half_size.y + offset
             vertices = [
                 Vec3(local_pos.x + bullet_hole_size, y, local_pos.z - bullet_hole_size),
@@ -984,7 +1080,7 @@ class BuildingPiece:
                 Vec3(local_pos.x + bullet_hole_size, y, local_pos.z + bullet_hole_size),
             ]
             face_normal = Vec3(0, 1, 0)
-        elif closest_face == 'y-':
+        elif closest_face == "y-":
             y = -half_size.y - offset
             vertices = [
                 Vec3(local_pos.x - bullet_hole_size, y, local_pos.z - bullet_hole_size),
@@ -993,7 +1089,7 @@ class BuildingPiece:
                 Vec3(local_pos.x - bullet_hole_size, y, local_pos.z + bullet_hole_size),
             ]
             face_normal = Vec3(0, -1, 0)
-        elif closest_face == 'z+':
+        elif closest_face == "z+":
             z = half_size.z + offset
             vertices = [
                 Vec3(local_pos.x - bullet_hole_size, local_pos.y - bullet_hole_size, z),
@@ -1011,36 +1107,38 @@ class BuildingPiece:
                 Vec3(local_pos.x + bullet_hole_size, local_pos.y + bullet_hole_size, z),
             ]
             face_normal = Vec3(0, 0, -1)
-        
+
         # Add vertices for two triangles (quad)
         tris = GeomTriangles(Geom.UHStatic)
-        
+
         # Triangle 1: 0, 1, 2
         for i in [0, 1, 2]:
             vertex.addData3(vertices[i])
             normal.addData3(face_normal)
             color_writer.addData4(black)
             tris.addVertex(i)
-        
+
         # Triangle 2: 0, 2, 3
         for i in [0, 2, 3]:
             vertex.addData3(vertices[i])
             normal.addData3(face_normal)
             color_writer.addData4(black)
             tris.addVertex(3 + (i if i == 0 else i - 1))
-        
+
         tris.closePrimitive()
-        
+
         # Create geometry
         geom = Geom(vdata)
         geom.addPrimitive(tris)
-        
+
         # Create node and attach to the piece
         geom_node = GeomNode(f"bullet_hole_{id(self)}")
         geom_node.addGeom(geom)
         self.body_np.attachNewNode(geom_node)
 
-    def take_damage(self, amount, create_fragments=True, create_chunks=True, impact_pos=None):
+    def take_damage(
+        self, amount, create_fragments=True, create_chunks=True, impact_pos=None
+    ):
         """Apply damage to this piece.
 
         Args:
@@ -1056,6 +1154,7 @@ class BuildingPiece:
             return False
 
         # Add bullet hole mark at impact position
+        # TODO: Re-enable bullet hole marks when the bullet hole system is ready/fixed.
         # if impact_pos:
         #     self.add_bullet_hole(impact_pos)
 
@@ -1067,9 +1166,13 @@ class BuildingPiece:
 
         if self.health <= 0:
             # Destroy the piece (it becomes dynamic and falls)
-            chunks = self.destroy(create_fragments=create_fragments, create_chunks=create_chunks, impact_pos=impact_pos)
+            chunks = self.destroy(
+                create_fragments=create_fragments,
+                create_chunks=create_chunks,
+                impact_pos=impact_pos,
+            )
             return True
-            
+
             # # Store fragment debris in parent building's fragments list
             # if fragments and self.parent_building:
             #     current_time = time.time()
@@ -1090,27 +1193,27 @@ class BuildingPiece:
 
     def _update_damage_color(self, health_ratio):
         """Update the visual color of the piece based on health.
-        
+
         Reduces saturation as health decreases, making the piece appear more gray/desaturated.
-        
+
         Args:
             health_ratio: Health ratio from 0.0 (dead) to 1.0 (full health)
         """
         # Convert RGB to grayscale (perceived brightness)
         gray = 0.299 * self.color.x + 0.587 * self.color.y + 0.114 * self.color.z
-        
+
         # Interpolate between original color (healthy) and grayscale (damaged)
         # At full health: use original color
         # At zero health: use mostly grayscale with slight hint of original color
         saturation = 0.2 + (0.8 * health_ratio)  # Range from 0.2 to 1.0
-        
+
         new_color = Vec4(
             gray + (self.color.x - gray) * saturation,
             gray + (self.color.y - gray) * saturation,
             gray + (self.color.z - gray) * saturation,
-            self.color.w
+            self.color.w,
         )
-        
+
         # Update the geometry colors
         self._apply_color_to_geometry(new_color)
 
@@ -1188,7 +1291,9 @@ class BuildingPiece:
             fragment_pos = piece_pos + offset
 
             # Random impulse (outward from center)
-            impulse_direction = offset.normalized() if offset.length() > 0.1 else Vec3(0, 0, 1)
+            impulse_direction = (
+                offset.normalized() if offset.length() > 0.1 else Vec3(0, 0, 1)
+            )
             impulse_strength = random.uniform(5, 15)
             impulse = impulse_direction * impulse_strength
 
@@ -1248,19 +1353,19 @@ class BuildingPiece:
         # Determine dominant dimension (largest axis)
         if self.size.x >= self.size.y and self.size.x >= self.size.z:
             # Wall is wide (X-axis) - split horizontally
-            split_axis = 'x'
+            split_axis = "x"
             chunk_width = self.size.x / num_chunks
             chunk_size_base = Vec3(chunk_width * 0.9, self.size.y, self.size.z)
             spacing = chunk_width
         elif self.size.y >= self.size.x and self.size.y >= self.size.z:
             # Wall is deep (Y-axis) - split along depth
-            split_axis = 'y'
+            split_axis = "y"
             chunk_depth = self.size.y / num_chunks
             chunk_size_base = Vec3(self.size.x, chunk_depth * 0.9, self.size.z)
             spacing = chunk_depth
         else:
             # Wall is tall (Z-axis) - split vertically
-            split_axis = 'z'
+            split_axis = "z"
             chunk_height = self.size.z / num_chunks
             chunk_size_base = Vec3(self.size.x, self.size.y, chunk_height * 0.9)
             spacing = chunk_height
@@ -1268,18 +1373,18 @@ class BuildingPiece:
         # Create chunks along the split axis
         for i in range(num_chunks):
             # Calculate position along split axis
-            if split_axis == 'x':
+            if split_axis == "x":
                 offset_along_axis = -self.size.x / 2 + spacing * (i + 0.5)
                 chunk_offset = Vec3(offset_along_axis, 0, 0)
-            elif split_axis == 'y':
+            elif split_axis == "y":
                 offset_along_axis = -self.size.y / 2 + spacing * (i + 0.5)
                 chunk_offset = Vec3(0, offset_along_axis, 0)
             else:  # z
                 offset_along_axis = -self.size.z / 2 + spacing * (i + 0.5)
                 chunk_offset = Vec3(0, 0, offset_along_axis)
-            
+
             chunk_pos = piece_pos + chunk_offset
-            
+
             # Add slight random variation to chunk size
             chunk_size = Vec3(
                 chunk_size_base.x * random.uniform(0.95, 1.0),
@@ -1318,14 +1423,14 @@ class BuildingPiece:
                 self.parent_building.add_piece(chunk)
 
             # Apply outward impulse (perpendicular to split axis)
-            if split_axis == 'x':
+            if split_axis == "x":
                 # Push chunks apart along Y and Z
                 impulse_dir = Vec3(
                     random.uniform(-2, 2),
                     random.uniform(-5, 5),
                     random.uniform(-3, 3),
                 )
-            elif split_axis == 'y':
+            elif split_axis == "y":
                 impulse_dir = Vec3(
                     random.uniform(-5, 5),
                     random.uniform(-2, 2),
@@ -1340,7 +1445,7 @@ class BuildingPiece:
 
             impulse_strength = random.uniform(10, 20)
             impulse = impulse_dir.normalized() * impulse_strength
-            
+
             # Add parent velocity
             if piece_velocity.length() > 0.1:
                 impulse += piece_velocity * 0.7
@@ -1358,7 +1463,6 @@ class BuildingPiece:
             chunk_node.applyTorqueImpulse(torque)
 
             chunks.append(chunk)
-
 
         print(f"Created {len(chunks)} destructible chunks along {split_axis}-axis")
 
@@ -1464,7 +1568,9 @@ class Building:
             breaking_threshold: Force required to break constraint
         """
         if piece1_name not in self.piece_map or piece2_name not in self.piece_map:
-            print(f"Warning: Cannot connect {piece1_name} to {piece2_name} - piece not found")
+            print(
+                f"Warning: Cannot connect {piece1_name} to {piece2_name} - piece not found"
+            )
             return
 
         piece1 = self.piece_map[piece1_name]
@@ -1516,7 +1622,14 @@ class Building:
             body_node.setActive(True, True)
             # Don't destroy them - let them fall naturally
 
-    def damage_piece(self, piece_name, amount, create_fragments=False, create_chunks=True, impact_pos=None):
+    def damage_piece(
+        self,
+        piece_name,
+        amount,
+        create_fragments=False,
+        create_chunks=True,
+        impact_pos=None,
+    ):
         """Apply damage to a specific piece.
 
         Args:
@@ -1535,7 +1648,12 @@ class Building:
         piece = self.piece_map[piece_name]
 
         # Apply damage (destroy() will be called internally if health reaches 0)
-        destroyed = piece.take_damage(amount, create_fragments=create_fragments, create_chunks=create_chunks, impact_pos=impact_pos)
+        destroyed = piece.take_damage(
+            amount,
+            create_fragments=create_fragments,
+            create_chunks=create_chunks,
+            impact_pos=impact_pos,
+        )
 
         if destroyed:
             # Fragments are already stored in self.fragments by take_damage()
@@ -1579,28 +1697,31 @@ class Building:
         """
         # Clean up old fragments
         fragments_to_remove = []
-        
+
         for fragment in self.fragments:
             # Check if fragment has expired
-            if hasattr(fragment, 'lifetime') and hasattr(fragment, 'creation_time'):
-                if fragment.creation_time > 0 and (current_time - fragment.creation_time) > fragment.lifetime:
+            if hasattr(fragment, "lifetime") and hasattr(fragment, "creation_time"):
+                if (
+                    fragment.creation_time > 0
+                    and (current_time - fragment.creation_time) > fragment.lifetime
+                ):
                     fragments_to_remove.append(fragment)
-        
+
         # Also enforce hard limit on total fragments (remove oldest if too many)
         max_fragments = 100  # Hard limit to prevent excessive accumulation
         if len(self.fragments) > max_fragments:
             # Sort by creation time and remove oldest
             sorted_fragments = sorted(
-                [f for f in self.fragments if hasattr(f, 'creation_time')],
-                key=lambda f: f.creation_time
+                [f for f in self.fragments if hasattr(f, "creation_time")],
+                key=lambda f: f.creation_time,
             )
             excess_count = len(self.fragments) - max_fragments
             fragments_to_remove.extend(sorted_fragments[:excess_count])
-        
+
         # Remove expired/excess fragments safely
         for fragment in fragments_to_remove:
             try:
-                if hasattr(fragment, 'remove'):
+                if hasattr(fragment, "remove"):
                     fragment.remove()
                 if fragment in self.fragments:
                     self.fragments.remove(fragment)
@@ -1609,7 +1730,7 @@ class Building:
                 # Still try to remove from list
                 if fragment in self.fragments:
                     self.fragments.remove(fragment)
-        
+
         # Clean up destroyed pieces that have exceeded their lifetime
         pieces_to_remove = []
         for piece in self.pieces:
@@ -1617,11 +1738,13 @@ class Building:
                 time_since_destruction = current_time - piece.destruction_time
                 if time_since_destruction > piece.destroyed_lifetime:
                     pieces_to_remove.append(piece)
-        
+
         # Remove expired destroyed pieces
         for piece in pieces_to_remove:
             try:
-                print(f"Removing destroyed piece {piece.name} after {piece.destroyed_lifetime}s")
+                print(
+                    f"Removing destroyed piece {piece.name} after {piece.destroyed_lifetime}s"
+                )
                 piece.remove_from_world()
                 if piece in self.pieces:
                     self.pieces.remove(piece)
@@ -1655,7 +1778,7 @@ class Building:
         # Remove all constraints first
         for piece in self.pieces:
             for constraint_data in piece.constraints:
-                constraint = constraint_data['constraint']
+                constraint = constraint_data["constraint"]
                 if constraint:
                     self.world.removeConstraint(constraint)
 
@@ -1666,7 +1789,7 @@ class Building:
 
         # Clear fragments
         for fragment in self.fragments:
-            if hasattr(fragment, 'remove'):
+            if hasattr(fragment, "remove"):
                 fragment.remove()
 
         self.pieces.clear()

@@ -11,7 +11,21 @@ from .placement import PlacementTool
 class ToolManager:
     """Manages player tools and tool switching."""
 
-    def __init__(self, terrain_editor, world, camera=None, effects_manager=None, building_raycaster=None, weapon_viewmodel=None, render=None, bullet_world=None, terrain_raycaster=None, mouse_watcher=None, point_light_manager=None, enabled_tools=None):
+    def __init__(
+        self,
+        terrain_editor,
+        world,
+        camera=None,
+        effects_manager=None,
+        building_raycaster=None,
+        weapon_viewmodel=None,
+        render=None,
+        bullet_world=None,
+        terrain_raycaster=None,
+        mouse_watcher=None,
+        point_light_manager=None,
+        enabled_tools=None,
+    ):
         """Initialize tool manager.
 
         Args:
@@ -55,11 +69,23 @@ class ToolManager:
         if ToolType.TERRAIN in enabled_tools:
             self.tools[ToolType.TERRAIN] = TerrainTool(terrain_editor)
         if ToolType.CROWBAR in enabled_tools:
-            self.tools[ToolType.CROWBAR] = CrowbarTool(world, camera, building_raycaster)
+            self.tools[ToolType.CROWBAR] = CrowbarTool(
+                world, camera, building_raycaster
+            )
         if ToolType.GUN in enabled_tools and camera:
-            self.tools[ToolType.GUN] = GunTool(world, camera, effects_manager, building_raycaster)
+            self.tools[ToolType.GUN] = GunTool(
+                world, camera, effects_manager, building_raycaster
+            )
         if ToolType.BUILDING in enabled_tools and camera and render and bullet_world:
-            self.tools[ToolType.BUILDING] = PlacementTool(world, camera, render, bullet_world, terrain_raycaster, mouse_watcher, point_light_manager)
+            self.tools[ToolType.BUILDING] = PlacementTool(
+                world,
+                camera,
+                render,
+                bullet_world,
+                terrain_raycaster,
+                mouse_watcher,
+                point_light_manager,
+            )
 
         # Start with first available tool
         if self.tools:
@@ -114,7 +140,9 @@ class ToolManager:
             result = self.active_tool.on_primary_use(hit_info)
             # Play weapon animation
             if result and self.weapon_viewmodel:
-                self.weapon_viewmodel.play_use_animation(self.active_tool.view_model_name)
+                self.weapon_viewmodel.play_use_animation(
+                    self.active_tool.view_model_name
+                )
             return result
         return False
 
@@ -131,7 +159,9 @@ class ToolManager:
             result = self.active_tool.on_secondary_use(hit_info)
             # Play weapon animation for secondary use
             if result and self.weapon_viewmodel:
-                self.weapon_viewmodel.play_use_animation(self.active_tool.view_model_name)
+                self.weapon_viewmodel.play_use_animation(
+                    self.active_tool.view_model_name
+                )
             return result
         return False
 
@@ -148,7 +178,9 @@ class ToolManager:
             result = self.active_tool.on_tertiary_use(hit_info)
             # Play weapon animation for tertiary use
             if result and self.weapon_viewmodel:
-                self.weapon_viewmodel.play_use_animation(self.active_tool.view_model_name)
+                self.weapon_viewmodel.play_use_animation(
+                    self.active_tool.view_model_name
+                )
             return result
         return False
 
@@ -161,7 +193,7 @@ class ToolManager:
         """
         if self.active_tool:
             self.active_tool.update(dt)
-        
+
         # Update weapon viewmodel (for bob, sway, etc.)
         if self.weapon_viewmodel:
             self.weapon_viewmodel.update(dt, is_moving)
@@ -196,23 +228,48 @@ class ToolManager:
         # Create the tool instance based on type
         tool_created = False
         if tool_type == ToolType.FIST:
-            self.tools[ToolType.FIST] = FistTool(self._world, self._camera, self._building_raycaster)
+            self.tools[ToolType.FIST] = FistTool(
+                self._world, self._camera, self._building_raycaster
+            )
             tool_created = True
         elif tool_type == ToolType.TERRAIN:
             self.tools[ToolType.TERRAIN] = TerrainTool(self._terrain_editor)
             tool_created = True
         elif tool_type == ToolType.CROWBAR:
-            self.tools[ToolType.CROWBAR] = CrowbarTool(self._world, self._camera, self._building_raycaster)
+            self.tools[ToolType.CROWBAR] = CrowbarTool(
+                self._world, self._camera, self._building_raycaster
+            )
             tool_created = True
         elif tool_type == ToolType.GUN and self._camera:
-            self.tools[ToolType.GUN] = GunTool(self._world, self._camera, self._effects_manager, self._building_raycaster)
+            self.tools[ToolType.GUN] = GunTool(
+                self._world,
+                self._camera,
+                self._effects_manager,
+                self._building_raycaster,
+            )
             tool_created = True
-        elif tool_type == ToolType.BUILDING and self._camera and self._render and self._bullet_world:
-            self.tools[ToolType.BUILDING] = PlacementTool(self._world, self._camera, self._render, self._bullet_world, self._terrain_raycaster, self._mouse_watcher)
+        elif (
+            tool_type == ToolType.BUILDING
+            and self._camera
+            and self._render
+            and self._bullet_world
+        ):
+            self.tools[ToolType.BUILDING] = PlacementTool(
+                self._world,
+                self._camera,
+                self._render,
+                self._bullet_world,
+                self._terrain_raycaster,
+                self._mouse_watcher,
+            )
             tool_created = True
 
         if tool_created and self.tool_message_callback:
-            tool_name = self.tools[tool_type].name if tool_type in self.tools else str(tool_type)
+            tool_name = (
+                self.tools[tool_type].name
+                if tool_type in self.tools
+                else str(tool_type)
+            )
             self.tool_message_callback(f"Picked up {tool_name}!")
 
         return tool_created

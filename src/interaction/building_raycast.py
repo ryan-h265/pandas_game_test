@@ -1,7 +1,6 @@
 """Raycasting specifically for building/physics objects."""
 
-from panda3d.core import Vec3, BitMask32
-from panda3d.bullet import BulletWorld
+from panda3d.core import Vec3
 
 
 class BuildingRaycaster:
@@ -119,13 +118,15 @@ class BuildingRaycaster:
                 hit_node = hit.getNode()
                 distance = (hit_pos - start_pos).length()
 
-                hits.append({
-                    "hit": True,
-                    "position": hit_pos,
-                    "normal": hit_normal,
-                    "node": hit_node,
-                    "distance": distance,
-                })
+                hits.append(
+                    {
+                        "hit": True,
+                        "position": hit_pos,
+                        "normal": hit_normal,
+                        "node": hit_node,
+                        "distance": distance,
+                    }
+                )
 
         # Sort by distance (closest first)
         hits.sort(key=lambda h: h["distance"])

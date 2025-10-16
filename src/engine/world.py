@@ -244,7 +244,9 @@ class World:
             building: Building instance to add
         """
         self.buildings.append(building)
-        print(f"Added building '{building.name}' to world (total: {len(self.buildings)} buildings)")
+        print(
+            f"Added building '{building.name}' to world (total: {len(self.buildings)} buildings)"
+        )
 
     def add_prop(self, prop):
         """Add a prop (lantern, decoration, etc.) to the world.
@@ -282,7 +284,9 @@ class World:
 
         if closest_piece and closest_building:
             print(f"Damaging {closest_piece.name} (distance: {closest_dist:.2f})")
-            closest_building.damage_piece(closest_piece.name, damage, impact_pos=position)
+            closest_building.damage_piece(
+                closest_piece.name, damage, impact_pos=position
+            )
             return True
 
         return False
@@ -297,12 +301,13 @@ class World:
         # Update terrain (for dynamic loading if needed)
         if camera_pos:
             self.terrain.update(camera_pos)
-        
+
         # Update buildings (cleanup debris)
         import time
+
         current_time = time.time()
         for building in self.buildings:
-            if hasattr(building, 'update'):
+            if hasattr(building, "update"):
                 building.update(dt, current_time)
 
     def update_chunks_around_position(self, position):
@@ -364,7 +369,9 @@ class World:
 
         # Get terrain height at wall position
         terrain_height = self.get_height_at(wall_position.x, wall_position.y)
-        wall_base_position = Vec3(wall_position.x, wall_position.y, terrain_height + wall_height / 2)
+        wall_base_position = Vec3(
+            wall_position.x, wall_position.y, terrain_height + wall_height / 2
+        )
 
         # Create a single large wall piece
         wall = BuildingPiece(
@@ -430,7 +437,7 @@ class World:
         """Clear all objects from the world (buildings, physics objects, etc.)."""
         # Remove all buildings
         for building in self.buildings:
-            if hasattr(building, 'destroy'):
+            if hasattr(building, "destroy"):
                 building.destroy()
         self.buildings.clear()
 

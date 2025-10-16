@@ -39,8 +39,8 @@ GRAVITY = -9.81
 # World generation
 FLAT_WORLD = False  # Set to True for a completely flat world at height 0
 MODIFIABLE_TERRAIN = True  # Set to False to disable terrain editing
-                            # When False + FLAT_WORLD=True: uses minimal geometry (2 triangles/chunk)
-                            # for maximum performance instead of TERRAIN_RESOLUTION vertices
+# When False + FLAT_WORLD=True: uses minimal geometry (2 triangles/chunk)
+# for maximum performance instead of TERRAIN_RESOLUTION vertices
 
 # Terrain resolution (vertices per chunk edge)
 # Higher = more detail but worse performance

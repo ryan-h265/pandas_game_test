@@ -2,7 +2,6 @@
 
 from direct.gui.OnscreenText import OnscreenText
 from panda3d.core import TextNode, CardMaker, TransparencyAttrib
-import math
 
 
 class HUD:
@@ -21,8 +20,12 @@ class HUD:
         self.render = render
 
         # Health bar (bottom-left)
-        self.health_bar_bg = self._create_bar(-1.2, -0.9, 0.4, 0.05, (0.3, 0.3, 0.3, 0.8))
-        self.health_bar_fg = self._create_bar(-1.2, -0.9, 0.4, 0.05, (0.8, 0.1, 0.1, 1.0))
+        self.health_bar_bg = self._create_bar(
+            -1.2, -0.9, 0.4, 0.05, (0.3, 0.3, 0.3, 0.8)
+        )
+        self.health_bar_fg = self._create_bar(
+            -1.2, -0.9, 0.4, 0.05, (0.8, 0.1, 0.1, 1.0)
+        )
         self.health_text = OnscreenText(
             text="Health: 100/100",
             pos=(-1.2, -0.96),
@@ -74,7 +77,9 @@ class HUD:
         # )
 
         # Tool info panel (bottom-right)
-        self.tool_panel_bg = self._create_bar(0.7, -0.95, 0.5, 0.25, (0.15, 0.15, 0.15, 0.8))
+        self.tool_panel_bg = self._create_bar(
+            0.7, -0.95, 0.5, 0.25, (0.15, 0.15, 0.15, 0.8)
+        )
         self.tool_name_text = OnscreenText(
             text="Tool: None",
             pos=(0.72, -0.78),
@@ -163,7 +168,7 @@ class HUD:
         Returns:
             CardMaker node
         """
-        cm = CardMaker('bar')
+        cm = CardMaker("bar")
         cm.setFrame(x, x + width, y, y + height)
         bar = self.aspect2d.attachNewNode(cm.generate())
         bar.setTransparency(TransparencyAttrib.MAlpha)
@@ -260,13 +265,17 @@ class HUD:
         self.current_health = max(0, min(current, self.max_health))
 
         # Update health bar width
-        health_percent = self.current_health / self.max_health if self.max_health > 0 else 0
+        health_percent = (
+            self.current_health / self.max_health if self.max_health > 0 else 0
+        )
 
         # Update foreground bar scale
         self.health_bar_fg.setScale(health_percent, 1, 1)
 
         # Update health text
-        self.health_text.setText(f"Health: {int(self.current_health)}/{int(self.max_health)}")
+        self.health_text.setText(
+            f"Health: {int(self.current_health)}/{int(self.max_health)}"
+        )
 
         # Change color based on health level
         if health_percent > 0.6:
@@ -323,42 +332,48 @@ class HUD:
         # Tool-specific information
         if tool_type == ToolType.GUN:
             # Gun: show damage and fire rate
-            damage = getattr(tool, 'damage_per_shot', 0)
-            fire_rate = getattr(tool, 'fire_rate', 0)
-            bullets = getattr(tool, 'bullets_fired', 0)
-            self.tool_info_text.setText(f"Damage: {int(damage)}  Fire Rate: {fire_rate:.2f}s")
+            damage = getattr(tool, "damage_per_shot", 0)
+            fire_rate = getattr(tool, "fire_rate", 0)
+            bullets = getattr(tool, "bullets_fired", 0)
+            self.tool_info_text.setText(
+                f"Damage: {int(damage)}  Fire Rate: {fire_rate:.2f}s"
+            )
             self.tool_info_text2.setText(f"Bullets Fired: {bullets}")
             self.tool_info_text3.setText("")
             self.tool_info_text4.setText("")
 
         elif tool_type == ToolType.BUILDING:
             # Building tool: show building type, size, and controls
-            building_type = getattr(tool, 'current_building_type', 1)
-            width = getattr(tool, 'building_width', 0)
-            depth = getattr(tool, 'building_depth', 0)
-            height = getattr(tool, 'building_height', 0)
-            building_types = getattr(tool, 'building_types', {})
-            type_name = building_types.get(building_type, {}).get('name', 'Unknown')
-            snap_to_grid = getattr(tool, 'snap_to_grid', False)
+            building_type = getattr(tool, "current_building_type", 1)
+            width = getattr(tool, "building_width", 0)
+            depth = getattr(tool, "building_depth", 0)
+            height = getattr(tool, "building_height", 0)
+            building_types = getattr(tool, "building_types", {})
+            type_name = building_types.get(building_type, {}).get("name", "Unknown")
+            snap_to_grid = getattr(tool, "snap_to_grid", False)
 
             self.tool_info_text.setText(f"Type: {type_name}")
-            self.tool_info_text2.setText(f"Size: {width:.0f}x{depth:.0f}x{height:.0f} | Grid: {'ON' if snap_to_grid else 'OFF'}")
+            self.tool_info_text2.setText(
+                f"Size: {width:.0f}x{depth:.0f}x{height:.0f} | Grid: {'ON' if snap_to_grid else 'OFF'}"
+            )
             self.tool_info_text3.setText("LClick:Place RClick:Rotate MClick:Grid")
             self.tool_info_text4.setText("Scroll:Width [/]:Height 1-4:Type")
 
         elif tool_type == ToolType.TERRAIN:
             # Terrain tool: show mode and radius
-            mode = getattr(tool, 'mode', 'Unknown')
-            radius = getattr(tool, 'radius', 0)
-            strength = getattr(tool, 'strength', 0)
+            mode = getattr(tool, "mode", "Unknown")
+            radius = getattr(tool, "radius", 0)
+            strength = getattr(tool, "strength", 0)
             self.tool_info_text.setText(f"Mode: {mode}")
-            self.tool_info_text2.setText(f"Radius: {radius:.1f}  Strength: {strength:.1f}")
+            self.tool_info_text2.setText(
+                f"Radius: {radius:.1f}  Strength: {strength:.1f}"
+            )
             self.tool_info_text3.setText("")
             self.tool_info_text4.setText("")
 
         elif tool_type == ToolType.CROWBAR:
             # Crowbar: show damage
-            damage = getattr(tool, 'damage_per_hit', 0)
+            damage = getattr(tool, "damage_per_hit", 0)
             self.tool_info_text.setText(f"Damage: {int(damage)}")
             self.tool_info_text2.setText("Melee weapon")
             self.tool_info_text3.setText("")
@@ -366,7 +381,7 @@ class HUD:
 
         elif tool_type == ToolType.FIST:
             # Fist: show damage
-            damage = getattr(tool, 'damage_per_hit', 0)
+            damage = getattr(tool, "damage_per_hit", 0)
             self.tool_info_text.setText(f"Damage: {int(damage)}")
             self.tool_info_text2.setText("Melee weapon")
             self.tool_info_text3.setText("")

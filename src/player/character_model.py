@@ -162,27 +162,39 @@ class CharacterModel:
 
         # Build character parts as separate nodes for animation
         # Torso (body) - centered at origin
-        self.body = create_box_part("body", body_width, body_depth, body_height, shirt_color)
+        self.body = create_box_part(
+            "body", body_width, body_depth, body_height, shirt_color
+        )
         self.body.setPos(0, 0, body_bottom)
 
         # Head - attached to top of body
-        self.head = create_box_part("head", head_size * 2, head_size * 2, head_size * 2, skin_color)
+        self.head = create_box_part(
+            "head", head_size * 2, head_size * 2, head_size * 2, skin_color
+        )
         self.head.setPos(0, 0, head_bottom)
 
         # Left leg - pivot at hip
-        self.left_leg = create_box_part("left_leg", leg_width, leg_depth, leg_height, pants_color)
+        self.left_leg = create_box_part(
+            "left_leg", leg_width, leg_depth, leg_height, pants_color
+        )
         self.left_leg.setPos(-body_width / 4, 0, body_bottom)
 
         # Right leg - pivot at hip
-        self.right_leg = create_box_part("right_leg", leg_width, leg_depth, leg_height, pants_color)
+        self.right_leg = create_box_part(
+            "right_leg", leg_width, leg_depth, leg_height, pants_color
+        )
         self.right_leg.setPos(body_width / 4, 0, body_bottom)
 
         # Left arm - pivot at shoulder
-        self.left_arm = create_box_part("left_arm", arm_width, arm_depth, arm_height, skin_color)
+        self.left_arm = create_box_part(
+            "left_arm", arm_width, arm_depth, arm_height, skin_color
+        )
         self.left_arm.setPos(-arm_offset, 0, arm_bottom)
 
         # Right arm - pivot at shoulder
-        self.right_arm = create_box_part("right_arm", arm_width, arm_depth, arm_height, skin_color)
+        self.right_arm = create_box_part(
+            "right_arm", arm_width, arm_depth, arm_height, skin_color
+        )
         self.right_arm.setPos(arm_offset, 0, arm_bottom)
 
     def set_position(self, position):

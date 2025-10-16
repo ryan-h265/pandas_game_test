@@ -1,7 +1,7 @@
 """Placement tool - for placing buildings, props, and models with ghost preview."""
 
 from .base import Tool, ToolType
-from panda3d.core import Vec3, Vec4, TransparencyAttrib
+from panda3d.core import Vec3, TransparencyAttrib
 from structures.simple_building import SimpleBuilding
 from structures.japanese_building import JapaneseBuilding
 from props.lantern_prop import LanternProp
@@ -11,7 +11,16 @@ from props.japanese_bar_prop import JapaneseBarProp
 class PlacementTool(Tool):
     """Tool for placing buildings, props, and models with ghost preview controlled by mouse."""
 
-    def __init__(self, world, camera, render, bullet_world, terrain_raycaster=None, mouse_watcher=None, point_light_manager=None):
+    def __init__(
+        self,
+        world,
+        camera,
+        render,
+        bullet_world,
+        terrain_raycaster=None,
+        mouse_watcher=None,
+        point_light_manager=None,
+    ):
         """Initialize placement tool.
 
         Args:
@@ -109,7 +118,12 @@ class PlacementTool(Tool):
             self._hide_ghost_building()
 
         # Check if we have this building type cached
-        cache_key = (self.current_placement_type, self.building_width, self.building_depth, self.building_height)
+        cache_key = (
+            self.current_placement_type,
+            self.building_width,
+            self.building_depth,
+            self.building_height,
+        )
 
         if cache_key in self.ghost_buildings_cache:
             # Reuse cached ghost
@@ -132,20 +146,30 @@ class PlacementTool(Tool):
                     self.ghost_position,
                     point_light_manager=None,  # No lights for ghost
                     static=True,
-                    is_ghost=True  # Mark as ghost preview
+                    is_ghost=True,  # Mark as ghost preview
                 )
 
                 # Make the model semi-transparent green
-                if hasattr(self.ghost_building, 'model_node') and self.ghost_building.model_node:
-                    self.ghost_building.model_node.setTransparency(TransparencyAttrib.MAlpha)
+                if (
+                    hasattr(self.ghost_building, "model_node")
+                    and self.ghost_building.model_node
+                ):
+                    self.ghost_building.model_node.setTransparency(
+                        TransparencyAttrib.MAlpha
+                    )
                     self.ghost_building.model_node.setColorScale(0.2, 1.0, 0.2, 0.4)
 
                 # Disable collision for ghost physics body
-                if hasattr(self.ghost_building, 'physics_body') and self.ghost_building.physics_body:
+                if (
+                    hasattr(self.ghost_building, "physics_body")
+                    and self.ghost_building.physics_body
+                ):
                     # For Bullet physics, remove from physics world temporarily
                     # Ghost props don't need collision detection
                     try:
-                        self.bullet_world.removeRigidBody(self.ghost_building.physics_body.node())
+                        self.bullet_world.removeRigidBody(
+                            self.ghost_building.physics_body.node()
+                        )
                     except:
                         pass  # May not be in world yet
 
@@ -158,7 +182,7 @@ class PlacementTool(Tool):
                     width=self.building_width,
                     depth=self.building_depth,
                     height=self.building_height,
-                    name=f"ghost_building_{cache_key}"
+                    name=f"ghost_building_{cache_key}",
                 )
 
                 # Make all pieces transparent and greenish (valid placement color)
@@ -187,6 +211,7 @@ class PlacementTool(Tool):
         except Exception as e:
             print(f"Error creating ghost building/prop: {e}")
             import traceback
+
             traceback.print_exc()
             self.ghost_building = None
 
@@ -194,7 +219,7 @@ class PlacementTool(Tool):
         """Hide the current ghost building/prop without destroying it."""
         if self.ghost_building:
             # Check if it's a prop or a building
-            if hasattr(self.ghost_building, 'pieces'):
+            if hasattr(self.ghost_building, "pieces"):
                 # Building with pieces
                 for piece in self.ghost_building.pieces:
                     try:
@@ -202,7 +227,7 @@ class PlacementTool(Tool):
                             piece.body_np.hide()
                     except:
                         pass
-            elif hasattr(self.ghost_building, 'model_node'):
+            elif hasattr(self.ghost_building, "model_node"):
                 # Prop with model_node
                 if self.ghost_building.model_node:
                     self.ghost_building.model_node.hide()
@@ -211,7 +236,7 @@ class PlacementTool(Tool):
         """Show the current ghost building/prop."""
         if self.ghost_building:
             # Check if it's a prop or a building
-            if hasattr(self.ghost_building, 'pieces'):
+            if hasattr(self.ghost_building, "pieces"):
                 # Building with pieces
                 for piece in self.ghost_building.pieces:
                     try:
@@ -219,7 +244,7 @@ class PlacementTool(Tool):
                             piece.body_np.show()
                     except:
                         pass
-            elif hasattr(self.ghost_building, 'model_node'):
+            elif hasattr(self.ghost_building, "model_node"):
                 # Prop with model_node
                 if self.ghost_building.model_node:
                     self.ghost_building.model_node.show()
@@ -244,13 +269,13 @@ class PlacementTool(Tool):
             position = Vec3(
                 round(position.x / self.grid_size) * self.grid_size,
                 round(position.y / self.grid_size) * self.grid_size,
-                position.z
+                position.z,
             )
 
         self.ghost_position = position
 
         # Update position based on type
-        if hasattr(self.ghost_building, 'pieces'):
+        if hasattr(self.ghost_building, "pieces"):
             # Building with pieces
             for piece in self.ghost_building.pieces:
                 # Calculate offset from original building position
@@ -262,7 +287,7 @@ class PlacementTool(Tool):
             # Update building base position
             self.ghost_building.position = position
 
-        elif hasattr(self.ghost_building, 'set_position'):
+        elif hasattr(self.ghost_building, "set_position"):
             # Prop with set_position method
             self.ghost_building.set_position(position)
 
@@ -285,11 +310,11 @@ class PlacementTool(Tool):
             color = (1.0, 0.2, 0.2, 0.4)
 
         # Apply color based on type
-        if hasattr(self.ghost_building, 'pieces'):
+        if hasattr(self.ghost_building, "pieces"):
             # Building with pieces
             for piece in self.ghost_building.pieces:
                 piece.body_np.setColorScale(*color)
-        elif hasattr(self.ghost_building, 'model_node'):
+        elif hasattr(self.ghost_building, "model_node"):
             # Prop with model_node
             if self.ghost_building.model_node:
                 self.ghost_building.model_node.setColorScale(*color)
@@ -307,13 +332,15 @@ class PlacementTool(Tool):
             return True
 
         # Get all existing buildings (excluding ghost buildings)
-        existing_buildings = [b for b in self.world.buildings if not b.name.startswith("ghost")]
+        existing_buildings = [
+            b for b in self.world.buildings if not b.name.startswith("ghost")
+        ]
 
         # Get all existing props
-        existing_props = self.world.props if hasattr(self.world, 'props') else []
+        existing_props = self.world.props if hasattr(self.world, "props") else []
 
         # Determine if ghost is a prop or building
-        is_prop = not hasattr(self.ghost_building, 'pieces')
+        is_prop = not hasattr(self.ghost_building, "pieces")
 
         if is_prop:
             # For props, use simple position-based checking with approximate size
@@ -329,23 +356,36 @@ class PlacementTool(Tool):
 
                     # Calculate distance from prop center to building piece
                     # Use AABB check with prop as a small box
-                    ghost_min = Vec3(ghost_pos.x - prop_radius, ghost_pos.y - prop_radius, ghost_pos.z)
-                    ghost_max = Vec3(ghost_pos.x + prop_radius, ghost_pos.y + prop_radius, ghost_pos.z + 2.0)
+                    ghost_min = Vec3(
+                        ghost_pos.x - prop_radius,
+                        ghost_pos.y - prop_radius,
+                        ghost_pos.z,
+                    )
+                    ghost_max = Vec3(
+                        ghost_pos.x + prop_radius,
+                        ghost_pos.y + prop_radius,
+                        ghost_pos.z + 2.0,
+                    )
 
                     piece_min = Vec3(
                         piece_pos.x - piece_size.x / 2,
                         piece_pos.y - piece_size.y / 2,
-                        piece_pos.z - piece_size.z / 2
+                        piece_pos.z - piece_size.z / 2,
                     )
                     piece_max = Vec3(
                         piece_pos.x + piece_size.x / 2,
                         piece_pos.y + piece_size.y / 2,
-                        piece_pos.z + piece_size.z / 2
+                        piece_pos.z + piece_size.z / 2,
                     )
 
-                    if (ghost_min.x < piece_max.x and ghost_max.x > piece_min.x and
-                        ghost_min.y < piece_max.y and ghost_max.y > piece_min.y and
-                        ghost_min.z < piece_max.z and ghost_max.z > piece_min.z):
+                    if (
+                        ghost_min.x < piece_max.x
+                        and ghost_max.x > piece_min.x
+                        and ghost_min.y < piece_max.y
+                        and ghost_max.y > piece_min.y
+                        and ghost_min.z < piece_max.z
+                        and ghost_max.z > piece_min.z
+                    ):
                         return False
 
             # Check against existing props
@@ -365,12 +405,12 @@ class PlacementTool(Tool):
                 ghost_min = Vec3(
                     ghost_pos.x - ghost_size.x / 2,
                     ghost_pos.y - ghost_size.y / 2,
-                    ghost_pos.z - ghost_size.z / 2
+                    ghost_pos.z - ghost_size.z / 2,
                 )
                 ghost_max = Vec3(
                     ghost_pos.x + ghost_size.x / 2,
                     ghost_pos.y + ghost_size.y / 2,
-                    ghost_pos.z + ghost_size.z / 2
+                    ghost_pos.z + ghost_size.z / 2,
                 )
 
                 # Check against all pieces of all existing buildings
@@ -383,18 +423,23 @@ class PlacementTool(Tool):
                         piece_min = Vec3(
                             piece_pos.x - piece_size.x / 2,
                             piece_pos.y - piece_size.y / 2,
-                            piece_pos.z - piece_size.z / 2
+                            piece_pos.z - piece_size.z / 2,
                         )
                         piece_max = Vec3(
                             piece_pos.x + piece_size.x / 2,
                             piece_pos.y + piece_size.y / 2,
-                            piece_pos.z + piece_size.z / 2
+                            piece_pos.z + piece_size.z / 2,
                         )
 
                         # Check for AABB (Axis-Aligned Bounding Box) collision
-                        if (ghost_min.x < piece_max.x and ghost_max.x > piece_min.x and
-                            ghost_min.y < piece_max.y and ghost_max.y > piece_min.y and
-                            ghost_min.z < piece_max.z and ghost_max.z > piece_min.z):
+                        if (
+                            ghost_min.x < piece_max.x
+                            and ghost_max.x > piece_min.x
+                            and ghost_min.y < piece_max.y
+                            and ghost_max.y > piece_min.y
+                            and ghost_min.z < piece_max.z
+                            and ghost_max.z > piece_min.z
+                        ):
                             # Collision detected
                             return False
 
@@ -466,7 +511,7 @@ class PlacementTool(Tool):
                 self.render,
                 self.ghost_position,
                 point_light_manager=self.point_light_manager,
-                static=True  # Props are static by default
+                static=True,  # Props are static by default
             )
 
             # Add prop to world
@@ -476,7 +521,9 @@ class PlacementTool(Tool):
 
         else:
             # Create regular building
-            building_count = len([b for b in self.world.buildings if not b.name.startswith("ghost")])
+            building_count = len(
+                [b for b in self.world.buildings if not b.name.startswith("ghost")]
+            )
 
             new_building = building_class(
                 self.bullet_world,
@@ -485,13 +532,15 @@ class PlacementTool(Tool):
                 width=self.building_width,
                 depth=self.building_depth,
                 height=self.building_height,
-                name=f"{building_type_name}_{building_count}"
+                name=f"{building_type_name}_{building_count}",
             )
 
             # Add building to world
             self.world.add_building(new_building)
 
-            print(f"Placed building at {self.ghost_position} (size: {self.building_width}x{self.building_depth}x{self.building_height})")
+            print(
+                f"Placed building at {self.ghost_position} (size: {self.building_width}x{self.building_depth}x{self.building_height})"
+            )
 
         # Mark that we've placed something on this click
         self.has_placed_this_click = True
@@ -508,7 +557,10 @@ class PlacementTool(Tool):
             bool: True if action was performed
         """
         # Swap width and depth to rotate 90 degrees
-        self.building_width, self.building_depth = self.building_depth, self.building_width
+        self.building_width, self.building_depth = (
+            self.building_depth,
+            self.building_width,
+        )
 
         # Recreate ghost with new dimensions (will use cache if available)
         self._create_ghost_building()
@@ -526,7 +578,9 @@ class PlacementTool(Tool):
             bool: True if action was performed
         """
         self.snap_to_grid = not self.snap_to_grid
-        print(f"Grid snapping: {'ON' if self.snap_to_grid else 'OFF'} (size: {self.grid_size})")
+        print(
+            f"Grid snapping: {'ON' if self.snap_to_grid else 'OFF'} (size: {self.grid_size})"
+        )
         return True
 
     def adjust_primary_property(self, delta):

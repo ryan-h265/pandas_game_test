@@ -17,7 +17,16 @@ class JapaneseBuilding(Building):
     - Lower profile, horizontal emphasis
     """
 
-    def __init__(self, world, render, position, width=12, depth=10, height=6, name="japanese_building"):
+    def __init__(
+        self,
+        world,
+        render,
+        position,
+        width=12,
+        depth=10,
+        height=6,
+        name="japanese_building",
+    ):
         """Create a traditional Japanese-style building.
 
         Args:
@@ -225,9 +234,9 @@ class JapaneseBuilding(Building):
         post_height = platform_height + wall_height
         post_positions = [
             Vec3(-width / 2 + 1, -depth / 2 + 1, 0.3 + post_height / 2),  # Front left
-            Vec3(width / 2 - 1, -depth / 2 + 1, 0.3 + post_height / 2),   # Front right
-            Vec3(-width / 2 + 1, depth / 2 - 1, 0.3 + post_height / 2),   # Back left
-            Vec3(width / 2 - 1, depth / 2 - 1, 0.3 + post_height / 2),    # Back right
+            Vec3(width / 2 - 1, -depth / 2 + 1, 0.3 + post_height / 2),  # Front right
+            Vec3(-width / 2 + 1, depth / 2 - 1, 0.3 + post_height / 2),  # Back left
+            Vec3(width / 2 - 1, depth / 2 - 1, 0.3 + post_height / 2),  # Back right
         ]
 
         for i, pos in enumerate(post_positions):
@@ -245,45 +254,91 @@ class JapaneseBuilding(Building):
 
         # Connect everything
         # Connect walls to platform (raised floor)
-        self.connect_pieces(f"{name}_wall_front_left", f"{name}_platform", breaking_threshold=100)
-        self.connect_pieces(f"{name}_wall_front_right", f"{name}_platform", breaking_threshold=100)
-        self.connect_pieces(f"{name}_wall_front_top", f"{name}_platform", breaking_threshold=100)
-        self.connect_pieces(f"{name}_wall_back", f"{name}_platform", breaking_threshold=100)
-        self.connect_pieces(f"{name}_wall_left", f"{name}_platform", breaking_threshold=100)
-        self.connect_pieces(f"{name}_wall_right", f"{name}_platform", breaking_threshold=100)
+        self.connect_pieces(
+            f"{name}_wall_front_left", f"{name}_platform", breaking_threshold=100
+        )
+        self.connect_pieces(
+            f"{name}_wall_front_right", f"{name}_platform", breaking_threshold=100
+        )
+        self.connect_pieces(
+            f"{name}_wall_front_top", f"{name}_platform", breaking_threshold=100
+        )
+        self.connect_pieces(
+            f"{name}_wall_back", f"{name}_platform", breaking_threshold=100
+        )
+        self.connect_pieces(
+            f"{name}_wall_left", f"{name}_platform", breaking_threshold=100
+        )
+        self.connect_pieces(
+            f"{name}_wall_right", f"{name}_platform", breaking_threshold=100
+        )
 
         # Connect platform to foundation
-        self.connect_pieces(f"{name}_platform", f"{name}_foundation", breaking_threshold=150)
+        self.connect_pieces(
+            f"{name}_platform", f"{name}_foundation", breaking_threshold=150
+        )
 
         # Connect front wall segments to each other
-        self.connect_pieces(f"{name}_wall_front_left", f"{name}_wall_front_top", breaking_threshold=80)
-        self.connect_pieces(f"{name}_wall_front_right", f"{name}_wall_front_top", breaking_threshold=80)
+        self.connect_pieces(
+            f"{name}_wall_front_left", f"{name}_wall_front_top", breaking_threshold=80
+        )
+        self.connect_pieces(
+            f"{name}_wall_front_right", f"{name}_wall_front_top", breaking_threshold=80
+        )
 
         # Connect walls to each other at corners
-        self.connect_pieces(f"{name}_wall_front_left", f"{name}_wall_left", breaking_threshold=80)
-        self.connect_pieces(f"{name}_wall_front_right", f"{name}_wall_right", breaking_threshold=80)
-        self.connect_pieces(f"{name}_wall_back", f"{name}_wall_left", breaking_threshold=80)
-        self.connect_pieces(f"{name}_wall_back", f"{name}_wall_right", breaking_threshold=80)
+        self.connect_pieces(
+            f"{name}_wall_front_left", f"{name}_wall_left", breaking_threshold=80
+        )
+        self.connect_pieces(
+            f"{name}_wall_front_right", f"{name}_wall_right", breaking_threshold=80
+        )
+        self.connect_pieces(
+            f"{name}_wall_back", f"{name}_wall_left", breaking_threshold=80
+        )
+        self.connect_pieces(
+            f"{name}_wall_back", f"{name}_wall_right", breaking_threshold=80
+        )
 
         # Connect posts to platform and walls
         for i in range(4):
-            self.connect_pieces(f"{name}_post_{i}", f"{name}_platform", breaking_threshold=100)
+            self.connect_pieces(
+                f"{name}_post_{i}", f"{name}_platform", breaking_threshold=100
+            )
 
         # Connect main roof to walls and posts
-        self.connect_pieces(f"{name}_roof_main", f"{name}_wall_front_left", breaking_threshold=60)
-        self.connect_pieces(f"{name}_roof_main", f"{name}_wall_front_right", breaking_threshold=60)
-        self.connect_pieces(f"{name}_roof_main", f"{name}_wall_front_top", breaking_threshold=60)
-        self.connect_pieces(f"{name}_roof_main", f"{name}_wall_back", breaking_threshold=60)
-        self.connect_pieces(f"{name}_roof_main", f"{name}_wall_left", breaking_threshold=60)
-        self.connect_pieces(f"{name}_roof_main", f"{name}_wall_right", breaking_threshold=60)
+        self.connect_pieces(
+            f"{name}_roof_main", f"{name}_wall_front_left", breaking_threshold=60
+        )
+        self.connect_pieces(
+            f"{name}_roof_main", f"{name}_wall_front_right", breaking_threshold=60
+        )
+        self.connect_pieces(
+            f"{name}_roof_main", f"{name}_wall_front_top", breaking_threshold=60
+        )
+        self.connect_pieces(
+            f"{name}_roof_main", f"{name}_wall_back", breaking_threshold=60
+        )
+        self.connect_pieces(
+            f"{name}_roof_main", f"{name}_wall_left", breaking_threshold=60
+        )
+        self.connect_pieces(
+            f"{name}_roof_main", f"{name}_wall_right", breaking_threshold=60
+        )
 
         # Connect roof tiers (three-tiered structure)
-        self.connect_pieces(f"{name}_roof_middle", f"{name}_roof_main", breaking_threshold=50)
-        self.connect_pieces(f"{name}_roof_upper", f"{name}_roof_middle", breaking_threshold=50)
+        self.connect_pieces(
+            f"{name}_roof_middle", f"{name}_roof_main", breaking_threshold=50
+        )
+        self.connect_pieces(
+            f"{name}_roof_upper", f"{name}_roof_middle", breaking_threshold=50
+        )
 
         # Connect posts to main roof
         for i in range(4):
-            self.connect_pieces(f"{name}_post_{i}", f"{name}_roof_main", breaking_threshold=80)
+            self.connect_pieces(
+                f"{name}_post_{i}", f"{name}_roof_main", breaking_threshold=80
+            )
 
         # Add shoji-style window openings (paper screen style)
         shoji_color = Vec4(0.95, 0.95, 0.85, 0.6)  # Off-white, semi-transparent
@@ -292,45 +347,76 @@ class JapaneseBuilding(Building):
         window_z = wall_height / 3  # Lower than Western windows
 
         # Front wall segments - shoji windows with grid pattern effect
-        front_wall_left.add_opening("window", Vec3(0, 0, window_z),
-                                    Vec3(window_width, wall_thickness, window_height),
-                                    color=shoji_color)
-        front_wall_right.add_opening("window", Vec3(0, 0, window_z),
-                                     Vec3(window_width, wall_thickness, window_height),
-                                     color=shoji_color)
+        front_wall_left.add_opening(
+            "window",
+            Vec3(0, 0, window_z),
+            Vec3(window_width, wall_thickness, window_height),
+            color=shoji_color,
+        )
+        front_wall_right.add_opening(
+            "window",
+            Vec3(0, 0, window_z),
+            Vec3(window_width, wall_thickness, window_height),
+            color=shoji_color,
+        )
 
         # Back wall - multiple shoji windows
         num_back_windows = 3
         window_spacing = width / (num_back_windows + 1)
         for i in range(num_back_windows):
             x_pos = -width / 2 + window_spacing * (i + 1)
-            back_wall.add_opening("window", Vec3(x_pos, 0, window_z),
-                                 Vec3(window_width * 0.8, wall_thickness, window_height),
-                                 color=shoji_color)
+            back_wall.add_opening(
+                "window",
+                Vec3(x_pos, 0, window_z),
+                Vec3(window_width * 0.8, wall_thickness, window_height),
+                color=shoji_color,
+            )
 
         # Side walls - shoji windows
         if depth > 8:
-            left_wall.add_opening("window", Vec3(0, -depth / 4, window_z),
-                                 Vec3(wall_thickness, window_width * 0.8, window_height),
-                                 color=shoji_color)
-            left_wall.add_opening("window", Vec3(0, depth / 4, window_z),
-                                 Vec3(wall_thickness, window_width * 0.8, window_height),
-                                 color=shoji_color)
-            right_wall.add_opening("window", Vec3(0, -depth / 4, window_z),
-                                  Vec3(wall_thickness, window_width * 0.8, window_height),
-                                  color=shoji_color)
-            right_wall.add_opening("window", Vec3(0, depth / 4, window_z),
-                                  Vec3(wall_thickness, window_width * 0.8, window_height),
-                                  color=shoji_color)
+            left_wall.add_opening(
+                "window",
+                Vec3(0, -depth / 4, window_z),
+                Vec3(wall_thickness, window_width * 0.8, window_height),
+                color=shoji_color,
+            )
+            left_wall.add_opening(
+                "window",
+                Vec3(0, depth / 4, window_z),
+                Vec3(wall_thickness, window_width * 0.8, window_height),
+                color=shoji_color,
+            )
+            right_wall.add_opening(
+                "window",
+                Vec3(0, -depth / 4, window_z),
+                Vec3(wall_thickness, window_width * 0.8, window_height),
+                color=shoji_color,
+            )
+            right_wall.add_opening(
+                "window",
+                Vec3(0, depth / 4, window_z),
+                Vec3(wall_thickness, window_width * 0.8, window_height),
+                color=shoji_color,
+            )
         else:
-            left_wall.add_opening("window", Vec3(0, 0, window_z),
-                                 Vec3(wall_thickness, window_width, window_height),
-                                 color=shoji_color)
-            right_wall.add_opening("window", Vec3(0, 0, window_z),
-                                  Vec3(wall_thickness, window_width, window_height),
-                                  color=shoji_color)
+            left_wall.add_opening(
+                "window",
+                Vec3(0, 0, window_z),
+                Vec3(wall_thickness, window_width, window_height),
+                color=shoji_color,
+            )
+            right_wall.add_opening(
+                "window",
+                Vec3(0, 0, window_z),
+                Vec3(wall_thickness, window_width, window_height),
+                color=shoji_color,
+            )
 
-        print(f"Created traditional Japanese-style {name} with {len(self.pieces)} pieces")
+        print(
+            f"Created traditional Japanese-style {name} with {len(self.pieces)} pieces"
+        )
         print(f"  - Raised platform at {platform_height}m")
         print(f"  - Wide sliding entrance: {door_width}m × {door_height}m")
-        print(f"  - Three-tiered curved roof with deep eaves ({eave_overhang}m overhang)")
+        print(
+            f"  - Three-tiered curved roof with deep eaves ({eave_overhang}m overhang)"
+        )

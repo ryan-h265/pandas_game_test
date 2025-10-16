@@ -3,4 +3,4 @@
 from .lantern_prop import LanternProp
 from .japanese_bar_prop import JapaneseBarProp
 
-__all__ = ['LanternProp', 'JapaneseBarProp']
+__all__ = ["LanternProp", "JapaneseBarProp"]

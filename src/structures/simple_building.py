@@ -8,7 +8,16 @@ from .building import Building, BuildingPiece
 class SimpleBuilding(Building):
     """A simple building with walls and a roof."""
 
-    def __init__(self, world, render, position, width=10, depth=10, height=8, name="simple_building"):
+    def __init__(
+        self,
+        world,
+        render,
+        position,
+        width=10,
+        depth=10,
+        height=8,
+        name="simple_building",
+    ):
         """Create a simple building.
 
         Args:
@@ -164,27 +173,57 @@ class SimpleBuilding(Building):
         # They don't need high breaking thresholds since there's no physics forces on them
 
         # Connect walls to foundation
-        self.connect_pieces(f"{name}_wall_front_left", f"{name}_foundation", breaking_threshold=100)
-        self.connect_pieces(f"{name}_wall_front_right", f"{name}_foundation", breaking_threshold=100)
-        self.connect_pieces(f"{name}_wall_front_top", f"{name}_foundation", breaking_threshold=100)
-        self.connect_pieces(f"{name}_wall_back", f"{name}_foundation", breaking_threshold=100)
-        self.connect_pieces(f"{name}_wall_left", f"{name}_foundation", breaking_threshold=100)
-        self.connect_pieces(f"{name}_wall_right", f"{name}_foundation", breaking_threshold=100)
+        self.connect_pieces(
+            f"{name}_wall_front_left", f"{name}_foundation", breaking_threshold=100
+        )
+        self.connect_pieces(
+            f"{name}_wall_front_right", f"{name}_foundation", breaking_threshold=100
+        )
+        self.connect_pieces(
+            f"{name}_wall_front_top", f"{name}_foundation", breaking_threshold=100
+        )
+        self.connect_pieces(
+            f"{name}_wall_back", f"{name}_foundation", breaking_threshold=100
+        )
+        self.connect_pieces(
+            f"{name}_wall_left", f"{name}_foundation", breaking_threshold=100
+        )
+        self.connect_pieces(
+            f"{name}_wall_right", f"{name}_foundation", breaking_threshold=100
+        )
 
         # Connect front wall segments to each other
-        self.connect_pieces(f"{name}_wall_front_left", f"{name}_wall_front_top", breaking_threshold=80)
-        self.connect_pieces(f"{name}_wall_front_right", f"{name}_wall_front_top", breaking_threshold=80)
+        self.connect_pieces(
+            f"{name}_wall_front_left", f"{name}_wall_front_top", breaking_threshold=80
+        )
+        self.connect_pieces(
+            f"{name}_wall_front_right", f"{name}_wall_front_top", breaking_threshold=80
+        )
 
         # Connect walls to each other at corners
-        self.connect_pieces(f"{name}_wall_front_left", f"{name}_wall_left", breaking_threshold=80)
-        self.connect_pieces(f"{name}_wall_front_right", f"{name}_wall_right", breaking_threshold=80)
-        self.connect_pieces(f"{name}_wall_back", f"{name}_wall_left", breaking_threshold=80)
-        self.connect_pieces(f"{name}_wall_back", f"{name}_wall_right", breaking_threshold=80)
+        self.connect_pieces(
+            f"{name}_wall_front_left", f"{name}_wall_left", breaking_threshold=80
+        )
+        self.connect_pieces(
+            f"{name}_wall_front_right", f"{name}_wall_right", breaking_threshold=80
+        )
+        self.connect_pieces(
+            f"{name}_wall_back", f"{name}_wall_left", breaking_threshold=80
+        )
+        self.connect_pieces(
+            f"{name}_wall_back", f"{name}_wall_right", breaking_threshold=80
+        )
 
         # Connect roof to walls
-        self.connect_pieces(f"{name}_roof", f"{name}_wall_front_left", breaking_threshold=60)
-        self.connect_pieces(f"{name}_roof", f"{name}_wall_front_right", breaking_threshold=60)
-        self.connect_pieces(f"{name}_roof", f"{name}_wall_front_top", breaking_threshold=60)
+        self.connect_pieces(
+            f"{name}_roof", f"{name}_wall_front_left", breaking_threshold=60
+        )
+        self.connect_pieces(
+            f"{name}_roof", f"{name}_wall_front_right", breaking_threshold=60
+        )
+        self.connect_pieces(
+            f"{name}_roof", f"{name}_wall_front_top", breaking_threshold=60
+        )
         self.connect_pieces(f"{name}_roof", f"{name}_wall_back", breaking_threshold=60)
         self.connect_pieces(f"{name}_roof", f"{name}_wall_left", breaking_threshold=60)
         self.connect_pieces(f"{name}_roof", f"{name}_wall_right", breaking_threshold=60)
@@ -196,25 +235,67 @@ class SimpleBuilding(Building):
 
         # Front wall segments - add windows to left and right segments
         # Windows should be in local coordinates relative to each segment
-        front_wall_left.add_opening("window", Vec3(0, 0, window_z), Vec3(window_width, wall_thickness, window_height))
-        front_wall_right.add_opening("window", Vec3(0, 0, window_z), Vec3(window_width, wall_thickness, window_height))
+        front_wall_left.add_opening(
+            "window",
+            Vec3(0, 0, window_z),
+            Vec3(window_width, wall_thickness, window_height),
+        )
+        front_wall_right.add_opening(
+            "window",
+            Vec3(0, 0, window_z),
+            Vec3(window_width, wall_thickness, window_height),
+        )
 
         # Back wall - two windows
-        back_wall.add_opening("window", Vec3(-width / 3, 0, window_z), Vec3(window_width, wall_thickness, window_height))
-        back_wall.add_opening("window", Vec3(width / 3, 0, window_z), Vec3(window_width, wall_thickness, window_height))
+        back_wall.add_opening(
+            "window",
+            Vec3(-width / 3, 0, window_z),
+            Vec3(window_width, wall_thickness, window_height),
+        )
+        back_wall.add_opening(
+            "window",
+            Vec3(width / 3, 0, window_z),
+            Vec3(window_width, wall_thickness, window_height),
+        )
 
         # Left wall - one or two windows depending on depth
         if depth > 8:
-            left_wall.add_opening("window", Vec3(0, -depth / 4, window_z), Vec3(wall_thickness, window_width, window_height))
-            left_wall.add_opening("window", Vec3(0, depth / 4, window_z), Vec3(wall_thickness, window_width, window_height))
+            left_wall.add_opening(
+                "window",
+                Vec3(0, -depth / 4, window_z),
+                Vec3(wall_thickness, window_width, window_height),
+            )
+            left_wall.add_opening(
+                "window",
+                Vec3(0, depth / 4, window_z),
+                Vec3(wall_thickness, window_width, window_height),
+            )
         else:
-            left_wall.add_opening("window", Vec3(0, 0, window_z), Vec3(wall_thickness, window_width, window_height))
+            left_wall.add_opening(
+                "window",
+                Vec3(0, 0, window_z),
+                Vec3(wall_thickness, window_width, window_height),
+            )
 
         # Right wall - one or two windows depending on depth
         if depth > 8:
-            right_wall.add_opening("window", Vec3(0, -depth / 4, window_z), Vec3(wall_thickness, window_width, window_height))
-            right_wall.add_opening("window", Vec3(0, depth / 4, window_z), Vec3(wall_thickness, window_width, window_height))
+            right_wall.add_opening(
+                "window",
+                Vec3(0, -depth / 4, window_z),
+                Vec3(wall_thickness, window_width, window_height),
+            )
+            right_wall.add_opening(
+                "window",
+                Vec3(0, depth / 4, window_z),
+                Vec3(wall_thickness, window_width, window_height),
+            )
         else:
-            right_wall.add_opening("window", Vec3(0, 0, window_z), Vec3(wall_thickness, window_width, window_height))
+            right_wall.add_opening(
+                "window",
+                Vec3(0, 0, window_z),
+                Vec3(wall_thickness, window_width, window_height),
+            )
 
-        print(f"Created {name} with {len(self.pieces)} pieces and structural connections")
+        print(
+            f"Created {name} with {len(self.pieces)} pieces and structural connections"
+        )

@@ -1,6 +1,6 @@
 """Visual effects system for game."""
 
-from panda3d.core import Vec3, Vec4, LineSegs, NodePath, RenderModeAttrib
+from panda3d.core import Vec3, Vec4, LineSegs
 
 
 class BulletTrail:
@@ -21,7 +21,9 @@ class BulletTrail:
         self.is_alive = True
 
         distance = (end_pos - start_pos).length()
-        print(f"BulletTrail: Creating {distance:.2f}m trail from {start_pos} to {end_pos}")
+        print(
+            f"BulletTrail: Creating {distance:.2f}m trail from {start_pos} to {end_pos}"
+        )
 
         # Create line geometry with LineSegs
         segs = LineSegs()
@@ -42,7 +44,7 @@ class BulletTrail:
         self.trail_node.setDepthWrite(False)
         self.trail_node.setTransparency(True)
 
-        print(f"BulletTrail: Node created and attached to render")
+        print("BulletTrail: Node created and attached to render")
 
     def update(self, dt):
         """Update trail effect.
@@ -91,8 +93,14 @@ class MuzzleFlash:
         self.is_alive = True
 
         # Create small bright sphere for flash
-        from panda3d.core import GeomNode, Geom, GeomVertexFormat, GeomVertexData, GeomVertexWriter, GeomTriangles
-        import math
+        from panda3d.core import (
+            GeomNode,
+            Geom,
+            GeomVertexFormat,
+            GeomVertexData,
+            GeomVertexWriter,
+            GeomTriangles,
+        )
 
         vformat = GeomVertexFormat.getV3n3c4()
         vdata = GeomVertexData("flash", vformat, Geom.UHStatic)
@@ -132,7 +140,9 @@ class MuzzleFlash:
         geom_node.addGeom(geom)
 
         self.flash_node = render.attachNewNode(geom_node)
-        self.flash_node.setPos(position)  # Position at the muzzle (already offset in tool_manager)
+        self.flash_node.setPos(
+            position
+        )  # Position at the muzzle (already offset in tool_manager)
         self.flash_node.lookAt(position + direction * 10)
         # Don't billboard - make it directional so it extends forward from gun
         # self.flash_node.setBillboardPointEye()  # REMOVED: This was making it face camera
@@ -343,4 +353,6 @@ class EffectsManager:
             dt: Delta time
         """
         # Update and remove dead effects
-        self.active_effects = [effect for effect in self.active_effects if effect.update(dt)]
+        self.active_effects = [
+            effect for effect in self.active_effects if effect.update(dt)
+        ]

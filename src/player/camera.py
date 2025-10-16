@@ -28,11 +28,13 @@ class CameraController:
         self.center_y = 0
 
         # Camera mode: 'first_person' or 'third_person'
-        self.camera_mode = 'first_person'
+        self.camera_mode = "first_person"
 
         # Camera offset from player
         # First person: eye height
-        self.first_person_offset = Vec3(0, 0, 1.6)  # 1.6 units above player position (eye height)
+        self.first_person_offset = Vec3(
+            0, 0, 1.6
+        )  # 1.6 units above player position (eye height)
 
         # Third person: distance behind and above the player
         self.third_person_distance = 4.0  # Distance behind player
@@ -73,7 +75,7 @@ class CameraController:
         """Apply current rotation to camera."""
         # Only apply manual rotation in first-person mode
         # In third-person, lookAt() handles the rotation
-        if self.camera_mode == 'first_person':
+        if self.camera_mode == "first_person":
             self.camera.setHpr(self.heading, self.pitch, 0)
 
     def update_position(self, player_pos):
@@ -82,7 +84,7 @@ class CameraController:
         Args:
             player_pos: Player position Vec3
         """
-        if self.camera_mode == 'first_person':
+        if self.camera_mode == "first_person":
             # First person: camera at eye level
             camera_pos = player_pos + self.first_person_offset
             self.camera.setPos(camera_pos)
@@ -103,7 +105,9 @@ class CameraController:
             # Height based on pitch and base height
             # Negative pitch = looking down = camera higher
             # Positive pitch = looking up = camera lower
-            offset_z = self.third_person_height - (self.third_person_distance * math.sin(pitch_rad))
+            offset_z = self.third_person_height - (
+                self.third_person_distance * math.sin(pitch_rad)
+            )
 
             # Position camera behind and above the player
             camera_pos = player_pos + Vec3(offset_x, offset_y, offset_z)
@@ -150,10 +154,10 @@ class CameraController:
         Returns:
             str: The new camera mode ('first_person' or 'third_person')
         """
-        if self.camera_mode == 'first_person':
-            self.camera_mode = 'third_person'
+        if self.camera_mode == "first_person":
+            self.camera_mode = "third_person"
         else:
-            self.camera_mode = 'first_person'
+            self.camera_mode = "first_person"
 
         return self.camera_mode
 
@@ -166,7 +170,7 @@ class CameraController:
         Returns:
             bool: True if mode was set successfully
         """
-        if mode in ['first_person', 'third_person']:
+        if mode in ["first_person", "third_person"]:
             self.camera_mode = mode
             return True
         return False
@@ -177,7 +181,7 @@ class CameraController:
         Returns:
             bool: True if in first-person mode
         """
-        return self.camera_mode == 'first_person'
+        return self.camera_mode == "first_person"
 
     def is_third_person(self):
         """Check if camera is in third-person mode.
@@ -185,7 +189,7 @@ class CameraController:
         Returns:
             bool: True if in third-person mode
         """
-        return self.camera_mode == 'third_person'
+        return self.camera_mode == "third_person"
 
     def set_third_person_distance(self, distance):
         """Set the third-person camera distance from player.
@@ -201,4 +205,6 @@ class CameraController:
         Args:
             delta: Amount to change distance by
         """
-        self.third_person_distance = max(1.0, min(10.0, self.third_person_distance + delta))
+        self.third_person_distance = max(
+            1.0, min(10.0, self.third_person_distance + delta)
+        )
