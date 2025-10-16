@@ -8,6 +8,7 @@ from config.settings import configure, PHYSICS_FPS, GRAVITY
 from engine.world import World
 from player.controller import PlayerController
 from player.camera import CameraController
+from player.character_model import CharacterModel
 from interaction.raycast import TerrainRaycaster
 from interaction.terrain_editor import TerrainEditor
 from interaction.building_raycast import BuildingRaycaster
@@ -51,6 +52,10 @@ class Game(ShowBase):
         # Initialize camera controller
         self.camera_controller = CameraController(self.camera, self.win)
         self.camera_controller.setup_mouse()
+
+        # Initialize character model (for third-person view)
+        self.character_model = CharacterModel(self.render, start_pos)
+        self.character_model.hide()  # Start hidden (first-person mode)
 
         # Initialize terrain editing
         self.raycaster = TerrainRaycaster(self.cam, self.render)
@@ -134,6 +139,8 @@ class Game(ShowBase):
         print("  Space - Jump (or fly up in flying mode)")
         print("  Mouse - Look around")
         print("  M - Toggle mouse capture")
+        print("  F - Toggle first-person / third-person camera")
+        print("  T/Y - Adjust third-person camera distance")
         print("")
         print("  Q - Switch tools (Fist / Terrain / Crowbar / Gun / Building)")
         print("  Left Click - Use tool (punch/dig/swing/shoot/place)")
@@ -257,6 +264,11 @@ class Game(ShowBase):
 
         # Mouse toggle
         self.accept("m", self.toggle_mouse)
+
+        # Camera mode switching
+        self.accept("f", self.toggle_camera_mode)
+        self.accept("t", self.adjust_camera_distance, [-0.5])  # Closer
+        self.accept("y", self.adjust_camera_distance, [0.5])   # Farther
 
         # Tool switching
         self.accept("q", self.tool_manager.cycle_tool)
@@ -588,6 +600,42 @@ class Game(ShowBase):
         if not enabled:
             print("God mode disabled. Flying mode will be turned off if active.")
 
+    def toggle_camera_mode(self):
+        """Toggle between first-person and third-person camera modes."""
+        new_mode = self.camera_controller.toggle_camera_mode()
+
+        if new_mode == 'third_person':
+            # Show character model in third-person
+            self.character_model.show()
+            # Hide weapon viewmodel in third-person
+            if self.weapon_viewmodel.current_model:
+                self.weapon_viewmodel.hide_weapon()
+            self.hud.show_message("Camera: Third-Person")
+            print("Switched to third-person view")
+        else:
+            # Hide character model in first-person
+            self.character_model.hide()
+            # Show weapon viewmodel in first-person (if it was visible before)
+            active_tool = self.tool_manager.get_active_tool()
+            if active_tool:
+                self.weapon_viewmodel.show_weapon(active_tool.view_model_name)
+            self.hud.show_message("Camera: First-Person")
+            print("Switched to first-person view")
+
+    def adjust_camera_distance(self, delta):
+        """Adjust third-person camera distance.
+
+        Args:
+            delta: Amount to change distance by
+        """
+        if self.camera_controller.is_third_person():
+            self.camera_controller.adjust_third_person_distance(delta)
+            distance = self.camera_controller.third_person_distance
+            self.hud.show_message(f"Camera Distance: {distance:.1f}")
+            print(f"Third-person camera distance: {distance:.1f}")
+        else:
+            self.hud.show_message("Switch to third-person mode first (F)")
+
     def on_tool_change(self, message):
         """Handle tool change event.
 
@@ -755,6 +803,17 @@ class Game(ShowBase):
         player_pos = self.player.get_position()
         self.camera_controller.update_position(player_pos)
         self.camera_controller.apply_rotation()
+
+        # Update character model position and rotation (for third-person view)
+        if self.camera_controller.is_third_person():
+            self.character_model.set_position(player_pos)
+            self.character_model.set_heading(self.camera_controller.heading)
+
+        # Update character animations
+        is_moving = self.player.is_moving()
+        is_running = self.player.keys.get("run", False)
+        is_jumping = not self.player.is_on_ground()
+        self.character_model.update(dt, is_moving, is_running, is_jumping)
 
         # Update physics
         self.world.doPhysics(dt, 10, 1.0 / PHYSICS_FPS)
