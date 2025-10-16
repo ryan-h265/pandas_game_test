@@ -20,8 +20,6 @@ from panda3d.bullet import (
 
 from testgame.config.settings import (
     CHUNK_SIZE,
-    DEBUG_CHUNK_COLORS,
-    DEBUG_CHUNK_WIREFRAME,
     FLAT_WORLD,
     TERRAIN_RESOLUTION,
     MODIFIABLE_TERRAIN,
@@ -394,7 +392,7 @@ class TerrainChunk:
                 normal.addData3(nx, ny, nz)
 
                 # Color based on height or debug color
-                if DEBUG_CHUNK_COLORS:
+                if testgame.config.settings.DEBUG_CHUNK_COLORS:
                     vertex_color = self.debug_color
                 else:
                     vertex_color = self._get_vertex_color(height)
@@ -436,13 +434,13 @@ class TerrainChunk:
         self.node_path.setCollideMask(1)
 
         # Set shader input to enable/disable vertex colors
-        if DEBUG_CHUNK_COLORS:
+        if testgame.config.settings.DEBUG_CHUNK_COLORS:
             self.node_path.setShaderInput("useVertexColor", 1)
         else:
             self.node_path.setShaderInput("useVertexColor", 0)
 
         # Add wireframe overlay if debug mode is enabled
-        if DEBUG_CHUNK_WIREFRAME:
+        if testgame.config.settings.DEBUG_CHUNK_WIREFRAME:
             self._create_wireframe()
 
     def _get_vertex_color(self, height):
