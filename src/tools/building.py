@@ -4,12 +4,13 @@ from .base import Tool, ToolType
 from panda3d.core import Vec3, Vec4, TransparencyAttrib
 from structures.simple_building import SimpleBuilding
 from structures.japanese_building import JapaneseBuilding
+from props.lantern_prop import LanternProp
 
 
 class BuildingTool(Tool):
     """Tool for placing buildings with ghost preview controlled by mouse."""
 
-    def __init__(self, world, camera, render, bullet_world, terrain_raycaster=None, mouse_watcher=None):
+    def __init__(self, world, camera, render, bullet_world, terrain_raycaster=None, mouse_watcher=None, point_light_manager=None):
         """Initialize building tool.
 
         Args:
@@ -19,6 +20,7 @@ class BuildingTool(Tool):
             bullet_world: Bullet physics world
             terrain_raycaster: TerrainRaycaster for ground placement
             mouse_watcher: MouseWatcher node for raycasting
+            point_light_manager: Optional PointLightManager for props with lights (e.g., lanterns)
         """
         super().__init__("Building Placer", ToolType.BUILDING)
         self.world = world
@@ -27,12 +29,14 @@ class BuildingTool(Tool):
         self.bullet_world = bullet_world
         self.terrain_raycaster = terrain_raycaster
         self.mouse_watcher = mouse_watcher
+        self.point_light_manager = point_light_manager
 
         # Building type selection
         self.building_types = {
             1: {
                 "name": "Simple Building",
                 "class": SimpleBuilding,
+                "type": "building",  # Regular building
                 "default_width": 10.0,
                 "default_depth": 10.0,
                 "default_height": 8.0,
@@ -40,20 +44,23 @@ class BuildingTool(Tool):
             2: {
                 "name": "Japanese Building",
                 "class": JapaneseBuilding,
+                "type": "building",  # Regular building
                 "default_width": 12.0,
                 "default_depth": 10.0,
                 "default_height": 6.0,
             },
             3: {
-                "name": "TODO: Building Type 3",
-                "class": SimpleBuilding,  # Placeholder
-                "default_width": 10.0,
-                "default_depth": 10.0,
-                "default_height": 8.0,
+                "name": "Japanese Stone Lantern",
+                "class": LanternProp,
+                "type": "prop",  # Prop (single object, not a building)
+                "default_width": 1.0,  # Not used for props, but kept for compatibility
+                "default_depth": 1.0,
+                "default_height": 1.5,
             },
             4: {
                 "name": "TODO: Building Type 4",
                 "class": SimpleBuilding,  # Placeholder
+                "type": "building",
                 "default_width": 10.0,
                 "default_depth": 10.0,
                 "default_height": 8.0,
@@ -95,7 +102,7 @@ class BuildingTool(Tool):
         self._remove_ghost_building()
 
     def _create_ghost_building(self):
-        """Create or retrieve cached ghost preview of the building."""
+        """Create or retrieve cached ghost preview of the building/prop."""
         # Hide current ghost if visible
         if self.ghost_building:
             self._hide_ghost_building()
@@ -110,64 +117,110 @@ class BuildingTool(Tool):
             return
 
         try:
-            # Get the current building type class
-            building_class = self.building_types[self.current_building_type]["class"]
+            # Get the current building type info
+            building_info = self.building_types[self.current_building_type]
+            building_class = building_info["class"]
+            building_type = building_info.get("type", "building")
 
-            # Create a NEW building as the ghost using the selected type
-            self.ghost_building = building_class(
-                self.bullet_world,
-                self.render,
-                self.ghost_position,
-                width=self.building_width,
-                depth=self.building_depth,
-                height=self.building_height,
-                name=f"ghost_building_{cache_key}"
-            )
+            # Create ghost based on type
+            if building_type == "prop":
+                # For props (like lanterns), create without light manager
+                self.ghost_building = building_class(
+                    self.bullet_world,
+                    self.render,
+                    self.ghost_position,
+                    point_light_manager=None,  # No lights for ghost
+                    static=True
+                )
 
-            # Make all pieces transparent and greenish (valid placement color)
-            for piece in self.ghost_building.pieces:
-                try:
-                    if piece.body_np and not piece.body_np.isEmpty():
-                        # Set transparency
-                        piece.body_np.setTransparency(TransparencyAttrib.MAlpha)
-                        # Update color to semi-transparent green (valid placement)
-                        piece.body_np.setColorScale(0.2, 1.0, 0.2, 0.4)
+                # Make the model semi-transparent green
+                if hasattr(self.ghost_building, 'model_node') and self.ghost_building.model_node:
+                    self.ghost_building.model_node.setTransparency(TransparencyAttrib.MAlpha)
+                    self.ghost_building.model_node.setColorScale(0.2, 1.0, 0.2, 0.4)
 
-                        # Disable collisions for ghost pieces
-                        body_node = piece.body_np.node()
-                        if body_node:
-                            body_node.setCollideMask(0)
-                            body_node.setIntoCollideMask(0)
-                except Exception as e:
-                    print(f"Warning: Error setting ghost piece appearance: {e}")
-                    pass
+                # Disable collision for ghost physics body
+                if hasattr(self.ghost_building, 'physics_body') and self.ghost_building.physics_body:
+                    # For Bullet physics, remove from physics world temporarily
+                    # Ghost props don't need collision detection
+                    try:
+                        self.bullet_world.removeRigidBody(self.ghost_building.physics_body.node())
+                    except:
+                        pass  # May not be in world yet
+
+            else:
+                # Regular building
+                self.ghost_building = building_class(
+                    self.bullet_world,
+                    self.render,
+                    self.ghost_position,
+                    width=self.building_width,
+                    depth=self.building_depth,
+                    height=self.building_height,
+                    name=f"ghost_building_{cache_key}"
+                )
+
+                # Make all pieces transparent and greenish (valid placement color)
+                for piece in self.ghost_building.pieces:
+                    try:
+                        if piece.body_np and not piece.body_np.isEmpty():
+                            # Set transparency
+                            piece.body_np.setTransparency(TransparencyAttrib.MAlpha)
+                            # Update color to semi-transparent green (valid placement)
+                            piece.body_np.setColorScale(0.2, 1.0, 0.2, 0.4)
+
+                            # Disable collisions for ghost pieces (remove from physics world)
+                            body_node = piece.body_np.node()
+                            if body_node:
+                                try:
+                                    self.bullet_world.removeRigidBody(body_node)
+                                except:
+                                    pass  # May not be in world yet
+                    except Exception as e:
+                        print(f"Warning: Error setting ghost piece appearance: {e}")
+                        pass
 
             # Cache this ghost for reuse
             self.ghost_buildings_cache[cache_key] = self.ghost_building
 
         except Exception as e:
-            print(f"Error creating ghost building: {e}")
+            print(f"Error creating ghost building/prop: {e}")
+            import traceback
+            traceback.print_exc()
             self.ghost_building = None
 
     def _hide_ghost_building(self):
-        """Hide the current ghost building without destroying it."""
+        """Hide the current ghost building/prop without destroying it."""
         if self.ghost_building:
-            for piece in self.ghost_building.pieces:
-                try:
-                    if piece.body_np and not piece.body_np.isEmpty():
-                        piece.body_np.hide()
-                except:
-                    pass
+            # Check if it's a prop or a building
+            if hasattr(self.ghost_building, 'pieces'):
+                # Building with pieces
+                for piece in self.ghost_building.pieces:
+                    try:
+                        if piece.body_np and not piece.body_np.isEmpty():
+                            piece.body_np.hide()
+                    except:
+                        pass
+            elif hasattr(self.ghost_building, 'model_node'):
+                # Prop with model_node
+                if self.ghost_building.model_node:
+                    self.ghost_building.model_node.hide()
 
     def _show_ghost_building(self):
-        """Show the current ghost building."""
+        """Show the current ghost building/prop."""
         if self.ghost_building:
-            for piece in self.ghost_building.pieces:
-                try:
-                    if piece.body_np and not piece.body_np.isEmpty():
-                        piece.body_np.show()
-                except:
-                    pass
+            # Check if it's a prop or a building
+            if hasattr(self.ghost_building, 'pieces'):
+                # Building with pieces
+                for piece in self.ghost_building.pieces:
+                    try:
+                        if piece.body_np and not piece.body_np.isEmpty():
+                            piece.body_np.show()
+                    except:
+                        pass
+            elif hasattr(self.ghost_building, 'model_node'):
+                # Prop with model_node
+                if self.ghost_building.model_node:
+                    self.ghost_building.model_node.show()
 
     def _remove_ghost_building(self):
         """Hide the ghost building preview (keeps cache)."""
@@ -176,7 +229,7 @@ class BuildingTool(Tool):
             self.ghost_building = None
 
     def _update_ghost_position(self, position):
-        """Update the position of the ghost building.
+        """Update the position of the ghost building/prop.
 
         Args:
             position: Vec3 world position
@@ -194,19 +247,25 @@ class BuildingTool(Tool):
 
         self.ghost_position = position
 
-        # Update all piece positions relative to base position
-        for piece in self.ghost_building.pieces:
-            # Calculate offset from original building position
-            offset = piece.position - self.ghost_building.position
-            new_pos = position + offset
-            piece.body_np.setPos(new_pos)
-            piece.position = new_pos
+        # Update position based on type
+        if hasattr(self.ghost_building, 'pieces'):
+            # Building with pieces
+            for piece in self.ghost_building.pieces:
+                # Calculate offset from original building position
+                offset = piece.position - self.ghost_building.position
+                new_pos = position + offset
+                piece.body_np.setPos(new_pos)
+                piece.position = new_pos
 
-        # Update building base position
-        self.ghost_building.position = position
+            # Update building base position
+            self.ghost_building.position = position
+
+        elif hasattr(self.ghost_building, 'set_position'):
+            # Prop with set_position method
+            self.ghost_building.set_position(position)
 
     def _set_ghost_color(self, valid):
-        """Set the ghost building color based on placement validity.
+        """Set the ghost building/prop color based on placement validity.
 
         Args:
             valid: True for valid placement (green), False for invalid (red)
@@ -223,11 +282,18 @@ class BuildingTool(Tool):
             # Red for invalid placement
             color = (1.0, 0.2, 0.2, 0.4)
 
-        for piece in self.ghost_building.pieces:
-            piece.body_np.setColorScale(*color)
+        # Apply color based on type
+        if hasattr(self.ghost_building, 'pieces'):
+            # Building with pieces
+            for piece in self.ghost_building.pieces:
+                piece.body_np.setColorScale(*color)
+        elif hasattr(self.ghost_building, 'model_node'):
+            # Prop with model_node
+            if self.ghost_building.model_node:
+                self.ghost_building.model_node.setColorScale(*color)
 
     def _check_placement_valid(self, position):
-        """Check if placement at position is valid (not overlapping existing buildings).
+        """Check if placement at position is valid (not overlapping existing buildings/props).
 
         Args:
             position: Vec3 world position
@@ -241,30 +307,29 @@ class BuildingTool(Tool):
         # Get all existing buildings (excluding ghost buildings)
         existing_buildings = [b for b in self.world.buildings if not b.name.startswith("ghost")]
 
-        # Check each piece of the ghost building against all existing buildings
-        for ghost_piece in self.ghost_building.pieces:
-            ghost_pos = ghost_piece.position
-            ghost_size = ghost_piece.size
+        # Get all existing props
+        existing_props = self.world.props if hasattr(self.world, 'props') else []
 
-            # Calculate ghost piece bounding box
-            ghost_min = Vec3(
-                ghost_pos.x - ghost_size.x / 2,
-                ghost_pos.y - ghost_size.y / 2,
-                ghost_pos.z - ghost_size.z / 2
-            )
-            ghost_max = Vec3(
-                ghost_pos.x + ghost_size.x / 2,
-                ghost_pos.y + ghost_size.y / 2,
-                ghost_pos.z + ghost_size.z / 2
-            )
+        # Determine if ghost is a prop or building
+        is_prop = not hasattr(self.ghost_building, 'pieces')
 
-            # Check against all pieces of all existing buildings
+        if is_prop:
+            # For props, use simple position-based checking with approximate size
+            ghost_pos = self.ghost_position
+            # Approximate prop size (adjust based on your prop)
+            prop_radius = 1.5  # Radius for collision check
+
+            # Check against existing buildings
             for building in existing_buildings:
                 for piece in building.pieces:
                     piece_pos = piece.position
                     piece_size = piece.size
 
-                    # Calculate existing piece bounding box
+                    # Calculate distance from prop center to building piece
+                    # Use AABB check with prop as a small box
+                    ghost_min = Vec3(ghost_pos.x - prop_radius, ghost_pos.y - prop_radius, ghost_pos.z)
+                    ghost_max = Vec3(ghost_pos.x + prop_radius, ghost_pos.y + prop_radius, ghost_pos.z + 2.0)
+
                     piece_min = Vec3(
                         piece_pos.x - piece_size.x / 2,
                         piece_pos.y - piece_size.y / 2,
@@ -276,11 +341,67 @@ class BuildingTool(Tool):
                         piece_pos.z + piece_size.z / 2
                     )
 
-                    # Check for AABB (Axis-Aligned Bounding Box) collision
                     if (ghost_min.x < piece_max.x and ghost_max.x > piece_min.x and
                         ghost_min.y < piece_max.y and ghost_max.y > piece_min.y and
                         ghost_min.z < piece_max.z and ghost_max.z > piece_min.z):
-                        # Collision detected
+                        return False
+
+            # Check against existing props
+            for prop in existing_props:
+                prop_pos = prop.get_position()
+                distance = (ghost_pos - prop_pos).length()
+                if distance < (prop_radius * 2):  # Props too close
+                    return False
+
+        else:
+            # Original building collision check
+            for ghost_piece in self.ghost_building.pieces:
+                ghost_pos = ghost_piece.position
+                ghost_size = ghost_piece.size
+
+                # Calculate ghost piece bounding box
+                ghost_min = Vec3(
+                    ghost_pos.x - ghost_size.x / 2,
+                    ghost_pos.y - ghost_size.y / 2,
+                    ghost_pos.z - ghost_size.z / 2
+                )
+                ghost_max = Vec3(
+                    ghost_pos.x + ghost_size.x / 2,
+                    ghost_pos.y + ghost_size.y / 2,
+                    ghost_pos.z + ghost_size.z / 2
+                )
+
+                # Check against all pieces of all existing buildings
+                for building in existing_buildings:
+                    for piece in building.pieces:
+                        piece_pos = piece.position
+                        piece_size = piece.size
+
+                        # Calculate existing piece bounding box
+                        piece_min = Vec3(
+                            piece_pos.x - piece_size.x / 2,
+                            piece_pos.y - piece_size.y / 2,
+                            piece_pos.z - piece_size.z / 2
+                        )
+                        piece_max = Vec3(
+                            piece_pos.x + piece_size.x / 2,
+                            piece_pos.y + piece_size.y / 2,
+                            piece_pos.z + piece_size.z / 2
+                        )
+
+                        # Check for AABB (Axis-Aligned Bounding Box) collision
+                        if (ghost_min.x < piece_max.x and ghost_max.x > piece_min.x and
+                            ghost_min.y < piece_max.y and ghost_max.y > piece_min.y and
+                            ghost_min.z < piece_max.z and ghost_max.z > piece_min.z):
+                            # Collision detected
+                            return False
+
+                # Check against existing props
+                for prop in existing_props:
+                    prop_pos = prop.get_position()
+                    # Simple distance check for now
+                    distance = (ghost_pos - prop_pos).length()
+                    if distance < 3.0:  # Props within 3 units
                         return False
 
         # No collisions found
@@ -309,48 +430,70 @@ class BuildingTool(Tool):
                 self._set_ghost_color(valid)
 
     def on_primary_use(self, hit_info):
-        """Place the building at current ghost position.
+        """Place the building/prop at current ghost position.
 
         Args:
             hit_info: Dictionary with hit information (not used, we use ghost position)
 
         Returns:
-            bool: True if building was placed
+            bool: True if building/prop was placed
         """
         # Only place one building per mouse click
         if self.has_placed_this_click:
             return False
 
         if not self.ghost_building:
-            print("Cannot place building - no ghost building!")
+            print("Cannot place - no ghost preview!")
             return False
 
         if not self.placement_valid:
-            print("Cannot place building - overlapping with existing building!")
+            print("Cannot place - overlapping with existing object!")
             return False
 
-        # Create the actual building at ghost position using current building type
-        building_count = len([b for b in self.world.buildings if not b.name.startswith("ghost")])
-        building_class = self.building_types[self.current_building_type]["class"]
-        building_type_name = self.building_types[self.current_building_type]["name"].lower().replace(" ", "_")
+        # Get building type info
+        building_info = self.building_types[self.current_building_type]
+        building_class = building_info["class"]
+        building_type = building_info.get("type", "building")
+        building_type_name = building_info["name"].lower().replace(" ", "_")
 
-        new_building = building_class(
-            self.bullet_world,
-            self.render,
-            self.ghost_position,
-            width=self.building_width,
-            depth=self.building_depth,
-            height=self.building_height,
-            name=f"{building_type_name}_{building_count}"
-        )
+        # Create the actual object at ghost position
+        if building_type == "prop":
+            # Create prop with light manager
+            new_prop = building_class(
+                self.bullet_world,
+                self.render,
+                self.ghost_position,
+                point_light_manager=self.point_light_manager,
+                static=True  # Props are static by default
+            )
 
-        # Add building to world
-        self.world.add_building(new_building)
+            # Add prop to world
+            self.world.add_prop(new_prop)
 
-        # Mark that we've placed a building on this click
+            print(f"Placed {building_info['name']} at {self.ghost_position}")
+
+        else:
+            # Create regular building
+            building_count = len([b for b in self.world.buildings if not b.name.startswith("ghost")])
+
+            new_building = building_class(
+                self.bullet_world,
+                self.render,
+                self.ghost_position,
+                width=self.building_width,
+                depth=self.building_depth,
+                height=self.building_height,
+                name=f"{building_type_name}_{building_count}"
+            )
+
+            # Add building to world
+            self.world.add_building(new_building)
+
+            print(f"Placed building at {self.ghost_position} (size: {self.building_width}x{self.building_depth}x{self.building_height})")
+
+        # Mark that we've placed something on this click
         self.has_placed_this_click = True
 
-        print(f"Placed building at {self.ghost_position} (size: {self.building_width}x{self.building_depth}x{self.building_height})")
         return True
 
     def on_secondary_use(self, hit_info):

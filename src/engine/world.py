@@ -35,6 +35,9 @@ class World:
         # Track buildings
         self.buildings = []
 
+        # Track props (lanterns, decorations, etc.)
+        self.props = []
+
         # Initialize world serializer
         self.serializer = WorldSerializer()
 
@@ -242,6 +245,15 @@ class World:
         """
         self.buildings.append(building)
         print(f"Added building '{building.name}' to world (total: {len(self.buildings)} buildings)")
+
+    def add_prop(self, prop):
+        """Add a prop (lantern, decoration, etc.) to the world.
+
+        Args:
+            prop: Prop instance to add
+        """
+        self.props.append(prop)
+        print(f"Added prop to world (total: {len(self.props)} props)")
 
     def damage_building_at_position(self, position, damage=50):
         """Damage a building piece at or near a position.

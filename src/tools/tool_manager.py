@@ -11,7 +11,7 @@ from .building import BuildingTool
 class ToolManager:
     """Manages player tools and tool switching."""
 
-    def __init__(self, terrain_editor, world, camera=None, effects_manager=None, building_raycaster=None, weapon_viewmodel=None, render=None, bullet_world=None, terrain_raycaster=None, mouse_watcher=None, enabled_tools=None):
+    def __init__(self, terrain_editor, world, camera=None, effects_manager=None, building_raycaster=None, weapon_viewmodel=None, render=None, bullet_world=None, terrain_raycaster=None, mouse_watcher=None, point_light_manager=None, enabled_tools=None):
         """Initialize tool manager.
 
         Args:
@@ -25,6 +25,7 @@ class ToolManager:
             bullet_world: Bullet physics world (optional, for building tool)
             terrain_raycaster: TerrainRaycaster for ground placement (optional, for building tool)
             mouse_watcher: MouseWatcher node for raycasting (optional, for building tool)
+            point_light_manager: PointLightManager for props with lights (optional, for building tool)
             enabled_tools: Set of ToolType enums to enable initially. If None, all tools except FIST and CROWBAR are enabled.
         """
         self.tools = {}
@@ -42,6 +43,7 @@ class ToolManager:
         self._bullet_world = bullet_world
         self._terrain_raycaster = terrain_raycaster
         self._mouse_watcher = mouse_watcher
+        self._point_light_manager = point_light_manager
 
         # Default enabled tools (excluding fist and crowbar - player must find them)
         if enabled_tools is None:
@@ -57,7 +59,7 @@ class ToolManager:
         if ToolType.GUN in enabled_tools and camera:
             self.tools[ToolType.GUN] = GunTool(world, camera, effects_manager, building_raycaster)
         if ToolType.BUILDING in enabled_tools and camera and render and bullet_world:
-            self.tools[ToolType.BUILDING] = BuildingTool(world, camera, render, bullet_world, terrain_raycaster, mouse_watcher)
+            self.tools[ToolType.BUILDING] = BuildingTool(world, camera, render, bullet_world, terrain_raycaster, mouse_watcher, point_light_manager)
 
         # Start with first available tool
         if self.tools:

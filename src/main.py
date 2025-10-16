@@ -86,6 +86,11 @@ class Game(ShowBase):
         # Initialize weapon viewmodel (FPS-style weapon display)
         self.weapon_viewmodel = WeaponViewModel(self.camera)
 
+        # Initialize point light system (for torches, lanterns, etc.)
+        # IMPORTANT: Must be initialized before ToolManager for prop lighting
+        self.point_light_manager = PointLightManager()
+        print("Point light system initialized (0 lights active)")
+
         # Initialize tool system
         self.tool_manager = ToolManager(
             self.terrain_editor,
@@ -97,17 +102,14 @@ class Game(ShowBase):
             self.render,
             self.world,
             self.raycaster,
-            self.mouseWatcherNode
+            self.mouseWatcherNode,
+            self.point_light_manager
         )
         # Set up tool message callback to display on HUD
         self.tool_manager.tool_message_callback = self.on_tool_change
 
         # Show initial crosshair (fist tool is default)
         self.crosshair_manager.show_crosshair("fist")
-
-        # Initialize point light system (for torches, lanterns, etc.)
-        self.point_light_manager = PointLightManager()
-        print("Point light system initialized (0 lights active)")
 
         # Initialize shadow system (enabled by default)
         self.shadows_enabled = True
