@@ -18,6 +18,7 @@ from rendering.post_process import PostProcessManager
 from rendering.effects import EffectsManager
 from rendering.weapon_viewmodel import WeaponViewModel
 from rendering.skybox import MountainSkybox
+from rendering.point_light_manager import PointLightManager
 from tools.tool_manager import ToolManager, ToolType
 from ui.hud import HUD
 from ui.crosshair import CrosshairManager
@@ -104,14 +105,24 @@ class Game(ShowBase):
         # Show initial crosshair (fist tool is default)
         self.crosshair_manager.show_crosshair("fist")
 
+        # Initialize point light system (for torches, lanterns, etc.)
+        self.point_light_manager = PointLightManager()
+        print("Point light system initialized (0 lights active)")
+
         # Initialize shadow system (enabled by default)
         self.shadows_enabled = True
         self.ssao_enabled = False  # Ambient occlusion enabled by default
         self.ssao_strength = 0.8  # Default AO strength
         light_dir = Vec3(1, 1, -1)  # Sun direction
         self.shadow_manager = ShadowManager(self, self.render, light_dir)
-        self.shadow_manager.set_shader_inputs(self.render, ssao_enabled=self.ssao_enabled)
+        # Initial shader inputs (camera pos will be updated each frame)
+        self.shadow_manager.set_shader_inputs(
+            self.render,
+            ssao_enabled=self.ssao_enabled,
+            point_light_manager=self.point_light_manager,
+        )
         print("Shadows and ambient occlusion enabled by default")
+        print(f"Point light system supports up to {self.point_light_manager.MAX_LIGHTS} visible lights with smart culling")
 
         # Initialize post-processing
         self.post_process = PostProcessManager(self.render, self.cam)
@@ -308,6 +319,9 @@ class Game(ShowBase):
         self.accept(",", self.adjust_ssao_strength, [-0.1])  # Decrease AO strength
         self.accept(".", self.adjust_ssao_strength, [0.1])  # Increase AO strength
 
+        # Point light controls (for testing)
+        self.accept("l", self.add_test_torch)  # Add a torch at current position
+
         # Debug visualization
         self.accept("v", self.toggle_chunk_colors)  # Toggle chunk debug colors
         self.accept("b", self.toggle_wireframe)  # Toggle wireframe
@@ -459,10 +473,47 @@ class Game(ShowBase):
             current = self.shadow_manager.shadow_softness
             new_softness = max(0.5, min(10.0, current + delta))
             self.shadow_manager.set_shadow_softness(new_softness)
-            self.shadow_manager.set_shader_inputs(self.render)
+            self.shadow_manager.set_shader_inputs(
+                self.render, point_light_manager=self.point_light_manager
+            )
             print(f"Shadow softness: {new_softness:.1f}")
         else:
             print("Shadows are disabled (for performance)")
+
+    def add_test_torch(self):
+        """Add a torch light at the player's current position (for testing)."""
+        player_pos = self.player.get_position()
+        # Add torch slightly above ground
+        torch_pos = player_pos + Vec3(0, 0, 2)
+
+        # Create warm orange torch light (wider reach, softer intensity)
+        light = self.point_light_manager.add_light(
+            position=torch_pos,
+            color=(1.0, 0.7, 0.4),  # Warm orange
+            radius=40.0,  # Wider reach (was 20.0)
+            intensity=3.0,  # Less intense (was 8.0)
+        )
+
+        if light:
+            # Enable flickering for torch effect
+            light.set_flicker(True, speed=6.0, amount=0.2)
+
+            # Update shader inputs
+            if self.shadow_manager:
+                self.shadow_manager.set_shader_inputs(
+                    self.render,
+                    ssao_enabled=self.ssao_enabled,
+                    point_light_manager=self.point_light_manager,
+                )
+
+            light_count = self.point_light_manager.get_light_count()
+            self.hud.show_message(
+                f"Torch added at {torch_pos} ({light_count}/{self.point_light_manager.MAX_LIGHTS} lights)"
+            )
+            print(f"Added flickering torch at {torch_pos}")
+        else:
+            self.hud.show_message("Cannot add more lights (max reached!)")
+            print("Max lights reached!")
 
     def toggle_shadows(self):
         """Toggle shadows on/off."""
@@ -478,7 +529,11 @@ class Game(ShowBase):
             # Enable shadows
             light_dir = Vec3(1, 1, -1)
             self.shadow_manager = ShadowManager(self, self.render, light_dir)
-            self.shadow_manager.set_shader_inputs(self.render, ssao_enabled=self.ssao_enabled)
+            self.shadow_manager.set_shader_inputs(
+                self.render,
+                ssao_enabled=self.ssao_enabled,
+                point_light_manager=self.point_light_manager,
+            )
             self.shadows_enabled = True
             self.hud.show_message("Shadows: ON (Quality Mode)")
             print("Shadows enabled")
@@ -788,6 +843,14 @@ class Game(ShowBase):
 
         # Update effects
         self.effects_manager.update(dt)
+
+        # Update point lights (for flickering animations)
+        self.point_light_manager.update(dt)
+
+        # Update point light shader inputs with camera position for smart culling
+        if self.shadow_manager and len(self.point_light_manager.lights) > 0:
+            camera_pos = self.camera.getPos()
+            self.point_light_manager.set_shader_inputs(self.render, camera_pos=camera_pos)
 
         # Update HUD with FPS, compass, minimap, and tool info
         fps = globalClock.getAverageFrameRate()

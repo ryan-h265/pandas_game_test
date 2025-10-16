@@ -145,12 +145,13 @@ class ShadowManager:
             lens = camera_np.node().getLens()
             lens.setFilmSize(size, size)
 
-    def set_shader_inputs(self, node_path, ssao_enabled=True):
+    def set_shader_inputs(self, node_path, ssao_enabled=True, point_light_manager=None):
         """Set shader inputs for shadow rendering.
 
         Args:
             node_path: NodePath to apply shadow inputs to
             ssao_enabled: Enable ambient occlusion (default: True)
+            point_light_manager: Optional PointLightManager instance for dynamic lights
         """
         # Set shadow map textures
         for i, tex in enumerate(self.shadow_textures):
@@ -195,6 +196,13 @@ class ShadowManager:
         node_path.setShaderInput("ssaoRadius", 1.5)  # Occlusion radius
         node_path.setShaderInput("ssaoBias", 0.025)  # Depth bias
         node_path.setShaderInput("ssaoStrength", 0.8)  # AO strength (0.0-2.0)
+
+        # Set point light uniforms (if manager provided)
+        if point_light_manager:
+            point_light_manager.set_shader_inputs(node_path)
+        else:
+            # No lights - set defaults
+            node_path.setShaderInput("numPointLights", 0)
 
     def set_light_direction(self, direction):
         """Update light direction.
