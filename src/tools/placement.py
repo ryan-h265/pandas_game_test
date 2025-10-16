@@ -1,4 +1,4 @@
-"""Building tool - for placing structures with ghost preview."""
+"""Placement tool - for placing buildings, props, and models with ghost preview."""
 
 from .base import Tool, ToolType
 from panda3d.core import Vec3, Vec4, TransparencyAttrib
@@ -7,11 +7,11 @@ from structures.japanese_building import JapaneseBuilding
 from props.lantern_prop import LanternProp
 
 
-class BuildingTool(Tool):
-    """Tool for placing buildings with ghost preview controlled by mouse."""
+class PlacementTool(Tool):
+    """Tool for placing buildings, props, and models with ghost preview controlled by mouse."""
 
     def __init__(self, world, camera, render, bullet_world, terrain_raycaster=None, mouse_watcher=None, point_light_manager=None):
-        """Initialize building tool.
+        """Initialize placement tool.
 
         Args:
             world: Game world instance
@@ -22,7 +22,7 @@ class BuildingTool(Tool):
             mouse_watcher: MouseWatcher node for raycasting
             point_light_manager: Optional PointLightManager for props with lights (e.g., lanterns)
         """
-        super().__init__("Building Placer", ToolType.BUILDING)
+        super().__init__("Placement Tool", ToolType.BUILDING)
         self.world = world
         self.camera = camera
         self.render = render
@@ -31,8 +31,8 @@ class BuildingTool(Tool):
         self.mouse_watcher = mouse_watcher
         self.point_light_manager = point_light_manager
 
-        # Building type selection
-        self.building_types = {
+        # Placement type selection (buildings, props, models)
+        self.placement_types = {
             1: {
                 "name": "Simple Building",
                 "class": SimpleBuilding,
@@ -66,12 +66,12 @@ class BuildingTool(Tool):
                 "default_height": 8.0,
             },
         }
-        self.current_building_type = 1  # Start with Simple Building
+        self.current_placement_type = 1  # Start with Simple Building
 
-        # Building parameters (adjustable)
-        self.building_width = self.building_types[1]["default_width"]
-        self.building_depth = self.building_types[1]["default_depth"]
-        self.building_height = self.building_types[1]["default_height"]
+        # Placement parameters (adjustable for buildings)
+        self.building_width = self.placement_types[1]["default_width"]
+        self.building_depth = self.placement_types[1]["default_depth"]
+        self.building_height = self.placement_types[1]["default_height"]
 
         # Ghost building preview (cached per type to avoid memory leaks)
         self.ghost_buildings_cache = {}  # {building_type: ghost_building}
@@ -93,7 +93,7 @@ class BuildingTool(Tool):
     def on_activate(self):
         """Called when building tool is equipped."""
         self._create_ghost_building()
-        building_name = self.building_types[self.current_building_type]["name"]
+        building_name = self.placement_types[self.current_placement_type]["name"]
         return f"Equipped: {building_name} ({self.building_width}x{self.building_depth}x{self.building_height})"
 
     def on_deactivate(self):
@@ -108,7 +108,7 @@ class BuildingTool(Tool):
             self._hide_ghost_building()
 
         # Check if we have this building type cached
-        cache_key = (self.current_building_type, self.building_width, self.building_depth, self.building_height)
+        cache_key = (self.current_placement_type, self.building_width, self.building_depth, self.building_height)
 
         if cache_key in self.ghost_buildings_cache:
             # Reuse cached ghost
@@ -118,7 +118,7 @@ class BuildingTool(Tool):
 
         try:
             # Get the current building type info
-            building_info = self.building_types[self.current_building_type]
+            building_info = self.placement_types[self.current_placement_type]
             building_class = building_info["class"]
             building_type = building_info.get("type", "building")
 
@@ -451,7 +451,7 @@ class BuildingTool(Tool):
             return False
 
         # Get building type info
-        building_info = self.building_types[self.current_building_type]
+        building_info = self.placement_types[self.current_placement_type]
         building_class = building_info["class"]
         building_type = building_info.get("type", "building")
         building_type_name = building_info["name"].lower().replace(" ", "_")
@@ -570,40 +570,45 @@ class BuildingTool(Tool):
         if button == 1:  # Left mouse button
             self.has_placed_this_click = False
 
-    def set_building_type(self, building_type_number):
-        """Switch to a different building type.
+    def set_placement_type(self, placement_type_number):
+        """Switch to a different placement type (building/prop/model).
 
         Args:
-            building_type_number: Building type number (1-4)
+            placement_type_number: Placement type number (1-4)
 
         Returns:
             str: Status message
         """
-        if building_type_number not in self.building_types:
-            return f"Invalid building type: {building_type_number}"
+        if placement_type_number not in self.placement_types:
+            return f"Invalid placement type: {placement_type_number}"
 
         # Ignore if already this type
-        if self.current_building_type == building_type_number:
-            return f"Already selected: {self.building_types[building_type_number]['name']}"
+        if self.current_placement_type == placement_type_number:
+            return f"Already selected: {self.placement_types[placement_type_number]['name']}"
 
         # Prevent rapid switching
         if self.is_switching_type:
-            return "Switching building type... please wait"
+            return "Switching placement type... please wait"
 
         self.is_switching_type = True
 
         try:
-            self.current_building_type = building_type_number
+            self.current_placement_type = placement_type_number
 
-            # Load default dimensions for this building type
-            building_info = self.building_types[building_type_number]
-            self.building_width = building_info["default_width"]
-            self.building_depth = building_info["default_depth"]
-            self.building_height = building_info["default_height"]
+            # Load default dimensions for this placement type
+            placement_info = self.placement_types[placement_type_number]
+            self.building_width = placement_info["default_width"]
+            self.building_depth = placement_info["default_depth"]
+            self.building_height = placement_info["default_height"]
 
-            # Recreate ghost with new building type (will use cache if available)
+            # Recreate ghost with new placement type (will use cache if available)
             self._create_ghost_building()
 
-            return f"Selected: {building_info['name']} ({self.building_width}x{self.building_depth}x{self.building_height})"
+            return f"Selected: {placement_info['name']} ({self.building_width}x{self.building_depth}x{self.building_height})"
         finally:
             self.is_switching_type = False
+
+    # Backward compatibility alias
+    def set_building_type(self, building_type_number):
+        """Legacy method name - redirects to set_placement_type."""
+        return self.set_placement_type(building_type_number)

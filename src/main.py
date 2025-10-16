@@ -155,15 +155,15 @@ class Game(ShowBase):
         print("  F - Toggle first-person / third-person camera")
         print("  T/Y - Adjust third-person camera distance")
         print("")
-        print("  Q - Switch tools (Fist / Terrain / Crowbar / Gun / Building)")
+        print("  Q - Switch tools (Fist / Terrain / Crowbar / Gun / Placement)")
         print("  Left Click - Use tool (punch/dig/swing/shoot/place)")
-        print("  Right Click - Secondary action (raise terrain/rotate building)")
+        print("  Right Click - Secondary action (raise terrain/rotate placement)")
         print("  Middle Click - Tertiary action (smooth terrain/toggle grid snap)")
         print("")
         print("  Scroll Wheel - Adjust tool property 1 (context-sensitive)")
-        print("    • Terrain: Brush size  • Fist: Damage  • Crowbar: Damage  • Gun: Damage  • Building: Width")
+        print("    • Terrain: Brush size  • Fist: Damage  • Crowbar: Damage  • Gun: Damage  • Placement: Width")
         print("  [ / ] - Adjust tool property 2 (context-sensitive)")
-        print("    • Terrain: Strength  • Fist: Range  • Crowbar: Cooldown  • Gun: Fire rate  • Building: Height")
+        print("    • Terrain: Strength  • Fist: Range  • Crowbar: Cooldown  • Gun: Fire rate  • Placement: Height")
         print("  1/2/3 - Set terrain mode (lower/raise/smooth)")
         print("  H - Toggle weapon viewmodel (FPS-style weapon display)")
         print("  J - Toggle crosshair on/off")
@@ -722,9 +722,9 @@ class Game(ShowBase):
         if not active_tool:
             return
 
-        # Building tool: switch building type
+        # Placement tool: switch placement type (building/prop/model)
         if active_tool.tool_type == ToolType.BUILDING:
-            message = active_tool.set_building_type(number)
+            message = active_tool.set_placement_type(number)
             self.hud.show_message(message)
             print(message)
 

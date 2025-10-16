@@ -5,7 +5,7 @@ from .fist import FistTool
 from .terrain import TerrainTool
 from .crowbar import CrowbarTool
 from .gun import GunTool
-from .building import BuildingTool
+from .placement import PlacementTool
 
 
 class ToolManager:
@@ -59,7 +59,7 @@ class ToolManager:
         if ToolType.GUN in enabled_tools and camera:
             self.tools[ToolType.GUN] = GunTool(world, camera, effects_manager, building_raycaster)
         if ToolType.BUILDING in enabled_tools and camera and render and bullet_world:
-            self.tools[ToolType.BUILDING] = BuildingTool(world, camera, render, bullet_world, terrain_raycaster, mouse_watcher, point_light_manager)
+            self.tools[ToolType.BUILDING] = PlacementTool(world, camera, render, bullet_world, terrain_raycaster, mouse_watcher, point_light_manager)
 
         # Start with first available tool
         if self.tools:
@@ -208,7 +208,7 @@ class ToolManager:
             self.tools[ToolType.GUN] = GunTool(self._world, self._camera, self._effects_manager, self._building_raycaster)
             tool_created = True
         elif tool_type == ToolType.BUILDING and self._camera and self._render and self._bullet_world:
-            self.tools[ToolType.BUILDING] = BuildingTool(self._world, self._camera, self._render, self._bullet_world, self._terrain_raycaster, self._mouse_watcher)
+            self.tools[ToolType.BUILDING] = PlacementTool(self._world, self._camera, self._render, self._bullet_world, self._terrain_raycaster, self._mouse_watcher)
             tool_created = True
 
         if tool_created and self.tool_message_callback:
