@@ -34,7 +34,7 @@ class ModelLoader:
 
         Args:
             path: Path to the .gltf or .glb file (relative to project root or absolute)
-            cache: Whether to cache the loaded model for reuse
+            cache: (Currently unused - each model is loaded fresh)
 
         Returns:
             NodePath containing the loaded model, or None if loading failed
@@ -62,27 +62,25 @@ class ModelLoader:
 
         try:
             # Load the glTF model using panda3d-gltf
-            # Panda3D's loader will automatically use the panda3d-gltf plugin
             print(f"Loading glTF model: {abs_path}")
 
-            # Use Panda3D's Filename class for proper path handling
-            from panda3d.core import Filename
-            panda_path = Filename.fromOsSpecific(abs_path)
+            import gltf
 
-            model = self.loader.loadModel(panda_path)
+            model = gltf.load_model(abs_path)
+            print(f"Successfully loaded glTF model via panda3d-gltf (load_model)")
 
-            if model is None or model.isEmpty():
+            if model is None:
+                raise Exception("panda3d-gltf returned None")
+
+            if model is None:
                 print(f"ERROR: Failed to load model: {abs_path}")
                 return None
 
             print(f"Successfully loaded model: {abs_path}")
 
-            # Cache the model if requested
-            if cache:
-                self._model_cache[path] = model
-
-            # Return a copy so the original cache stays intact
-            return model if not cache else model.copyTo(NodePath())
+            # Don't cache for now - just return the model
+            # Each load will be independent
+            return model
 
         except Exception as e:
             print(f"ERROR: Exception while loading model {abs_path}: {e}")

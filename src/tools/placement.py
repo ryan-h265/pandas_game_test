@@ -130,7 +130,8 @@ class PlacementTool(Tool):
                     self.render,
                     self.ghost_position,
                     point_light_manager=None,  # No lights for ghost
-                    static=True
+                    static=True,
+                    is_ghost=True  # Mark as ghost preview
                 )
 
                 # Make the model semi-transparent green

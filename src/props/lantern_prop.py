@@ -11,7 +11,7 @@ class LanternProp:
     # Model path (relative to project root)
     MODEL_PATH = "assets/models/props/japanese_stone_lantern/scene.gltf"
 
-    def __init__(self, world, render, position, point_light_manager=None, static=True):
+    def __init__(self, world, render, position, point_light_manager=None, static=True, is_ghost=False):
         """Create a Japanese stone lantern.
 
         Args:
@@ -20,12 +20,14 @@ class LanternProp:
             position: Vec3 world position
             point_light_manager: Optional PointLightManager to add light source
             static: If True, lantern is static (immovable). If False, it's dynamic (physics-enabled)
+            is_ghost: If True, this is a ghost preview (don't apply final shaders/colors)
         """
         self.world = world
         self.render = render
         self.position = Vec3(position)
         self.point_light_manager = point_light_manager
         self.static = static
+        self.is_ghost = is_ghost
 
         # References
         self.model_node = None
@@ -38,8 +40,8 @@ class LanternProp:
         # Create physics body
         self._create_physics()
 
-        # Add light if point light manager is provided
-        if point_light_manager:
+        # Add light if point light manager is provided (not for ghosts)
+        if point_light_manager and not is_ghost:
             self._create_light()
 
     def _load_model(self):
@@ -54,12 +56,18 @@ class LanternProp:
             return
 
         # Attach model to render
-        self.model_node = model
+        # If model is a PandaNode (like ModelRoot), wrap it in a NodePath
+        from panda3d.core import NodePath, PandaNode
+        if isinstance(model, PandaNode):
+            self.model_node = NodePath(model)
+        else:
+            self.model_node = model
+
         self.model_node.reparentTo(self.render)
 
         # Flatten the transform hierarchy to fix offset issues
-        # This bakes all the internal transforms into the geometry
-        self.model_node.flattenStrong()
+        # Use flattenMedium() to preserve materials and textures (flattenStrong would destroy them)
+        self.model_node.flattenMedium()
 
         # Now position it
         self.model_node.setPos(self.position)
@@ -76,7 +84,38 @@ class LanternProp:
             self.model_node.setScale(scale_factor)
             print(f"Lantern original height: {height:.2f}, scaled by {scale_factor:.4f} to {desired_height}m")
 
-        print(f"Loaded Japanese stone lantern model at {self.position}")
+        # Only apply final colors/shaders if this is NOT a ghost preview
+        if not self.is_ghost:
+            # Ensure proper color (reset any color scale that might be applied)
+            self.model_node.clearColorScale()
+            self.model_node.setColorScale(1, 1, 1, 1)  # Explicitly set to white
+
+            # Clear any transparency that might have been set
+            self.model_node.clearTransparency()
+
+            # Enable proper lighting and shaders for glTF models
+            # glTF uses PBR materials which need proper shader setup
+            self.model_node.setShaderAuto()  # Enable automatic shader generation
+
+            print(f"Loaded Japanese stone lantern model at {self.position}")
+        else:
+            print(f"Loaded ghost lantern preview at {self.position}")
+
+    def _debug_textures(self, node, indent=0):
+        """Debug helper to print texture information."""
+        prefix = "  " * indent
+
+        # Check if this node has textures
+        if node.hasTexture():
+            print(f"{prefix}Node: {node.getName()} - HAS TEXTURES")
+            # Try to get texture attribute
+            if node.hasAttrib("TextureAttrib"):
+                tex_attrib = node.getAttrib("TextureAttrib")
+                print(f"{prefix}  Texture attribute: {tex_attrib}")
+
+        # Check children
+        for child in node.getChildren():
+            self._debug_textures(child, indent + 1)
 
     def _create_fallback_geometry(self):
         """Create simple fallback geometry if model fails to load."""
