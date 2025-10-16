@@ -5,6 +5,7 @@ from panda3d.core import Vec3, Vec4, TransparencyAttrib
 from structures.simple_building import SimpleBuilding
 from structures.japanese_building import JapaneseBuilding
 from props.lantern_prop import LanternProp
+from props.japanese_bar_prop import JapaneseBarProp
 
 
 class PlacementTool(Tool):
@@ -58,12 +59,12 @@ class PlacementTool(Tool):
                 "default_height": 1.5,
             },
             4: {
-                "name": "TODO: Building Type 4",
-                "class": SimpleBuilding,  # Placeholder
-                "type": "building",
-                "default_width": 10.0,
-                "default_depth": 10.0,
-                "default_height": 8.0,
+                "name": "Japanese Bar",
+                "class": JapaneseBarProp,
+                "type": "prop",  # Prop (glTF building model)
+                "default_width": 8.0,  # Not used for props
+                "default_depth": 6.0,
+                "default_height": 4.0,
             },
         }
         self.current_placement_type = 1  # Start with Simple Building
