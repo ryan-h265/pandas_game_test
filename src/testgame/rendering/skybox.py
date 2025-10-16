@@ -40,7 +40,7 @@ class MountainSkybox:
     def _load_cloud_shader(self):
         """Load the cloud shader for realistic cloud rendering."""
         shader_dir = os.path.join(
-            os.path.dirname(__file__), "..", "..", "assets", "shaders"
+            os.path.dirname(__file__), "..", "..", "..", "assets", "shaders"
         )
         vert_path = os.path.join(shader_dir, "cloud.vert")
         frag_path = os.path.join(shader_dir, "cloud.frag")

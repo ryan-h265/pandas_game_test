@@ -104,7 +104,7 @@ class ShadowManager:
         """Load and configure shadow shaders."""
         # Get absolute path to shaders
         shader_dir = os.path.join(
-            os.path.dirname(__file__), "..", "..", "assets", "shaders"
+            os.path.dirname(__file__), "..", "..", "..", "assets", "shaders"
         )
         vert_path = os.path.join(shader_dir, "terrain.vert")
         frag_path = os.path.join(shader_dir, "terrain.frag")
