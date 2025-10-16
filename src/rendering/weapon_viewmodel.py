@@ -2,8 +2,13 @@
 
 from panda3d.core import Vec3, Vec4, NodePath
 from panda3d.core import GeomNode, GeomVertexFormat, GeomVertexData, GeomVertexWriter
-from panda3d.core import Geom, GeomTriangles, TransformState
-from direct.interval.IntervalGlobal import Sequence, LerpPosInterval, LerpHprInterval, Func
+from panda3d.core import Geom, GeomTriangles
+from direct.interval.IntervalGlobal import (
+    Sequence,
+    LerpPosInterval,
+    LerpHprInterval,
+    Func,
+)
 import math
 
 
@@ -27,7 +32,9 @@ class WeaponViewModel:
         # Weapon model configurations (position, rotation relative to camera)
         self.weapon_configs = {
             "fist": {
-                "position": Vec3(0.3, 0.8, -0.25),  # Right, forward, down (raised from -0.4)
+                "position": Vec3(
+                    0.3, 0.8, -0.25
+                ),  # Right, forward, down (raised from -0.4)
                 "rotation": Vec3(0, 0, -10),  # HPR
                 "scale": 1.0,
             },
@@ -191,7 +198,9 @@ class WeaponViewModel:
 
     def _play_punch_animation(self):
         """Play fist punch animation."""
-        if not self.current_model or (self.animation_sequence and self.animation_sequence.isPlaying()):
+        if not self.current_model or (
+            self.animation_sequence and self.animation_sequence.isPlaying()
+        ):
             return
 
         if not self.base_position:
@@ -208,7 +217,9 @@ class WeaponViewModel:
 
     def _play_swing_animation(self):
         """Play crowbar swing animation."""
-        if not self.current_model or (self.animation_sequence and self.animation_sequence.isPlaying()):
+        if not self.current_model or (
+            self.animation_sequence and self.animation_sequence.isPlaying()
+        ):
             return
 
         if not self.base_position:
@@ -238,7 +249,9 @@ class WeaponViewModel:
 
     def _play_shoot_animation(self):
         """Play gun shoot animation (recoil)."""
-        if not self.current_model or (self.animation_sequence and self.animation_sequence.isPlaying()):
+        if not self.current_model or (
+            self.animation_sequence and self.animation_sequence.isPlaying()
+        ):
             return
 
         if not self.base_position:
@@ -263,7 +276,9 @@ class WeaponViewModel:
 
     def _play_dig_animation(self):
         """Play terrain tool dig animation."""
-        if not self.current_model or (self.animation_sequence and self.animation_sequence.isPlaying()):
+        if not self.current_model or (
+            self.animation_sequence and self.animation_sequence.isPlaying()
+        ):
             return
 
         if not self.base_position:
@@ -502,7 +517,9 @@ class WeaponViewModel:
 
     def _play_place_animation(self):
         """Play building placement animation."""
-        if not self.current_model or (self.animation_sequence and self.animation_sequence.isPlaying()):
+        if not self.current_model or (
+            self.animation_sequence and self.animation_sequence.isPlaying()
+        ):
             return
 
         if not self.base_position:

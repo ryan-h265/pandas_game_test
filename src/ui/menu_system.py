@@ -34,12 +34,12 @@ class MenuSystem:
 
         # Settings state (initialize BEFORE creating menus)
         self.settings = {
-            'mouse_sensitivity': 0.2,
-            'fov': 75,
-            'shadows_enabled': False,
-            'post_processing_enabled': True,
-            'show_fps': True,
-            'vsync_enabled': True,
+            "mouse_sensitivity": 0.2,
+            "fov": 75,
+            "shadows_enabled": False,
+            "post_processing_enabled": True,
+            "show_fps": True,
+            "vsync_enabled": True,
         }
 
         # Load current settings from game
@@ -54,12 +54,18 @@ class MenuSystem:
     def sync_settings_from_game(self):
         """Sync settings values from the game state."""
         # Use hasattr to safely check if attributes exist (they may not during initialization)
-        if hasattr(self.game, 'shadows_enabled'):
-            self.settings['shadows_enabled'] = self.game.shadows_enabled
-        if hasattr(self.game, 'post_process') and hasattr(self.game.post_process, 'enabled'):
-            self.settings['post_processing_enabled'] = self.game.post_process.enabled
-        if hasattr(self.game, 'camera_controller') and hasattr(self.game.camera_controller, 'mouse_sensitivity'):
-            self.settings['mouse_sensitivity'] = self.game.camera_controller.mouse_sensitivity
+        if hasattr(self.game, "shadows_enabled"):
+            self.settings["shadows_enabled"] = self.game.shadows_enabled
+        if hasattr(self.game, "post_process") and hasattr(
+            self.game.post_process, "enabled"
+        ):
+            self.settings["post_processing_enabled"] = self.game.post_process.enabled
+        if hasattr(self.game, "camera_controller") and hasattr(
+            self.game.camera_controller, "mouse_sensitivity"
+        ):
+            self.settings["mouse_sensitivity"] = (
+                self.game.camera_controller.mouse_sensitivity
+            )
 
     def create_pause_menu(self):
         """Create the pause menu UI."""
@@ -100,7 +106,7 @@ class MenuSystem:
             clickSound=None,
             relief=DGG.FLAT,
         )
-        self.resume_button['frameColor'] = self.button_color
+        self.resume_button["frameColor"] = self.button_color
         self.resume_button.bind(DGG.ENTER, self.on_button_hover, [self.resume_button])
         self.resume_button.bind(DGG.EXIT, self.on_button_exit, [self.resume_button])
 
@@ -149,7 +155,9 @@ class MenuSystem:
             clickSound=None,
             relief=DGG.FLAT,
         )
-        self.settings_button.bind(DGG.ENTER, self.on_button_hover, [self.settings_button])
+        self.settings_button.bind(
+            DGG.ENTER, self.on_button_hover, [self.settings_button]
+        )
         self.settings_button.bind(DGG.EXIT, self.on_button_exit, [self.settings_button])
 
         self.quit_button = DirectButton(
@@ -215,7 +223,7 @@ class MenuSystem:
         )
         self.sensitivity_slider = DirectSlider(
             range=(0.05, 0.5),
-            value=self.settings['mouse_sensitivity'],
+            value=self.settings["mouse_sensitivity"],
             pageSize=0.05,
             scale=0.5,
             pos=(0.2, 0, y_pos),
@@ -250,10 +258,10 @@ class MenuSystem:
             command=self.on_shadows_toggle,
             parent=self.settings_bg,
             boxPlacement="center",
-            indicatorValue=self.settings['shadows_enabled'],
+            indicatorValue=self.settings["shadows_enabled"],
         )
         self.shadows_status_label = DirectLabel(
-            text="ON" if self.settings['shadows_enabled'] else "OFF",
+            text="ON" if self.settings["shadows_enabled"] else "OFF",
             text_scale=0.06,
             text_fg=self.accent_color,
             frameColor=(0, 0, 0, 0),
@@ -280,10 +288,10 @@ class MenuSystem:
             command=self.on_post_process_toggle,
             parent=self.settings_bg,
             boxPlacement="center",
-            indicatorValue=self.settings['post_processing_enabled'],
+            indicatorValue=self.settings["post_processing_enabled"],
         )
         self.post_process_status_label = DirectLabel(
-            text="ON" if self.settings['post_processing_enabled'] else "OFF",
+            text="ON" if self.settings["post_processing_enabled"] else "OFF",
             text_scale=0.06,
             text_fg=self.accent_color,
             frameColor=(0, 0, 0, 0),
@@ -310,10 +318,10 @@ class MenuSystem:
             command=self.on_fps_toggle,
             parent=self.settings_bg,
             boxPlacement="center",
-            indicatorValue=self.settings['show_fps'],
+            indicatorValue=self.settings["show_fps"],
         )
         self.fps_status_label = DirectLabel(
-            text="ON" if self.settings['show_fps'] else "OFF",
+            text="ON" if self.settings["show_fps"] else "OFF",
             text_scale=0.06,
             text_fg=self.accent_color,
             frameColor=(0, 0, 0, 0),
@@ -369,48 +377,62 @@ class MenuSystem:
 
     def on_button_hover(self, button, event):
         """Handle button hover effect."""
-        button['frameColor'] = self.button_hover
+        button["frameColor"] = self.button_hover
 
     def on_button_exit(self, button, event):
         """Handle button exit (unhover) effect."""
-        button['frameColor'] = self.button_color
+        button["frameColor"] = self.button_color
 
     def on_sensitivity_change(self):
         """Handle mouse sensitivity slider change."""
-        value = self.sensitivity_slider['value']
-        self.settings['mouse_sensitivity'] = value
-        self.sensitivity_value_label['text'] = f"{value:.2f}"
+        value = self.sensitivity_slider["value"]
+        self.settings["mouse_sensitivity"] = value
+        self.sensitivity_value_label["text"] = f"{value:.2f}"
 
         # Apply to game
-        if hasattr(self.game.camera_controller, 'mouse_sensitivity'):
+        if hasattr(self.game.camera_controller, "mouse_sensitivity"):
             self.game.camera_controller.mouse_sensitivity = value
 
     def on_shadows_toggle(self, checked):
         """Handle shadows checkbox toggle."""
-        self.settings['shadows_enabled'] = self.shadows_checkbox['indicatorValue']
-        self.shadows_status_label['text'] = "ON" if self.settings['shadows_enabled'] else "OFF"
+        self.settings["shadows_enabled"] = self.shadows_checkbox["indicatorValue"]
+        self.shadows_status_label["text"] = (
+            "ON" if self.settings["shadows_enabled"] else "OFF"
+        )
 
         # Apply to game
-        if hasattr(self.game, 'shadows_enabled') and self.settings['shadows_enabled'] != self.game.shadows_enabled:
+        if (
+            hasattr(self.game, "shadows_enabled")
+            and self.settings["shadows_enabled"] != self.game.shadows_enabled
+        ):
             self.game.toggle_shadows()
 
     def on_post_process_toggle(self, checked):
         """Handle post-processing checkbox toggle."""
-        self.settings['post_processing_enabled'] = self.post_process_checkbox['indicatorValue']
-        self.post_process_status_label['text'] = "ON" if self.settings['post_processing_enabled'] else "OFF"
+        self.settings["post_processing_enabled"] = self.post_process_checkbox[
+            "indicatorValue"
+        ]
+        self.post_process_status_label["text"] = (
+            "ON" if self.settings["post_processing_enabled"] else "OFF"
+        )
 
         # Apply to game
-        if hasattr(self.game, 'post_process') and hasattr(self.game.post_process, 'enabled'):
-            if self.settings['post_processing_enabled'] != self.game.post_process.enabled:
+        if hasattr(self.game, "post_process") and hasattr(
+            self.game.post_process, "enabled"
+        ):
+            if (
+                self.settings["post_processing_enabled"]
+                != self.game.post_process.enabled
+            ):
                 self.game.toggle_post_process()
 
     def on_fps_toggle(self, checked):
         """Handle FPS display checkbox toggle."""
-        self.settings['show_fps'] = self.fps_checkbox['indicatorValue']
-        self.fps_status_label['text'] = "ON" if self.settings['show_fps'] else "OFF"
+        self.settings["show_fps"] = self.fps_checkbox["indicatorValue"]
+        self.fps_status_label["text"] = "ON" if self.settings["show_fps"] else "OFF"
 
         # Apply to game
-        if self.settings['show_fps']:
+        if self.settings["show_fps"]:
             self.game.hud.fps_text.show()
         else:
             self.game.hud.fps_text.hide()
@@ -428,7 +450,7 @@ class MenuSystem:
             return
 
         self.is_paused = True
-        self.active_menu = 'pause'
+        self.active_menu = "pause"
 
         # Release mouse cursor
         if self.game.mouse_captured:
@@ -438,12 +460,12 @@ class MenuSystem:
         self.pause_bg.show()
 
         # Hide HUD elements while paused
-        if hasattr(self.game, 'hud'):
+        if hasattr(self.game, "hud"):
             self.game.hud.tool_text.hide()
             self.game.hud.message_text.hide()
 
         # Hide crosshair
-        if hasattr(self.game, 'crosshair_manager'):
+        if hasattr(self.game, "crosshair_manager"):
             self.game.crosshair_manager.hide_crosshair()
 
         print("Game paused")
@@ -459,9 +481,9 @@ class MenuSystem:
         # Hide all menus
         self.pause_bg.hide()
         self.settings_bg.hide()
-        if hasattr(self, 'save_bg'):
+        if hasattr(self, "save_bg"):
             self.save_bg.hide()
-        if hasattr(self, 'load_bg'):
+        if hasattr(self, "load_bg"):
             self.load_bg.hide()
 
         # Capture mouse cursor again
@@ -469,12 +491,14 @@ class MenuSystem:
             self.game.toggle_mouse()
 
         # Show HUD elements
-        if hasattr(self.game, 'hud'):
+        if hasattr(self.game, "hud"):
             self.game.hud.tool_text.show()
             self.game.hud.message_text.show()
 
         # Show crosshair
-        if hasattr(self.game, 'crosshair_manager') and hasattr(self.game, 'tool_manager'):
+        if hasattr(self.game, "crosshair_manager") and hasattr(
+            self.game, "tool_manager"
+        ):
             active_tool = self.game.tool_manager.get_active_tool()
             if active_tool:
                 # Use the tool_type enum value as the crosshair type string
@@ -484,13 +508,13 @@ class MenuSystem:
 
     def show_settings(self):
         """Show the settings menu."""
-        self.active_menu = 'settings'
+        self.active_menu = "settings"
         self.pause_bg.hide()
         self.settings_bg.show()
 
     def hide_settings(self):
         """Hide the settings menu and return to pause menu."""
-        self.active_menu = 'pause'
+        self.active_menu = "pause"
         self.settings_bg.hide()
         self.pause_bg.show()
 
@@ -789,27 +813,27 @@ class MenuSystem:
 
     def show_save_menu(self):
         """Show the save game menu."""
-        self.active_menu = 'save'
+        self.active_menu = "save"
         self.pause_bg.hide()
         self.save_bg.show()
         self.update_save_slot_info()
 
     def hide_save_menu(self):
         """Hide the save menu and return to pause menu."""
-        self.active_menu = 'pause'
+        self.active_menu = "pause"
         self.save_bg.hide()
         self.pause_bg.show()
 
     def show_load_menu(self):
         """Show the load game menu."""
-        self.active_menu = 'load'
+        self.active_menu = "load"
         self.pause_bg.hide()
         self.load_bg.show()
         self.update_load_slot_info()
 
     def hide_load_menu(self):
         """Hide the load menu and return to pause menu."""
-        self.active_menu = 'pause'
+        self.active_menu = "pause"
         self.load_bg.hide()
         self.pause_bg.show()
 
@@ -823,92 +847,97 @@ class MenuSystem:
         """Update load slot information display with save metadata."""
         import os
         from datetime import datetime
-        
+
         # Update info for each slot
         slots = [
-            ('quicksave', self.quick_load_info),
-            ('save_slot_1', self.load_slot1_info),
-            ('save_slot_2', self.load_slot2_info),
-            ('save_slot_3', self.load_slot3_info),
+            ("quicksave", self.quick_load_info),
+            ("save_slot_1", self.load_slot1_info),
+            ("save_slot_2", self.load_slot2_info),
+            ("save_slot_3", self.load_slot3_info),
         ]
-        
+
         for save_name, info_label in slots:
             save_path = self.game.game_world.serializer.get_save_path(save_name)
             if save_path.exists():
                 # Get file modification time
                 mtime = os.path.getmtime(save_path)
                 time_str = datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M")
-                info_label['text'] = f"Saved: {time_str}"
-                info_label['text_fg'] = (0.7, 1.0, 0.7, 1)  # Green for existing save
+                info_label["text"] = f"Saved: {time_str}"
+                info_label["text_fg"] = (0.7, 1.0, 0.7, 1)  # Green for existing save
             else:
-                info_label['text'] = "Empty Slot"
-                info_label['text_fg'] = (0.7, 0.7, 0.7, 1)  # Gray for empty
+                info_label["text"] = "Empty Slot"
+                info_label["text_fg"] = (0.7, 0.7, 0.7, 1)  # Gray for empty
 
     def on_quick_save(self):
         """Handle quick save button."""
-        metadata = {
-            'title': 'Quick Save',
-            'description': 'Quick save from menu'
-        }
-        success = self.game.game_world.save_to_file('quicksave', self.game.player, metadata)
+        metadata = {"title": "Quick Save", "description": "Quick save from menu"}
+        success = self.game.game_world.save_to_file(
+            "quicksave", self.game.player, metadata
+        )
         if success:
-            self.save_info_label['text'] = "Game saved to Quick Save!"
-            self.save_info_label['text_fg'] = (0.5, 1.0, 0.5, 1)
+            self.save_info_label["text"] = "Game saved to Quick Save!"
+            self.save_info_label["text_fg"] = (0.5, 1.0, 0.5, 1)
             print("Quick save successful")
         else:
-            self.save_info_label['text'] = "Save failed!"
-            self.save_info_label['text_fg'] = (1.0, 0.5, 0.5, 1)
+            self.save_info_label["text"] = "Save failed!"
+            self.save_info_label["text_fg"] = (1.0, 0.5, 0.5, 1)
 
     def on_save_slot(self, slot_number):
         """Handle save to specific slot.
-        
+
         Args:
             slot_number: Slot number (1-3)
         """
-        save_name = f'save_slot_{slot_number}'
+        save_name = f"save_slot_{slot_number}"
         metadata = {
-            'title': f'Save Slot {slot_number}',
-            'description': f'Manual save to slot {slot_number}'
+            "title": f"Save Slot {slot_number}",
+            "description": f"Manual save to slot {slot_number}",
         }
-        success = self.game.game_world.save_to_file(save_name, self.game.player, metadata)
+        success = self.game.game_world.save_to_file(
+            save_name, self.game.player, metadata
+        )
         if success:
-            self.save_info_label['text'] = f"Game saved to Slot {slot_number}!"
-            self.save_info_label['text_fg'] = (0.5, 1.0, 0.5, 1)
+            self.save_info_label["text"] = f"Game saved to Slot {slot_number}!"
+            self.save_info_label["text_fg"] = (0.5, 1.0, 0.5, 1)
             print(f"Saved to slot {slot_number}")
         else:
-            self.save_info_label['text'] = "Save failed!"
-            self.save_info_label['text_fg'] = (1.0, 0.5, 0.5, 1)
+            self.save_info_label["text"] = "Save failed!"
+            self.save_info_label["text_fg"] = (1.0, 0.5, 0.5, 1)
 
     def on_quick_load(self):
         """Handle quick load button."""
-        success = self.game.game_world.load_from_file('quicksave', self.game.player)
+        success = self.game.game_world.load_from_file("quicksave", self.game.player)
         if success:
-            self.load_info_label['text'] = "Game loaded from Quick Save!"
-            self.load_info_label['text_fg'] = (0.5, 1.0, 0.5, 1)
+            self.load_info_label["text"] = "Game loaded from Quick Save!"
+            self.load_info_label["text_fg"] = (0.5, 1.0, 0.5, 1)
             print("Quick load successful")
             # Resume game after loading
-            self.game.taskMgr.doMethodLater(1.0, lambda task: self.resume_game(), 'resume_after_load')
+            self.game.taskMgr.doMethodLater(
+                1.0, lambda task: self.resume_game(), "resume_after_load"
+            )
         else:
-            self.load_info_label['text'] = "Load failed! No save found."
-            self.load_info_label['text_fg'] = (1.0, 0.5, 0.5, 1)
+            self.load_info_label["text"] = "Load failed! No save found."
+            self.load_info_label["text_fg"] = (1.0, 0.5, 0.5, 1)
 
     def on_load_slot(self, slot_number):
         """Handle load from specific slot.
-        
+
         Args:
             slot_number: Slot number (1-3)
         """
-        save_name = f'save_slot_{slot_number}'
+        save_name = f"save_slot_{slot_number}"
         success = self.game.game_world.load_from_file(save_name, self.game.player)
         if success:
-            self.load_info_label['text'] = f"Game loaded from Slot {slot_number}!"
-            self.load_info_label['text_fg'] = (0.5, 1.0, 0.5, 1)
+            self.load_info_label["text"] = f"Game loaded from Slot {slot_number}!"
+            self.load_info_label["text_fg"] = (0.5, 1.0, 0.5, 1)
             print(f"Loaded from slot {slot_number}")
             # Resume game after loading
-            self.game.taskMgr.doMethodLater(1.0, lambda task: self.resume_game(), 'resume_after_load')
+            self.game.taskMgr.doMethodLater(
+                1.0, lambda task: self.resume_game(), "resume_after_load"
+            )
         else:
-            self.load_info_label['text'] = "Load failed! No save found."
-            self.load_info_label['text_fg'] = (1.0, 0.5, 0.5, 1)
+            self.load_info_label["text"] = "Load failed! No save found."
+            self.load_info_label["text_fg"] = (1.0, 0.5, 0.5, 1)
 
     def cleanup(self):
         """Clean up menu resources."""
@@ -916,7 +945,7 @@ class MenuSystem:
             self.pause_bg.destroy()
         if self.settings_bg:
             self.settings_bg.destroy()
-        if hasattr(self, 'save_bg') and self.save_bg:
+        if hasattr(self, "save_bg") and self.save_bg:
             self.save_bg.destroy()
-        if hasattr(self, 'load_bg') and self.load_bg:
+        if hasattr(self, "load_bg") and self.load_bg:
             self.load_bg.destroy()

@@ -1,7 +1,7 @@
 """Terrain editing tools for modifying the game world."""
 
 import math
-from src.config.settings import CHUNK_SIZE, TERRAIN_RESOLUTION, MODIFIABLE_TERRAIN
+from config.settings import CHUNK_SIZE, TERRAIN_RESOLUTION, MODIFIABLE_TERRAIN
 
 
 class TerrainEditor:
@@ -92,7 +92,9 @@ class TerrainEditor:
 
                         # Check if this position is within this chunk's height data
                         if 0 <= local_x <= CHUNK_SIZE and 0 <= local_z <= CHUNK_SIZE:
-                            chunks_to_update.append((chunk_key, chunk, local_x, local_z))
+                            chunks_to_update.append(
+                                (chunk_key, chunk, local_x, local_z)
+                            )
 
             # Apply the same modification to all chunks that share this vertex
             for chunk_key, chunk, local_x, local_z in chunks_to_update:
@@ -109,7 +111,8 @@ class TerrainEditor:
                 if isinstance(modification, tuple) and modification[0] == "smooth":
                     _, avg_height, blend = modification
                     chunk.height_data[array_x][array_z] = (
-                        chunk.height_data[array_x][array_z] * (1 - blend) + avg_height * blend
+                        chunk.height_data[array_x][array_z] * (1 - blend)
+                        + avg_height * blend
                     )
                 else:
                     chunk.height_data[array_x][array_z] += modification

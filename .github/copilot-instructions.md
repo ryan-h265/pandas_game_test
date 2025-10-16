@@ -118,3 +118,6 @@ When modifying rendering code:
 
 
 Don't generate a 'reference guide,' 'comprehensive summary document,' or any kind of docs md files until the user explicitly mentions them.
+
+sacrifice grammar for the sake of concision
+list any unresolved questions at the end, if any

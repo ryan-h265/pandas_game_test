@@ -4,7 +4,8 @@ from panda3d.core import Vec3, Vec4
 from panda3d.bullet import BulletRigidBodyNode, BulletBoxShape
 from config.settings import RENDER_DISTANCE
 from engine.terrain import Terrain
-from structures.building import SimpleBuilding
+from structures.simple_building import SimpleBuilding
+from structures.japanese_building import JapaneseBuilding
 from engine.world_serializer import WorldSerializer
 
 
@@ -34,6 +35,9 @@ class World:
         # Track buildings
         self.buildings = []
 
+        # Track props (lanterns, decorations, etc.)
+        self.props = []
+
         # Initialize world serializer
         self.serializer = WorldSerializer()
 
@@ -45,7 +49,7 @@ class World:
             # self._create_example_cubes()
 
             # Create example destructible buildings
-            self._create_example_buildings()
+            # self._create_example_buildings()
 
             # Create example destructible wall
             # self._create_example_wall()
@@ -207,19 +211,31 @@ class World:
         """Create example destructible buildings."""
         print("Creating example buildings...")
 
-        # Create a single large building
-        building = SimpleBuilding(
+        # Create a Western-style building
+        western_building = SimpleBuilding(
             self.bullet_world,
             self.render,
             Vec3(30, 30, 0),
-            width=20,
-            depth=16,
-            height=12,
-            name="large_building",
+            width=15,
+            depth=12,
+            height=10,
+            name="western_building",
         )
-        self.buildings.append(building)
+        self.buildings.append(western_building)
 
-        print(f"Created {len(self.buildings)} example building")
+        # Create a Japanese-style building
+        japanese_building = JapaneseBuilding(
+            self.bullet_world,
+            self.render,
+            Vec3(55, 30, 0),
+            width=14,
+            depth=11,
+            height=7,
+            name="japanese_building",
+        )
+        self.buildings.append(japanese_building)
+
+        print(f"Created {len(self.buildings)} example buildings (Western + Japanese)")
 
     def add_building(self, building):
         """Add a building to the world.
@@ -228,7 +244,18 @@ class World:
             building: Building instance to add
         """
         self.buildings.append(building)
-        print(f"Added building '{building.name}' to world (total: {len(self.buildings)} buildings)")
+        print(
+            f"Added building '{building.name}' to world (total: {len(self.buildings)} buildings)"
+        )
+
+    def add_prop(self, prop):
+        """Add a prop (lantern, decoration, etc.) to the world.
+
+        Args:
+            prop: Prop instance to add
+        """
+        self.props.append(prop)
+        print(f"Added prop to world (total: {len(self.props)} props)")
 
     def damage_building_at_position(self, position, damage=50):
         """Damage a building piece at or near a position.
@@ -257,7 +284,9 @@ class World:
 
         if closest_piece and closest_building:
             print(f"Damaging {closest_piece.name} (distance: {closest_dist:.2f})")
-            closest_building.damage_piece(closest_piece.name, damage, impact_pos=position)
+            closest_building.damage_piece(
+                closest_piece.name, damage, impact_pos=position
+            )
             return True
 
         return False
@@ -272,12 +301,13 @@ class World:
         # Update terrain (for dynamic loading if needed)
         if camera_pos:
             self.terrain.update(camera_pos)
-        
+
         # Update buildings (cleanup debris)
         import time
+
         current_time = time.time()
         for building in self.buildings:
-            if hasattr(building, 'update'):
+            if hasattr(building, "update"):
                 building.update(dt, current_time)
 
     def update_chunks_around_position(self, position):
@@ -339,7 +369,9 @@ class World:
 
         # Get terrain height at wall position
         terrain_height = self.get_height_at(wall_position.x, wall_position.y)
-        wall_base_position = Vec3(wall_position.x, wall_position.y, terrain_height + wall_height / 2)
+        wall_base_position = Vec3(
+            wall_position.x, wall_position.y, terrain_height + wall_height / 2
+        )
 
         # Create a single large wall piece
         wall = BuildingPiece(
@@ -405,7 +437,7 @@ class World:
         """Clear all objects from the world (buildings, physics objects, etc.)."""
         # Remove all buildings
         for building in self.buildings:
-            if hasattr(building, 'destroy'):
+            if hasattr(building, "destroy"):
                 building.destroy()
         self.buildings.clear()
 

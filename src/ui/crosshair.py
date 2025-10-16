@@ -1,6 +1,5 @@
 """Crosshair system with tool-specific designs."""
 
-from direct.gui.OnscreenImage import OnscreenImage
 from panda3d.core import TransparencyAttrib, Vec4
 from direct.gui.DirectGui import DirectFrame
 
@@ -10,14 +9,14 @@ class CrosshairManager:
 
     def __init__(self, base):
         """Initialize crosshair manager.
-        
+
         Args:
             base: ShowBase instance for accessing aspect2d
         """
         self.base = base
         self.current_crosshair = None
         self.crosshair_elements = []
-        
+
         # Crosshair configurations for each tool
         self.crosshair_configs = {
             "fist": {
@@ -253,7 +252,7 @@ class CrosshairManager:
             color: Vec4 RGBA color
         """
         for element in self.crosshair_elements:
-            element['frameColor'] = color
+            element["frameColor"] = color
 
     def set_scale(self, scale):
         """Scale current crosshair.

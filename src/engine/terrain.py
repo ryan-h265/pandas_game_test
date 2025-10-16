@@ -1,7 +1,7 @@
 """Terrain generation and management."""
 
-import noise
 import numpy as np
+import math
 from panda3d.core import (
     GeomVertexFormat,
     GeomVertexData,
@@ -18,8 +18,66 @@ from panda3d.bullet import (
     BulletTriangleMeshShape,
 )
 
-from config.settings import CHUNK_SIZE, FLAT_WORLD, TERRAIN_RESOLUTION, MODIFIABLE_TERRAIN
+from config.settings import (
+    CHUNK_SIZE,
+    FLAT_WORLD,
+    TERRAIN_RESOLUTION,
+    MODIFIABLE_TERRAIN,
+)
 import config.settings
+
+
+def simple_noise(x, y, seed=0):
+    """Simple pseudo-noise function using sine waves and random-like behavior.
+
+    Args:
+        x: X coordinate
+        y: Y coordinate
+        seed: Random seed for variation
+
+    Returns:
+        Float value between -1 and 1
+    """
+    # Use multiple sine waves with different frequencies and phases for more dramatic terrain
+    n = (
+        math.sin(x * 0.1 + seed) * 0.6
+        + math.sin(y * 0.1 + seed * 1.1) * 0.6
+        + math.sin((x + y) * 0.05 + seed * 1.3) * 0.4
+        + math.sin((x - y) * 0.08 + seed * 1.7) * 0.3
+        +
+        # Add sharper features for mountain ridges
+        math.sin(x * 0.03 + y * 0.02 + seed * 2.1) * 0.7
+        + math.sin(math.sqrt(x * x + y * y) * 0.02 + seed * 3.7) * 0.5
+    )
+    return n / 2.5  # Normalize to roughly -1 to 1
+
+
+def fractal_noise(x, y, octaves=4, persistence=0.5, lacunarity=2.0, seed=0):
+    """Generate fractal noise by combining multiple octaves.
+
+    Args:
+        x: X coordinate
+        y: Y coordinate
+        octaves: Number of noise layers to combine
+        persistence: How much each octave contributes (amplitude multiplier)
+        lacunarity: Frequency multiplier for each octave
+        seed: Random seed
+
+    Returns:
+        Float noise value
+    """
+    value = 0.0
+    amplitude = 1.0
+    frequency = 1.0
+    max_value = 0.0
+
+    for i in range(octaves):
+        value += simple_noise(x * frequency, y * frequency, seed + i) * amplitude
+        max_value += amplitude
+        amplitude *= persistence
+        frequency *= lacunarity
+
+    return value / max_value
 
 
 class TerrainChunk:
@@ -44,7 +102,9 @@ class TerrainChunk:
         self.size = CHUNK_SIZE  # World size of chunk
         # Use minimal resolution for non-modifiable flat terrain (just 2x2 = 2 triangles)
         # Otherwise use configured resolution for detailed terrain
-        self.resolution = 1 if (not MODIFIABLE_TERRAIN and FLAT_WORLD) else TERRAIN_RESOLUTION
+        self.resolution = (
+            1 if (not MODIFIABLE_TERRAIN and FLAT_WORLD) else TERRAIN_RESOLUTION
+        )
         self.world_x = chunk_x * self.size
         self.world_z = chunk_z * self.size
 
@@ -69,6 +129,7 @@ class TerrainChunk:
             Vec4 color
         """
         import random
+
         # Use chunk coordinates as seed for consistent colors
         seed = (self.chunk_x * 73856093) ^ (self.chunk_z * 19349663)
         rng = random.Random(seed)
@@ -97,53 +158,172 @@ class TerrainChunk:
                 world_x = self.world_x + (x * spacing)
                 world_z = self.world_z + (z * spacing)
 
-                # Multi-octave noise for more natural terrain
+                # Multi-octave noise for Everest-like mountainous terrain with large base
                 height = 0
 
-                # Base terrain
-                height += (
-                    noise.pnoise2(
-                        world_x * 0.01,
-                        world_z * 0.01,
-                        octaves=6,
-                        persistence=0.5,
-                        lacunarity=2.0,
-                        repeatx=1024,
-                        repeaty=1024,
-                        base=0,
-                    )
-                    * 20
-                )
+                # Distance from center (0,0) for pyramid-like structure
+                center_dist = math.sqrt(world_x * world_x + world_z * world_z)
 
-                # Hills
-                height += (
-                    noise.pnoise2(
-                        world_x * 0.05,
-                        world_z * 0.05,
+                # Create a large stable base around the mountain (like a plateau/valley floor)
+                # This creates a flat-ish area extending far from the mountain
+                base_radius = 400  # Large base area radius
+                if center_dist > base_radius:
+                    # Far from mountain - create gentle rolling hills at base level
+                    base_height = (
+                        20
+                        + fractal_noise(
+                            world_x * 0.002,
+                            world_z * 0.002,
+                            octaves=3,
+                            persistence=0.3,
+                            lacunarity=2.0,
+                            seed=10,
+                        )
+                        * 15
+                    )
+                else:
+                    # Within base area - gradually rise toward mountain
+                    base_height = 20 + (base_radius - center_dist) / base_radius * 50
+
+                height += base_height
+
+                # Mountain structure only applies within a certain radius
+                mountain_radius = 300
+                if center_dist < mountain_radius:
+                    # Mountain influence factor (1.0 at center, 0.0 at mountain_radius)
+                    mountain_factor = max(
+                        0, (mountain_radius - center_dist) / mountain_radius
+                    )
+
+                    # Primary mountain mass - creates the main peak structure
+                    primary_mountain = (
+                        fractal_noise(
+                            world_x * 0.003,
+                            world_z * 0.003,
+                            octaves=8,
+                            persistence=0.8,
+                            lacunarity=2.3,
+                            seed=0,
+                        )
+                        * 650
+                        * mountain_factor  # Slightly taller for more dramatic peaks
+                    )
+                    height += max(0, primary_mountain)
+
+                    # Sharp ridges and knife-edge features (aretes)
+                    ridge_noise = abs(
+                        fractal_noise(
+                            world_x * 0.006,
+                            world_z * 0.006,
+                            octaves=6,
+                            persistence=0.9,
+                            lacunarity=2.8,
+                            seed=1,
+                        )
+                    )
+                    height += ridge_noise * 450 * mountain_factor
+
+                    # Vertical cliff faces and ice walls
+                    # Using stepped noise to create sheer vertical sections
+                    cliff_noise = fractal_noise(
+                        world_x * 0.008,
+                        world_z * 0.008,
                         octaves=4,
+                        persistence=0.7,
+                        lacunarity=2.4,
+                        seed=3,
+                    )
+                    # Create terraced cliff effect by quantizing the noise
+                    cliff_steps = math.floor(abs(cliff_noise) * 8) / 8.0
+                    cliff_height = cliff_steps * 280 * mountain_factor
+                    height += cliff_height
+
+                    # Secondary peaks and shoulders
+                    secondary_peaks = (
+                        fractal_noise(
+                            world_x * 0.01,
+                            world_z * 0.01,
+                            octaves=5,
+                            persistence=0.7,
+                            lacunarity=2.2,
+                            seed=2,
+                        )
+                        * 280
+                        * mountain_factor
+                    )
+                    height += max(0, secondary_peaks)
+
+                    # Ice walls and seracs (ice formations)
+                    ice_wall_noise = abs(
+                        fractal_noise(
+                            world_x * 0.012,
+                            world_z * 0.012,
+                            octaves=5,
+                            persistence=0.75,
+                            lacunarity=2.6,
+                            seed=6,
+                        )
+                    )
+                    # Create steep ice wall sections
+                    if ice_wall_noise > 0.4:
+                        ice_wall_height = (ice_wall_noise - 0.4) * 200 * mountain_factor
+                        height += ice_wall_height
+
+                    # Rock face stratification (horizontal banding)
+                    rock_layers = fractal_noise(
+                        world_x * 0.001,
+                        world_z * 0.015,
+                        octaves=3,
                         persistence=0.5,
                         lacunarity=2.0,
-                        repeatx=1024,
-                        repeaty=1024,
-                        base=1,
+                        seed=7,
                     )
-                    * 5
-                )
+                    height += abs(rock_layers) * 80 * mountain_factor
 
-                # Fine details
-                height += (
-                    noise.pnoise2(
-                        world_x * 0.1,
-                        world_z * 0.1,
-                        octaves=2,
-                        persistence=0.3,
-                        lacunarity=2.0,
-                        repeatx=1024,
-                        repeaty=1024,
-                        base=2,
+                    # Fine rocky details and surface texture
+                    surface_detail = (
+                        fractal_noise(
+                            world_x * 0.04,
+                            world_z * 0.04,
+                            octaves=3,
+                            persistence=0.4,
+                            lacunarity=2.0,
+                            seed=4,
+                        )
+                        * 60
+                        * mountain_factor
                     )
-                    * 2
-                )
+                    height += max(0, surface_detail)
+
+                    # Glacial features and crevasses
+                    glacial_features = (
+                        fractal_noise(
+                            world_x * 0.015,
+                            world_z * 0.015,
+                            octaves=3,
+                            persistence=0.5,
+                            lacunarity=2.1,
+                            seed=5,
+                        )
+                        * 100
+                        * mountain_factor
+                    )
+                    height += max(0, glacial_features)
+
+                    # Cornices and overhanging snow features at higher elevations
+                    if height > 400:
+                        cornice_noise = fractal_noise(
+                            world_x * 0.025,
+                            world_z * 0.025,
+                            octaves=2,
+                            persistence=0.6,
+                            lacunarity=2.0,
+                            seed=8,
+                        )
+                        height += abs(cornice_noise) * 40 * mountain_factor
+
+                # Ensure reasonable minimum height
+                height = max(height, 15)
 
                 heights[x][z] = height
 
@@ -264,7 +444,7 @@ class TerrainChunk:
             self._create_wireframe()
 
     def _get_vertex_color(self, height):
-        """Get color based on terrain height.
+        """Get color based on terrain height - Mount Everest style coloring with base camp areas.
 
         Args:
             height: Height value
@@ -272,31 +452,49 @@ class TerrainChunk:
         Returns:
             Vec4 color
         """
-        if height < -2:
-            # Deep water - dark blue
-            return Vec4(0.1, 0.2, 0.5, 1.0)
-        elif height < 0:
-            # Shallow water - light blue
-            return Vec4(0.2, 0.4, 0.7, 1.0)
-        elif height < 2:
-            # Beach - sandy
-            return Vec4(0.8, 0.7, 0.5, 1.0)
-        elif height < 10:
-            # Grass - green
-            return Vec4(0.2, 0.6, 0.2, 1.0)
-        elif height < 15:
-            # Hills - dark green
-            return Vec4(0.15, 0.45, 0.15, 1.0)
-        elif height < 20:
-            # Mountain - gray
-            return Vec4(0.5, 0.5, 0.5, 1.0)
+        if height < 25:
+            # Valley floor and base areas - green vegetation/grass
+            return Vec4(0.25, 0.45, 0.15, 1.0)
+        elif height < 40:
+            # Lower foothills - mixed grass and alpine meadows
+            return Vec4(0.35, 0.42, 0.25, 1.0)
+        elif height < 75:
+            # Base camp areas and lower slopes - brown earth and scree
+            return Vec4(0.40, 0.30, 0.20, 1.0)
+        elif height < 120:
+            # Lower mountain slopes - darker brown/grey rock
+            return Vec4(0.32, 0.28, 0.24, 1.0)
+        elif height < 200:
+            # Mid-elevation rocky slopes - grey-brown exposed rock
+            return Vec4(0.42, 0.38, 0.34, 1.0)
+        elif height < 280:
+            # Upper rocky faces - grey granite-like rock
+            return Vec4(0.50, 0.48, 0.44, 1.0)
+        elif height < 350:
+            # High altitude rock with snow patches - light grey with white
+            return Vec4(0.58, 0.60, 0.62, 1.0)
+        elif height < 420:
+            # Snow line begins - mixed rock and snow
+            return Vec4(0.68, 0.72, 0.76, 1.0)
+        elif height < 500:
+            # Ice walls and glaciated zones - blue-white ice
+            return Vec4(0.75, 0.82, 0.90, 1.0)
+        elif height < 600:
+            # Deep snow and ice fields - bright blue-white
+            return Vec4(0.82, 0.88, 0.95, 1.0)
+        elif height < 700:
+            # High altitude permanent snow - very bright white with blue tint
+            return Vec4(0.88, 0.92, 0.98, 1.0)
+        elif height < 800:
+            # Summit approaches - pristine white snow
+            return Vec4(0.92, 0.95, 1.0, 1.0)
         else:
-            # Snow - white
-            return Vec4(0.9, 0.9, 0.9, 1.0)
+            # Summit zone - pure brilliant white (like Everest summit)
+            return Vec4(0.96, 0.98, 1.0, 1.0)
 
     def _create_wireframe(self):
         """Create a wireframe overlay for debugging chunk boundaries."""
-        from panda3d.core import GeomLines, LineSegs
+        from panda3d.core import LineSegs
 
         # Create line segments for the wireframe
         lines = LineSegs()
