@@ -93,11 +93,30 @@ class LanternProp:
             # Clear any transparency that might have been set
             self.model_node.clearTransparency()
 
-            # Enable proper lighting and shaders for glTF models
-            # glTF uses PBR materials which need proper shader setup
-            self.model_node.setShaderAuto()  # Enable automatic shader generation
+            # Apply custom glTF shader that supports both textures AND point lights
+            from panda3d.core import Shader
+            import os
 
-            print(f"Loaded Japanese stone lantern model at {self.position}")
+            # Get absolute paths to shader files
+            shader_dir = os.path.abspath("assets/shaders")
+            vert_path = os.path.join(shader_dir, "gltf_model.vert")
+            frag_path = os.path.join(shader_dir, "gltf_model.frag")
+
+            print(f"Loading shader from: {vert_path}")
+
+            gltf_shader = Shader.load(
+                Shader.SL_GLSL,
+                vertex=vert_path,
+                fragment=frag_path
+            )
+
+            if gltf_shader:
+                self.model_node.setShader(gltf_shader)
+                print(f"Loaded Japanese stone lantern model with custom shader at {self.position}")
+            else:
+                print(f"ERROR: Failed to load glTF shader, using default rendering")
+                print(f"  Vertex shader: {vert_path}")
+                print(f"  Fragment shader: {frag_path}")
         else:
             print(f"Loaded ghost lantern preview at {self.position}")
 
