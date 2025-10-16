@@ -1,7 +1,7 @@
 """Skybox system for creating atmospheric mountain environments."""
 
 import math
-import os
+from pathlib import Path
 from panda3d.core import (
     GeomVertexFormat,
     GeomVertexData,
@@ -39,15 +39,13 @@ class MountainSkybox:
 
     def _load_cloud_shader(self):
         """Load the cloud shader for realistic cloud rendering."""
-        shader_dir = os.path.join(
-            os.path.dirname(__file__), "..", "..", "..", "assets", "shaders"
-        )
-        vert_path = os.path.join(shader_dir, "cloud.vert")
-        frag_path = os.path.join(shader_dir, "cloud.frag")
+        shader_dir = Path(__file__).resolve().parents[3] / "assets" / "shaders"
+        vert_path = shader_dir / "cloud.vert"
+        frag_path = shader_dir / "cloud.frag"
 
         # Load cloud shader
         self.cloud_shader = Shader.load(
-            Shader.SL_GLSL, vertex=vert_path, fragment=frag_path
+            Shader.SL_GLSL, vertex=str(vert_path), fragment=str(frag_path)
         )
 
         if self.cloud_shader:
