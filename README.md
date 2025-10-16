@@ -41,14 +41,14 @@ cd pandas_game_test
 hatch env create
 
 # Run the game
-hatch run run
+hatch run testgame
 ```
 
 ## Development
 
 ```bash
 # Run game
-hatch run run
+hatch run testgame
 
 # Format code
 hatch run format

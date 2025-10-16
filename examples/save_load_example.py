@@ -1,7 +1,7 @@
 """Example script demonstrating the save/load system."""
 
 from panda3d.core import Vec3
-from src.engine.world import World
+from testgame.engine.world import World
 
 # This is a conceptual example - would be integrated into your Game class
 

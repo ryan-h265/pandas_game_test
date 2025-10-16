@@ -108,7 +108,9 @@ class ShadowManager:
         frag_path = shader_dir / "terrain.frag"
 
         # Load terrain shader
-        shader = Shader.load(Shader.SL_GLSL, vertex=str(vert_path), fragment=str(frag_path))
+        shader = Shader.load(
+            Shader.SL_GLSL, vertex=str(vert_path), fragment=str(frag_path)
+        )
 
         if shader:
             self.render.setShader(shader)

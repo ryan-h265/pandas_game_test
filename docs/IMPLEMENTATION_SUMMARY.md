@@ -56,7 +56,7 @@ A complete shadow and lighting system for your Panda3D game that provides ReSTIR
 
 ```bash
 cd /home/ryan/freshdev/pandas_game_test
-hatch run run
+hatch run testgame
 ```
 
 ### In-Game Controls

@@ -34,9 +34,7 @@ RENDER_DISTANCE = 8          # Chunks to load in each direction
 
 ### Run Game
 ```bash
-hatch run python -m src.main
-# Or directly:
-python -m src.main
+hatch run testgame
 ```
 
 ### Code Quality

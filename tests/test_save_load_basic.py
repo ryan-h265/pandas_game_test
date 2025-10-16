@@ -3,11 +3,12 @@
 import json
 from panda3d.core import Vec3, Vec4, Quat
 
+from testgame.engine.world_serializer import WorldSerializer
+from testgame.engine.world_serializer import WorldTemplateManager
+
 
 def test_vec3_serialization():
     """Test Vec3 to list conversion."""
-    from src.engine.world_serializer import WorldSerializer
-
     serializer = WorldSerializer()
     vec = Vec3(1.5, 2.5, 3.5)
     result = serializer._vec3_to_list(vec)
@@ -18,8 +19,6 @@ def test_vec3_serialization():
 
 def test_vec4_serialization():
     """Test Vec4 to list conversion."""
-    from src.engine.world_serializer import WorldSerializer
-
     serializer = WorldSerializer()
     vec = Vec4(1.0, 0.5, 0.25, 1.0)
     result = serializer._vec4_to_list(vec)
@@ -30,8 +29,6 @@ def test_vec4_serialization():
 
 def test_quat_serialization():
     """Test Quat to list conversion."""
-    from src.engine.world_serializer import WorldSerializer
-
     serializer = WorldSerializer()
     quat = Quat(1, 0, 0, 0)  # Identity quaternion
     result = serializer._quat_to_list(quat)
@@ -42,8 +39,6 @@ def test_quat_serialization():
 
 def test_save_path():
     """Test save path generation."""
-    from src.engine.world_serializer import WorldSerializer
-
     serializer = WorldSerializer(saves_directory="test_saves")
     path = serializer.get_save_path("test_save")
 
@@ -54,8 +49,6 @@ def test_save_path():
 
 def test_serializer_creation():
     """Test that WorldSerializer can be instantiated."""
-    from src.engine.world_serializer import WorldSerializer
-
     serializer = WorldSerializer()
     assert serializer.saves_dir.name == "saves"
     print("✓ WorldSerializer instantiation works")
@@ -63,8 +56,6 @@ def test_serializer_creation():
 
 def test_template_manager_creation():
     """Test that WorldTemplateManager can be instantiated."""
-    from src.engine.world_serializer import WorldTemplateManager
-
     manager = WorldTemplateManager()
     assert manager.templates_dir.name == "world_templates"
     print("✓ WorldTemplateManager instantiation works")

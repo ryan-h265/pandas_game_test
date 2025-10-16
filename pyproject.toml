@@ -56,6 +56,10 @@ dependencies = [
     "ruff",
 ]
 
+[tool.hatch.envs.default.scripts]
+test = "pytest"
+format = "ruff format"
+
 
 [tool.hatch.envs.types]
 extra-dependencies = [
@@ -63,8 +67,6 @@ extra-dependencies = [
 ]
 [tool.hatch.envs.types.scripts]
 check = "mypy --install-types --non-interactive {args:src/testgame tests}"
-test = "pytest"
-format = "ruff format"
 
 [tool.hatch.build.targets.wheel.force-include]
 "assets" = "assets"

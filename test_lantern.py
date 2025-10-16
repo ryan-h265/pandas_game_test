@@ -9,8 +9,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 from direct.showbase.ShowBase import ShowBase
 from panda3d.bullet import BulletWorld
 from panda3d.core import Vec3
-from props.lantern_prop import LanternProp
-from rendering.point_light_manager import PointLightManager
+from testgame.props.lantern_prop import LanternProp
+from testgame.rendering.point_light_manager import PointLightManager
 
 
 class LanternTest(ShowBase):
