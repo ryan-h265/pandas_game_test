@@ -32,6 +32,7 @@ class MountainSkybox:
         self.camera = camera
         self.base = base
         self.skybox_node = None
+        self.sky_dome = None  # Store sky dome for per-frame shader updates
         self.cloud_nodes = []  # Track cloud nodes for animation
         self.animation_time = 0.0  # Track time for cloud movement
         self.sky_shader = None  # Sky shader reference
@@ -78,8 +79,8 @@ class MountainSkybox:
         mountain_ring.reparentTo(self.skybox_node)
 
         # Add sun
-        sun = self._create_sun()
-        sun.reparentTo(self.skybox_node)
+        # sun = self._create_sun()
+        # sun.reparentTo(self.skybox_node)
 
         # Add cloud layer
         cloud_layer = self._create_cloud_layer()
@@ -109,11 +110,11 @@ class MountainSkybox:
         # Apply sky shader
         if self.sky_shader:
             sky_dome.setShader(self.sky_shader)
-            # Pass shader uniforms
-            sky_dome.setShaderInput("zenithColor", Vec3(0.4, 0.6, 0.95))
-            sky_dome.setShaderInput("horizonColor", Vec3(0.8, 0.9, 1.0))
-            sky_dome.setShaderInput("sunDirection", Vec3(0.5, 0.5, 0.7).normalized())
-            # Camera vectors will be updated per frame in update()
+            # Pass initial shader uniforms
+            sky_dome.setShaderInput("u_time", 0.0)
+            sky_dome.setShaderInput("u_cycleSpeed", 0.8)  # 0.025 == ~4 min full cycle
+            sky_dome.setShaderInput("sunBaseColor", Vec3(1.0, 0.9, 0.7))
+            sky_dome.setShaderInput("moonBaseColor", Vec3(0.8, 0.85, 1.0))
             print("Applied sky shader to sky dome")
         else:
             # Fallback: solid color
@@ -125,6 +126,9 @@ class MountainSkybox:
         sky_dome.setDepthWrite(False)
         sky_dome.setDepthTest(False)
         sky_dome.setTwoSided(True)
+        
+        # Store reference for per-frame updates
+        self.sky_dome = sky_dome
         
         return sky_dome
     
@@ -804,8 +808,9 @@ class MountainSkybox:
             # Keep skybox centered on camera (only X and Y, not Z)
             self.skybox_node.setPos(camera_pos.x, camera_pos.y, 0)
 
-            # Sky shader doesn't need per-frame updates for dome approach
-            # (colors and sun direction are set once at creation)
+            # Update sky shader with current time for day/night cycle
+            if self.sky_dome and self.sky_shader:
+                self.sky_dome.setShaderInput("u_time", self.animation_time)
 
             # Animate clouds
             self.animation_time += dt
