@@ -1,4 +1,4 @@
-#version 330
+#version 330 core
 
 // Shadow map generation fragment shader
 // Depth is automatically written to the depth buffer

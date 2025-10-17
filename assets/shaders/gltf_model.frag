@@ -1,4 +1,4 @@
-#version 330
+#version 330 core
 
 // glTF model rendering with textures, shadows, and point lights
 uniform sampler2D shadowMap0;
@@ -21,7 +21,6 @@ in vec3 vWorldPos;
 in vec3 vNormal;
 in vec2 vTexCoord;
 in vec4 vShadowCoord0;
-in float vViewDepth;
 in vec4 vColor;
 
 out vec4 fragColor;

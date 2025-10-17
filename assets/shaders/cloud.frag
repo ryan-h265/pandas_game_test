@@ -1,4 +1,4 @@
-#version 330
+#version 330 core
 
 // Cloud fragment shader - realistic volumetric clouds with soft lighting
 uniform vec3 lightDirection;  // Sun direction

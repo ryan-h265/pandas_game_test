@@ -154,21 +154,37 @@ class ShadowManager:
             point_light_manager: Optional PointLightManager instance for dynamic lights
         """
         # Set shadow map textures
-        for i, tex in enumerate(self.shadow_textures):
-            node_path.setShaderInput(f"shadowMap{i}", tex)
+        # Always provide 3 textures to match shader expectations
+        for i in range(3):  # Always provide 3 textures
+            if i < len(self.shadow_textures):
+                # Use actual texture for active cascades
+                tex = self.shadow_textures[i]
+            else:
+                # Use the first texture for inactive cascades (fallback)
+                tex = self.shadow_textures[0] if self.shadow_textures else None
+            
+            if tex:
+                node_path.setShaderInput(f"shadowMap{i}", tex)
 
         # Set shadow matrices (world to shadow projection)
-        for i, camera_np in enumerate(self.shadow_cameras):
-            # Get camera projection matrix
-            lens = camera_np.node().getLens()
-            proj_mat = Mat4(lens.getProjectionMat())
+        # Always provide 3 matrices to match shader expectations
+        for i in range(3):  # Always provide 3 matrices
+            if i < len(self.shadow_cameras):
+                # Use actual camera for active cascades
+                camera_np = self.shadow_cameras[i]
+                # Get camera projection matrix
+                lens = camera_np.node().getLens()
+                proj_mat = Mat4(lens.getProjectionMat())
 
-            # Get camera view matrix
-            view_mat = Mat4()
-            view_mat.invertFrom(camera_np.getMat(self.render))
+                # Get camera view matrix
+                view_mat = Mat4()
+                view_mat.invertFrom(camera_np.getMat(self.render))
 
-            # Combined shadow matrix
-            shadow_mat = proj_mat * view_mat
+                # Combined shadow matrix
+                shadow_mat = proj_mat * view_mat
+            else:
+                # Use identity matrix for inactive cascades
+                shadow_mat = Mat4.identMat()
 
             node_path.setShaderInput(f"shadowMatrix{i}", shadow_mat)
 

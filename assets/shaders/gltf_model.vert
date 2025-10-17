@@ -1,4 +1,4 @@
-#version 330
+#version 330 core
 
 // glTF model rendering with shadow mapping and point lights
 uniform mat4 p3d_ModelViewProjectionMatrix;
@@ -16,7 +16,6 @@ out vec3 vWorldPos;
 out vec3 vNormal;
 out vec2 vTexCoord;
 out vec4 vShadowCoord0;
-out float vViewDepth;
 out vec4 vColor;  // Pass vertex color to fragment shader
 
 void main() {
@@ -34,10 +33,6 @@ void main() {
 
     // Shadow coordinates
     vShadowCoord0 = shadowMatrix0 * vec4(vWorldPos, 1.0);
-
-    // View space depth for cascade selection
-    vec4 viewPos = p3d_ModelViewMatrix * p3d_Vertex;
-    vViewDepth = -viewPos.z;
 
     // Final position
     gl_Position = p3d_ModelViewProjectionMatrix * p3d_Vertex;

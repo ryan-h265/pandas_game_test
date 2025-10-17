@@ -1,4 +1,4 @@
-#version 330
+#version 330 core
 
 // Terrain rendering with shadow mapping
 uniform mat4 p3d_ModelViewProjectionMatrix;

@@ -1,4 +1,4 @@
-#version 330
+#version 330 core
 
 // Cloud vertex shader - realistic volumetric clouds
 uniform mat4 p3d_ModelViewProjectionMatrix;

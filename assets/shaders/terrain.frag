@@ -1,4 +1,4 @@
-#version 330
+#version 330 core
 
 // Terrain rendering with PCF shadows and SSAO (OPTIMIZED for performance)
 uniform sampler2D shadowMap0;

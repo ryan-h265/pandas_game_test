@@ -1,4 +1,4 @@
-#version 330
+#version 330 core
 
 // Simple fullscreen quad vertex shader
 in vec4 p3d_Vertex;

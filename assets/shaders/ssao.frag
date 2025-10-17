@@ -1,4 +1,4 @@
-#version 330
+#version 330 core
 
 // Screen Space Ambient Occlusion
 uniform sampler2D depthTexture;

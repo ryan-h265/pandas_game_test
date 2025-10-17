@@ -1,4 +1,4 @@
-#version 330
+#version 330 core
 
 // Shadow map generation vertex shader
 uniform mat4 p3d_ModelViewProjectionMatrix;

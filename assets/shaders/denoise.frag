@@ -1,4 +1,4 @@
-#version 330
+#version 330 core
 
 // Bilateral filter for shadow denoising
 // Preserves edges while smoothing shadows
