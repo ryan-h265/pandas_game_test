@@ -12,6 +12,11 @@ def configure():
     # Graphics API - Force OpenGL (hardware accelerated)
     loadPrcFileData("", "load-display pandagl")
     loadPrcFileData("", "aux-display pandagl")
+    
+    # Request a core OpenGL context for modern GLSL support
+    loadPrcFileData("", "gl-version 3 3")  # Request OpenGL 3.3
+    loadPrcFileData("", "gl-core-profile true")  # Use core profile
+    loadPrcFileData("", "gl-forward-compatible true")  # Forward compatible
 
     # Performance
     loadPrcFileData("", "sync-video true")
