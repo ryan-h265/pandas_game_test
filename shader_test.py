@@ -107,6 +107,7 @@ class ShaderTester(ShowBase):
             "sky": "hemisphere",
             "cloud": "sphere",
             "terrain": "plane",
+            "mountain": "sphere",  # Use sphere for testing mountain shader
         }
         return auto_map.get(self.shader_name, "sphere")
     
@@ -374,6 +375,30 @@ class ShaderTester(ShowBase):
                 self.test_object.setShaderInput("camera", Vec3(0, -10, 0))
             elif self.shader_name == "terrain":
                 self.test_object.setShaderInput("time", 0.0)
+                self.test_object.setShaderInput("lightDirection", Vec3(1, 1, -1).normalized())
+                self.test_object.setShaderInput("lightColor", Vec3(1.0, 0.95, 0.8))
+                self.test_object.setShaderInput("ambientColor", Vec3(0.2, 0.25, 0.3))
+                self.test_object.setShaderInput("shadowMapSize", 1024)
+                self.test_object.setShaderInput("shadowSoftness", 4.0)
+                self.test_object.setShaderInput("useVertexColor", 0)
+                self.test_object.setShaderInput("ssaoEnabled", 1)
+                self.test_object.setShaderInput("ssaoBias", 0.025)
+                self.test_object.setShaderInput("ssaoStrength", 1.5)
+                self.test_object.setShaderInput("numPointLights", 0)
+                self.test_object.setShaderInput("pointLightPositions", [])
+                self.test_object.setShaderInput("pointLightColors", [])
+                self.test_object.setShaderInput("pointLightRadii", [])
+                self.test_object.setShaderInput("pointLightIntensities", [])
+                
+                # NodePath
+                self.test_object.setShaderInput("shadowMatrix0", self.test_object.getMat(self.render))
+            
+            elif self.shader_name == "mountain":
+                self.test_object.setShaderInput("u_time", 0.0)
+                self.test_object.setShaderInput("u_cycleSpeed", 0.1)  # Fast for testing
+                self.test_object.setShaderInput("sunBaseColor", Vec3(1.0, 0.9, 0.7))
+                self.test_object.setShaderInput("moonBaseColor", Vec3(0.8, 0.85, 1.0))
+
             
             print(f"✓ Loaded shader: {self.shader_name}")
         else:
@@ -533,6 +558,8 @@ class ShaderTester(ShowBase):
             self.test_object.setShaderInput("time", self.elapsed_time)
         elif self.shader_name == "terrain":
             self.test_object.setShaderInput("time", self.elapsed_time)
+        elif self.shader_name == "mountain":
+            self.test_object.setShaderInput("u_time", self.elapsed_time)
         
         return task.cont
 

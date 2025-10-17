@@ -37,10 +37,11 @@ class MountainSkybox:
         self.animation_time = 0.0  # Track time for cloud movement
         self.sky_shader = None  # Sky shader reference
         self.cloud_shader = None  # Cloud shader reference
+        self.mountain_shader = None  # Mountain shader reference
         self._load_shaders()
 
     def _load_shaders(self):
-        """Load sky and cloud shaders."""
+        """Load sky, mountain, and cloud shaders."""
         shader_dir = Path(__file__).resolve().parents[3] / "assets" / "shaders"
         
         # Load sky shader
@@ -54,6 +55,18 @@ class MountainSkybox:
                 print("Successfully loaded sky shader")
         else:
             print("Warning: Sky shader files not found")
+        
+        # Load mountain shader
+        mountain_vert = shader_dir / "mountain.vert"
+        mountain_frag = shader_dir / "mountain.frag"
+        if mountain_vert.exists() and mountain_frag.exists():
+            self.mountain_shader = Shader.load(
+                Shader.SL_GLSL, vertex=str(mountain_vert), fragment=str(mountain_frag)
+            )
+            if self.mountain_shader:
+                print("Successfully loaded mountain shader")
+        else:
+            print("Warning: Mountain shader files not found")
         
         # Load cloud shader
         cloud_vert = shader_dir / "cloud.vert"
@@ -83,8 +96,8 @@ class MountainSkybox:
         # sun.reparentTo(self.skybox_node)
 
         # Add cloud layer
-        cloud_layer = self._create_cloud_layer()
-        cloud_layer.reparentTo(self.skybox_node)
+        # cloud_layer = self._create_cloud_layer()
+        # cloud_layer.reparentTo(self.skybox_node)
 
         # Setup skybox rendering properties
         self.skybox_node.setBin("background", 0)
@@ -111,10 +124,16 @@ class MountainSkybox:
         if self.sky_shader:
             sky_dome.setShader(self.sky_shader)
             # Pass initial shader uniforms
-            sky_dome.setShaderInput("u_time", 0.0)
+            # sky_dome.setShaderInput("u_time", 0.0)
             sky_dome.setShaderInput("u_cycleSpeed", 0.8)  # 0.025 == ~4 min full cycle
             sky_dome.setShaderInput("sunBaseColor", Vec3(1.0, 0.9, 0.7))
             sky_dome.setShaderInput("moonBaseColor", Vec3(0.8, 0.85, 1.0))
+
+            sky_dome.setShaderInput("u_time", 0.0)
+            sky_dome.setShaderInput("u_resolution", Vec3(800, 600, 0))  # Placeholder resolution
+            sky_dome.setShaderInput("u_cameraPos", self.camera.getPos())
+            sky_dome.setShaderInput("u_auroraDir", Vec3(-0.5, -0.6, 0.9).normalized())
+
             print("Applied sky shader to sky dome")
         else:
             # Fallback: solid color
@@ -266,6 +285,15 @@ class MountainSkybox:
         mountain_geom_node = GeomNode("mountain_range")
         mountain_geom_node.addGeom(geom)
         mountain_np = self.render.attachNewNode(mountain_geom_node)
+
+        # Apply mountain shader if available
+        if self.mountain_shader:
+            mountain_np.setShader(self.mountain_shader)
+            # Set initial shader uniforms
+            mountain_np.setShaderInput("u_time", 0.0)
+            mountain_np.setShaderInput("u_cycleSpeed", 0.025)  # Match sky shader
+            mountain_np.setShaderInput("sunBaseColor", Vec3(1.0, 0.9, 0.7))
+            mountain_np.setShaderInput("moonBaseColor", Vec3(0.8, 0.85, 1.0))
 
         # Enable transparency for atmospheric perspective
         mountain_np.setTransparency(TransparencyAttrib.MAlpha)
@@ -811,6 +839,13 @@ class MountainSkybox:
             # Update sky shader with current time for day/night cycle
             if self.sky_dome and self.sky_shader:
                 self.sky_dome.setShaderInput("u_time", self.animation_time)
+            
+            # Update mountain shaders with time for day/night cycle matching
+            if self.mountain_shader:
+                # Find all mountain nodes and update their time uniform
+                for child in self.skybox_node.getChildren():
+                    if "mountain" in child.getName().lower():
+                        child.setShaderInput("u_time", self.animation_time)
 
             # Animate clouds
             self.animation_time += dt
