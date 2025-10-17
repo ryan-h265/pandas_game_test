@@ -38,7 +38,7 @@ class Game(ShowBase):
         self.setup_lighting()
 
         # Initialize skybox with distant mountains, clouds, and sun
-        self.skybox = MountainSkybox(self.render, self.camera)
+        self.skybox = MountainSkybox(self.render, self.camera, self)
         self.skybox.create_skybox()
         print("Created mountain skybox with distant peaks, clouds, and sun")
 
