@@ -109,15 +109,6 @@ class PauseMenu(BaseMenu):
             btn.bind(DGG.ENTER, self._on_hover, [btn])
             btn.bind(DGG.EXIT, self._on_unhover, [btn])
 
-        DirectLabel(
-            text="Press ESC to resume",
-            text_scale=0.05,
-            text_fg=(0.7, 0.7, 0.7, 1),
-            frameColor=(0, 0, 0, 0),
-            pos=(0, 0, -0.7),
-            parent=self.pause_bg,
-        )
-
     def _create_settings_menu(self):
         """Create settings submenu."""
         # Background with theme

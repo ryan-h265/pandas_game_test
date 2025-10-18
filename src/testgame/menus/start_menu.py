@@ -58,7 +58,7 @@ class StartMenu(BaseMenu):
 
         # Load Save button with theme
         load_save_btn = DirectButton(
-            text="Load Save",
+            text="Load",
             text_pos=(0, -0.02),
             frameSize=(-0.50, 0.50, -0.07, 0.07),
             pos=(0, 0, -0.55),
@@ -141,10 +141,12 @@ class StartMenu(BaseMenu):
 
         # Title with theme
         title_style = MenuTheme.get_font_settings("title")
+        title_font = MenuTheme.get_font_object(title_style.get("font", "Courier"))
         DirectLabel(
             text="Load",
             text_scale=title_style["scale"],
             text_fg=title_style["fg"],
+            text_font=title_font,
             frameColor=(0, 0, 0, 0),
             pos=(0, 0, 0.8),
             parent=self.saves_bg,
@@ -172,7 +174,7 @@ class StartMenu(BaseMenu):
         """Populate the saves list with buttons."""
         # Clear existing buttons
         for child in self.saves_list_frame.getChildren():
-            child.destroy()
+            child.removeNode()
 
         saves = self._get_available_saves()
         label_style = MenuTheme.get_font_settings("label")

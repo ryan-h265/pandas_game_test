@@ -58,25 +58,25 @@ class MenuTheme:
             "scale": 0.08,
             "color": "text_primary",
             "align": TextNode.ACenter,
-            "font": "Courier",
+            "font": "HeyOctober",
         },
         "button": {
             "scale": 0.08,
             "color": "text_primary",
             "align": TextNode.ACenter,
-            "font": "Courier",
+            "font": "CecepsHandwriting",
         },
         "label": {
             "scale": 0.07,
             "color": "text_secondary",
             "align": TextNode.ALeft,
-            "font": "Courier",
+            "font": "HeyOctober",
         },
         "small": {
             "scale": 0.05,
             "color": "text_muted",
             "align": TextNode.ACenter,
-            "font": "Courier",
+            "font": "HeyOctober",
         },
     }
 
@@ -163,6 +163,7 @@ class MenuTheme:
             "frameColor": MenuTheme.get_color(color_map.get(state, "button_default")),
             "text_scale": MenuTheme.FONTS["button"]["scale"],
             "text_fg": MenuTheme.get_color("text_primary"),
+            "font": MenuTheme.FONTS["button"].get("font", "Arial"),
         }
 
     @staticmethod
@@ -271,26 +272,12 @@ def apply_menu_styling(widget, style_type, **overrides):
 
     # Apply font if it exists
     if font:
-        try:
-            from pathlib import Path
-            import panda3d.core as p3d
-            
-            # Check if it's a custom font file
-            custom_font_path = Path(__file__).resolve().parents[3] / "assets" / "fonts" / f"{font}.ttf"
-            
-            if custom_font_path.exists():
-                # Load custom TTF font file using FontPool
-                font_obj = p3d.FontPool.loadFont(str(custom_font_path))
-                if font_obj:
-                    widget.setFont(font_obj)
-            else:
-                # Try to load as system font
-                font_obj = p3d.FontPool.loadFont(font)
-                if font_obj:
-                    widget.setFont(font_obj)
-        except Exception as e:
-            # Font loading failed, use default
-            pass
+        font_obj = MenuTheme.get_font_object(font)
+        if font_obj:
+            try:
+                widget["text_font"] = font_obj
+            except (KeyError, TypeError):
+                pass  # Widget doesn't support text_font
 
     # Apply overrides
     for key, value in overrides.items():
