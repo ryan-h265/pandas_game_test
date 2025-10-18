@@ -57,3 +57,10 @@ DEBUG_CHUNK_WIREFRAME = False  # Show wireframe overlay on chunks
 # God mode settings
 GODMODE_ENABLED = True  # Enable god mode features (flying, etc.)
 GODMODE_FLY_SPEED = 30.0  # Speed when flying in god mode
+
+# Fog settings
+FOG_ENABLED = True
+FOG_COLOR = (0.65, 0.72, 0.78)  # Soft blue-gray mountain haze
+FOG_START_DISTANCE = 60.0  # Start fading objects after this distance (meters)
+FOG_END_DISTANCE = 220.0  # Fully faded by this distance (meters)
+FOG_STRENGTH = 0.7  # Multiplier for fog thickness (0 disables fog)

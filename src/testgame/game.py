@@ -6,7 +6,16 @@ from panda3d.bullet import BulletWorld, BulletDebugNode
 from panda3d.core import AmbientLight, DirectionalLight, Vec3, WindowProperties
 from direct.showbase.ShowBaseGlobal import globalClock
 
-from testgame.config.settings import configure, PHYSICS_FPS, GRAVITY
+from testgame.config.settings import (
+    configure,
+    PHYSICS_FPS,
+    GRAVITY,
+    FOG_ENABLED,
+    FOG_COLOR,
+    FOG_START_DISTANCE,
+    FOG_END_DISTANCE,
+    FOG_STRENGTH,
+)
 from testgame.engine.world import World
 from testgame.player.controller import PlayerController
 from testgame.player.camera import CameraController
@@ -57,6 +66,13 @@ class Game(ShowBase):
 
         # Note: Actual level initialization happens in load_level()
         # This is called when user selects a level from start menu
+
+        # Default fog parameters (actual values set when level loads)
+        self.fog_enabled = FOG_ENABLED
+        self.fog_strength = float(FOG_STRENGTH)
+        self.fog_start = float(FOG_START_DISTANCE)
+        self.fog_end = float(FOG_END_DISTANCE)
+        self.fog_color = Vec3(*FOG_COLOR)
 
     def list_saves(self):
         """List all available save files.
@@ -136,7 +152,9 @@ class Game(ShowBase):
         print(f"Loading level: {level_info['name']}")
 
         # Initialize skybox with distant mountains, clouds, and sun
-        self.skybox = MountainSkybox(self.render, self.camera, self, enable_day_night_cycle=False)
+        self.skybox = MountainSkybox(
+            self.render, self.camera, self, enable_day_night_cycle=False
+        )
         self.skybox.create_skybox()
         print("Created mountain skybox with distant peaks, clouds, and sun")
 
@@ -223,6 +241,7 @@ class Game(ShowBase):
             ssao_enabled=self.ssao_enabled,
             point_light_manager=self.point_light_manager,
         )
+        self._initialize_fog()
         print("Shadows and ambient occlusion enabled by default")
         print(
             f"Point light system supports up to {self.point_light_manager.MAX_LIGHTS} visible lights with smart culling"
@@ -284,6 +303,9 @@ class Game(ShowBase):
         print("  V - Toggle chunk debug colors")
         print("  B - Toggle wireframe debug")
         print("  R - Toggle raycast debug (shows gun ray paths)")
+
+    print("  P - Toggle fog on/off")
+    print("  9/0 - Decrease/Increase fog strength")
 
     def print_gpu_info(self):
         """Print GPU and graphics information"""
@@ -365,6 +387,41 @@ class Game(ShowBase):
 
         # Store light reference for skybox coordination
         self.sun_light = dlnp
+
+    def _initialize_fog(self):
+        """Apply fog configuration to active shaders."""
+        self.fog_enabled = bool(FOG_ENABLED)
+        self.fog_strength = max(0.0, float(FOG_STRENGTH))
+        self.fog_start = float(FOG_START_DISTANCE)
+        self.fog_end = float(FOG_END_DISTANCE)
+        self.fog_color = Vec3(*FOG_COLOR)
+
+        self._apply_fog_to_render()
+
+    def _apply_fog_to_render(self):
+        """Push current fog settings to the active shader inputs."""
+        fog_active = self.fog_enabled and self.fog_strength > 0.0
+
+        if self.shadow_manager:
+            self.shadow_manager.set_fog_settings(
+                self.render,
+                enabled=self.fog_enabled,
+                color=self.fog_color,
+                start=self.fog_start,
+                end=self.fog_end,
+                strength=self.fog_strength,
+            )
+        else:
+            self.render.setShaderInput("fogEnabled", 1 if fog_active else 0)
+            self.render.setShaderInput("fogColor", self.fog_color)
+            self.render.setShaderInput("fogStart", self.fog_start)
+            self.render.setShaderInput(
+                "fogEnd",
+                self.fog_end
+                if self.fog_end > self.fog_start
+                else self.fog_start + 0.01,
+            )
+            self.render.setShaderInput("fogStrength", self.fog_strength)
 
     def setup_input(self):
         """Setup keyboard input handlers"""
@@ -453,6 +510,10 @@ class Game(ShowBase):
         self.accept("f9", self.quick_load)  # Quick load
         self.accept("f6", self.open_save_dialog)  # Save with name
         self.accept("f7", self.open_load_dialog)  # Load dialog
+        # Fog controls
+        self.accept("p", self.toggle_fog)
+        self.accept("9", self.adjust_fog_strength, [-0.1])
+        self.accept("0", self.adjust_fog_strength, [0.1])
 
     def destroy_input(self):
         """Remove all input handlers"""
@@ -643,6 +704,7 @@ class Game(ShowBase):
             if self.shadow_manager:
                 self.shadow_manager.cleanup()
                 self.shadow_manager = None
+            self._apply_fog_to_render()
             self.shadows_enabled = False
             self.hud.show_message("Shadows: OFF (Performance Mode)")
             print("Shadows disabled - should see FPS increase")
@@ -655,6 +717,7 @@ class Game(ShowBase):
                 ssao_enabled=self.ssao_enabled,
                 point_light_manager=self.point_light_manager,
             )
+            self._apply_fog_to_render()
             self.shadows_enabled = True
             self.hud.show_message("Shadows: ON (Quality Mode)")
             print("Shadows enabled")
@@ -695,6 +758,36 @@ class Game(ShowBase):
             self.hud.show_message(f"Post-processing: {'ON' if enabled else 'OFF'}")
         else:
             print("Post-processing is disabled (for performance)")
+
+    def toggle_fog(self):
+        """Toggle atmospheric fog."""
+        self.fog_enabled = not self.fog_enabled
+
+        self._apply_fog_to_render()
+
+        state = "ON" if self.fog_enabled and self.fog_strength > 0.0 else "OFF"
+        if hasattr(self, "hud"):
+            self.hud.show_message(f"Fog: {state}")
+        print(f"Fog {state} (strength {self.fog_strength:.2f})")
+
+    def adjust_fog_strength(self, delta):
+        """Adjust fog strength multiplier."""
+        previous = self.fog_strength
+        self.fog_strength = max(0.0, min(5.0, self.fog_strength + delta))
+
+        if abs(self.fog_strength - previous) < 1e-3:
+            return
+
+        self._apply_fog_to_render()
+
+        if self.fog_strength == 0.0 or not self.fog_enabled:
+            if hasattr(self, "hud"):
+                self.hud.show_message("Fog: OFF")
+            print("Fog strength set to 0 (fog disabled)")
+        else:
+            if hasattr(self, "hud"):
+                self.hud.show_message(f"Fog Strength: {self.fog_strength:.2f}")
+            print(f"Fog strength adjusted to {self.fog_strength:.2f}")
 
     def toggle_chunk_colors(self):
         """Toggle debug chunk colors."""

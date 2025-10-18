@@ -9,6 +9,13 @@ uniform vec3 u_cameraPos;// camera position (optional)
 uniform vec3 u_auroraDir;// base aurora orientation (e.g. vec3(-0.5, -0.6, 0.9))
 uniform float u_transitionAlpha;// Fade-in alpha during transitions (0-1)
 
+// Fog uniforms
+uniform int fogEnabled;// 1 = fog enabled
+uniform vec3 fogColor;// Fog tint
+uniform float fogStart;// (unused, shared interface)
+uniform float fogEnd;// (unused, shared interface)
+uniform float fogStrength;// Fog multiplier
+
 // === INPUTS ===
 in vec3 v_position;// world-space vertex position (hemisphere)
 in vec3 v_normal;// sky direction (should point upward)
@@ -121,6 +128,12 @@ void main(){
     vec3 pos=ro+((.5-ro.y)/rd.y)*rd;
     float nz2=triNoise2d(pos.xz*vec2(.5,.7),0.,u_time);
     col+=mix(vec3(.2,.25,.5)*.08,vec3(.3,.3,.5)*.7,nz2*.4);
+  }
+  
+  if(fogEnabled==1){
+    float horizonFog=pow(clamp(1.-abs(rd.y),0.,1.),1.2);
+    float fogFactor=clamp(horizonFog*fogStrength,0.,1.);
+    col=mix(col,fogColor,fogFactor);
   }
   
   fragColor=vec4(col,u_transitionAlpha);

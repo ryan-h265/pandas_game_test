@@ -11,6 +11,14 @@ from panda3d.core import (
     Mat4,
 )
 
+from testgame.config.settings import (
+    FOG_ENABLED,
+    FOG_COLOR,
+    FOG_START_DISTANCE,
+    FOG_END_DISTANCE,
+    FOG_STRENGTH,
+)
+
 
 class ShadowManager:
     """Manages cascaded shadow maps with soft shadows and denoising."""
@@ -43,6 +51,13 @@ class ShadowManager:
 
         # Load shaders
         self._setup_shaders()
+
+        # Fog defaults from configuration
+        self.fog_enabled = FOG_ENABLED
+        self.fog_color = Vec3(*FOG_COLOR)
+        self.fog_start = float(FOG_START_DISTANCE)
+        self.fog_end = float(FOG_END_DISTANCE)
+        self.fog_strength = float(FOG_STRENGTH)
 
     def _setup_shadow_cascades(self):
         """Create shadow map buffers and cameras for each cascade."""
@@ -199,12 +214,63 @@ class ShadowManager:
         node_path.setShaderInput("ssaoBias", 0.025)  # Depth bias
         node_path.setShaderInput("ssaoStrength", 0.8)  # AO strength (0.0-2.0)
 
+        # Fog uniforms
+        self._apply_fog_inputs(node_path)
+
         # Set point light uniforms (if manager provided)
         if point_light_manager:
             point_light_manager.set_shader_inputs(node_path)
         else:
             # No lights - set defaults
             node_path.setShaderInput("numPointLights", 0)
+
+    def _apply_fog_inputs(self, node_path):
+        """Apply current fog settings to the provided node path."""
+        fog_active = self.fog_enabled and self.fog_strength > 0.0
+        node_path.setShaderInput("fogEnabled", 1 if fog_active else 0)
+        node_path.setShaderInput("fogColor", self.fog_color)
+        node_path.setShaderInput("fogStart", float(self.fog_start))
+        node_path.setShaderInput(
+            "fogEnd",
+            float(
+                self.fog_end if self.fog_end > self.fog_start else self.fog_start + 0.01
+            ),
+        )
+        node_path.setShaderInput("fogStrength", float(self.fog_strength))
+
+    def set_fog_settings(
+        self,
+        node_path,
+        *,
+        enabled=None,
+        color=None,
+        start=None,
+        end=None,
+        strength=None,
+    ):
+        """Update fog settings and push them to shaders."""
+
+        if enabled is not None:
+            self.fog_enabled = bool(enabled)
+        if color is not None:
+            if isinstance(color, Vec3):
+                self.fog_color = color
+            else:
+                try:
+                    self.fog_color = Vec3(
+                        float(color[0]), float(color[1]), float(color[2])
+                    )
+                except (TypeError, ValueError, IndexError):
+                    # Fall back to previous color if conversion fails
+                    pass
+        if start is not None:
+            self.fog_start = float(start)
+        if end is not None:
+            self.fog_end = float(end)
+        if strength is not None:
+            self.fog_strength = float(strength)
+
+        self._apply_fog_inputs(node_path)
 
     def set_light_direction(self, direction):
         """Update light direction.

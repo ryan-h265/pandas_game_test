@@ -6,6 +6,13 @@ uniform vec3 sunBaseColor;// Base sun color
 uniform float u_cycleSpeed;// Day/night speed (0.025 ~= 4min cycle)
 uniform float u_transitionAlpha;// Fade-in alpha during transitions (0-1)
 
+// Fog uniforms
+uniform int fogEnabled;// 1 = fog enabled
+uniform vec3 fogColor;// Fog tint
+uniform float fogStart;// (unused, shared interface)
+uniform float fogEnd;// (unused, shared interface)
+uniform float fogStrength;// Fog multiplier
+
 // === Inputs from vertex shader ===
 in vec3 v_position;// World-space vertex position on hemisphere
 in vec3 v_normal;// Vertex normal
@@ -51,5 +58,11 @@ void main(){
   
   // Clamp and output with fade-in during transition
   skyColor=clamp(skyColor,0.,1.);
+  
+  if(fogEnabled==1){
+    float horizonFactor=pow(clamp(1.-max(rayDir.z,0.),0.,1.),1.4);
+    float fogFactor=clamp(horizonFactor*fogStrength,0.,1.);
+    skyColor=mix(skyColor,fogColor,fogFactor);
+  }
   fragColor=vec4(skyColor,u_transitionAlpha);
 }

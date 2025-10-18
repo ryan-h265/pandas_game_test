@@ -41,8 +41,8 @@ class BaseMenu:
                 parent=parent,
                 frameSize=(-0.075, 0.075, -0.075, 0.075),
                 frameColor=(0, 0, 0, 0),
-                pos=(-1.25, 0, 0.5),
-                scale=0.25,
+                pos=(1.05, 0, 0.5),
+                scale=0.5,
             )
             logo_frame.setTransparency(TransparencyAttrib.MAlpha)
 

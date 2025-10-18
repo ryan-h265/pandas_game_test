@@ -10,6 +10,13 @@ uniform float u_cycleSpeed;
 uniform vec3 sunBaseColor;
 uniform vec3 moonBaseColor;
 
+// Fog uniforms
+uniform int fogEnabled;// 1 = fog enabled
+uniform vec3 fogColor;// Fog tint color
+uniform float fogStart;// Distance to start fog fade
+uniform float fogEnd;// Distance where fog is fully opaque
+uniform float fogStrength;// Fog multiplier
+
 // === Output ===
 out vec4 fragColor;
 
@@ -50,6 +57,14 @@ void main(){
   
   // Fade out at extreme distances for silhouette effect
   alpha*=1.-atmosPerspective*.3;
+  
+  if(fogEnabled==1){
+    float range=max(fogEnd-fogStart,.001);
+    float fogFactor=clamp((distance-fogStart)/range,0.,1.);
+    fogFactor=clamp(fogFactor*fogStrength,0.,1.);
+    mountainColor=mix(mountainColor,fogColor,fogFactor);
+    alpha*=mix(1.,.5,fogFactor);
+  }
   
   fragColor=vec4(mountainColor,alpha);
 }

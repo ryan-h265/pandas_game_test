@@ -12,6 +12,13 @@ uniform vec2 shadowMapSize;
 uniform float shadowSoftness;
 uniform int useVertexColor;// 1 = use vertex colors, 0 = use default terrain color
 
+// Fog uniforms
+uniform int fogEnabled;// 1 = fog enabled, 0 = disabled
+uniform vec3 fogColor;// Fog tint color
+uniform float fogStart;// Distance to start fog fade
+uniform float fogEnd;// Distance where fog is fully opaque
+uniform float fogStrength;// Multiplier for fog amount (0 disables)
+
 // SSAO uniforms
 uniform int ssaoEnabled;// 1 = enabled, 0 = disabled
 uniform float ssaoRadius;// Occlusion sample radius
@@ -218,6 +225,14 @@ void main(){
     
     // Gamma correction
     finalColor=pow(finalColor,vec3(1./2.2));
+    
+    if(fogEnabled==1){
+        float distance=vViewDepth;
+        float range=max(fogEnd-fogStart,.001);
+        float fogFactor=clamp((distance-fogStart)/range,0.,1.);
+        fogFactor=clamp(fogFactor*fogStrength,0.,1.);
+        finalColor=mix(finalColor,fogColor,fogFactor);
+    }
     
     fragColor=vec4(finalColor,1.);
 }

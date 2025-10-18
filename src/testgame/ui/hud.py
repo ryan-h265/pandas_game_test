@@ -321,7 +321,7 @@ class HUD:
             self.tool_info_text3.setText("")
             self.tool_info_text4.setText("")
             return
-        
+
         print("Updating tool info for:", tool.name)
 
         tool_type = tool.tool_type
