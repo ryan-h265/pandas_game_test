@@ -206,6 +206,7 @@ class Game(ShowBase):
         # Initialize point light system (for torches, lanterns, etc.)
         # IMPORTANT: Must be initialized before ToolManager for prop lighting
         self.point_light_manager = PointLightManager()
+        self.game_world.point_light_manager = self.point_light_manager
         print("Point light system initialized (0 lights active)")
 
         # Initialize tool system
