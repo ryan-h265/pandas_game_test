@@ -9,9 +9,9 @@ from panda3d.core import (
     Geom,
     GeomTriangles,
     GeomNode,
+    Vec2,
     Vec3,
     Vec4,
-    CardMaker,
     TransparencyAttrib,
     ColorBlendAttrib,
     Shader,
@@ -21,44 +21,91 @@ from panda3d.core import (
 class MountainSkybox:
     """Creates a procedural skybox with distant mountains, clouds, and sun."""
 
-    def __init__(self, render, camera):
+    def __init__(self, render, camera, base, enable_day_night_cycle=True):
         """Initialize the skybox.
 
         Args:
             render: Panda3D render node
             camera: Camera node for positioning
+            base: ShowBase instance for camera lens access
+            enable_day_night_cycle: If True, swap between sky and aurora shaders. If False, use only sky shader.
         """
         self.render = render
         self.camera = camera
+        self.base = base
         self.skybox_node = None
+        self.sky_dome = None  # Store sky dome for per-frame shader updates
         self.cloud_nodes = []  # Track cloud nodes for animation
         self.animation_time = 0.0  # Track time for cloud movement
-        self.sky_dome = None
+        self.sky_shader = None  # Sky shader reference (day)
+        self.aurora_shader = None  # Aurora shader reference (night)
         self.cloud_shader = None  # Cloud shader reference
-        self._load_cloud_shader()
+        self.mountain_shader = None  # Mountain shader reference
+        self.enable_day_night_cycle = enable_day_night_cycle  # Toggle day/night swapping
+        self.current_sky_is_aurora = False  # Track which shader is active
+        self.shader_transition_time = 0.0  # Time spent in transition
+        self.shader_transition_duration = 2.0  # Seconds to fade between shaders
+        self.prev_sky_dome = None  # Previous shader dome for crossfade
+        self.time_in_current_shader = 0.0  # Time spent in current shader before transitioning
+        self.min_shader_duration = 30.0  # Minimum seconds to stay in each shader
+        self._load_shaders()
 
-    def _load_cloud_shader(self):
-        """Load the cloud shader for realistic cloud rendering."""
+    def _load_shaders(self):
+        """Load sky, mountain, and cloud shaders."""
         shader_dir = Path(__file__).resolve().parents[3] / "assets" / "shaders"
-        vert_path = shader_dir / "cloud.vert"
-        frag_path = shader_dir / "cloud.frag"
+
+        # Load sky shader (day)
+        sky_vert = shader_dir / "sky.vert"
+        sky_frag = shader_dir / "sky.frag"
+        if sky_vert.exists() and sky_frag.exists():
+            self.sky_shader = Shader.load(
+                Shader.SL_GLSL, vertex=str(sky_vert), fragment=str(sky_frag)
+            )
+            if self.sky_shader:
+                print("Successfully loaded sky shader (day)")
+        else:
+            print("Warning: Sky shader files not found")
+
+        # Load aurora shader (night)
+        aurora_vert = shader_dir / "sky.vert"  # Reuse sky vertex shader
+        aurora_frag = shader_dir / "aurora.frag"
+        if aurora_vert.exists() and aurora_frag.exists():
+            self.aurora_shader = Shader.load(
+                Shader.SL_GLSL, vertex=str(aurora_vert), fragment=str(aurora_frag)
+            )
+            if self.aurora_shader:
+                print("Successfully loaded aurora shader (night)")
+        else:
+            print("Warning: Aurora shader files not found")
+
+        # Load mountain shader
+        mountain_vert = shader_dir / "mountain.vert"
+        mountain_frag = shader_dir / "mountain.frag"
+        if mountain_vert.exists() and mountain_frag.exists():
+            self.mountain_shader = Shader.load(
+                Shader.SL_GLSL, vertex=str(mountain_vert), fragment=str(mountain_frag)
+            )
+            if self.mountain_shader:
+                print("Successfully loaded mountain shader")
+        else:
+            print("Warning: Mountain shader files not found")
 
         # Load cloud shader
-        self.cloud_shader = Shader.load(
-            Shader.SL_GLSL, vertex=str(vert_path), fragment=str(frag_path)
-        )
-
-        if self.cloud_shader:
-            print("Cloud shader loaded successfully")
-        else:
-            print(f"Warning: Failed to load cloud shader from {shader_dir}")
+        cloud_vert = shader_dir / "cloud.vert"
+        cloud_frag = shader_dir / "cloud.frag"
+        if cloud_vert.exists() and cloud_frag.exists():
+            self.cloud_shader = Shader.load(
+                Shader.SL_GLSL, vertex=str(cloud_vert), fragment=str(cloud_frag)
+            )
+            if self.cloud_shader:
+                print("Successfully loaded cloud shader")
 
     def create_skybox(self):
         """Create complete mountain skybox with sky dome, mountains, sun, and clouds."""
         # Create the base skybox structure
         self.skybox_node = self.render.attachNewNode("mountain_skybox")
 
-        # Create sky dome as base
+        # Create shader-driven sky dome
         sky_dome = self._create_sky_dome()
         sky_dome.reparentTo(self.skybox_node)
 
@@ -67,12 +114,12 @@ class MountainSkybox:
         mountain_ring.reparentTo(self.skybox_node)
 
         # Add sun
-        sun = self._create_sun()
-        sun.reparentTo(self.skybox_node)
+        # sun = self._create_sun()
+        # sun.reparentTo(self.skybox_node)
 
         # Add cloud layer
-        cloud_layer = self._create_cloud_layer()
-        cloud_layer.reparentTo(self.skybox_node)
+        # cloud_layer = self._create_cloud_layer()
+        # cloud_layer.reparentTo(self.skybox_node)
 
         # Setup skybox rendering properties
         self.skybox_node.setBin("background", 0)
@@ -82,120 +129,91 @@ class MountainSkybox:
 
         print("Created complete mountain skybox with sky, mountains, sun, and clouds!")
         print(
-            f"Skybox components: sky dome, {mountain_ring.getNumChildren()} mountain ranges, sun, clouds"
+            f"Skybox components: sky quad, {mountain_ring.getNumChildren()} mountain ranges, sun, clouds"
         )
 
         return self.skybox_node
 
     def _create_sky_dome(self):
-        """Create a seamless spherical sky dome with gradient."""
-        # Create proper spherical sky dome geometry
-        sky_dome_geom = self._create_sphere_geometry("sky_sphere", 1800, 32, 16)
-        sky_root = self.render.attachNewNode(sky_dome_geom)
+        """Create sky dome with shader-based procedural rendering."""
+        sky_dome = self._create_sky_dome_with_shader(is_aurora=False)
+        self.sky_dome = sky_dome
+        return sky_dome
 
-        # Apply sky gradient colors
-        zenith_color = Vec4(0.4, 0.6, 0.95, 1.0)  # Deep blue at top
+    def _set_sky_shader_uniforms(self, sky_dome_node, is_aurora=False):
+        """Set shader uniforms based on which shader is active.
+        
+        Args:
+            sky_dome_node: The sky dome node to update
+            is_aurora: True for aurora (night) shader, False for sky (day) shader
+        """
+        # Common uniforms for both shaders
+        sky_dome_node.setShaderInput("u_time", self.animation_time)
+        sky_dome_node.setShaderInput("u_transitionAlpha", 1.0)  # Start fully opaque
+        
+        if is_aurora:
+            # Aurora shader specific uniforms
+            sky_dome_node.setShaderInput("u_resolution", Vec2(800, 600))
+            sky_dome_node.setShaderInput("u_cameraPos", Vec3(0, 0, 0))
+            sky_dome_node.setShaderInput("u_auroraDir", Vec3(-0.5, -0.6, 0.9).normalized())
+        else:
+            # Sky (day) shader specific uniforms
+            sky_dome_node.setShaderInput("u_cycleSpeed", 0.2)
+            sky_dome_node.setShaderInput("sunBaseColor", Vec3(1.0, 0.9, 0.7))
+            sky_dome_node.setShaderInput("moonBaseColor", Vec3(0.8, 0.85, 1.0))
 
-        # Set base color
-        sky_root.setColor(zenith_color)
-        sky_root.setLightOff()
-        sky_root.setTwoSided(True)  # Ensure visible from inside
-        sky_root.setBin("background", 0)  # Render first
-        sky_root.setDepthWrite(False)  # Don't write to depth buffer
+    def _create_sky_hemisphere(self, radius, lon_segs, lat_segs):
+        """Create simple hemisphere geometry for sky (no vertex colors, shader-driven)."""
+        import math
 
-        print("Created seamless spherical sky dome")
-
-        return sky_root
-
-    def _create_sphere_geometry(self, name, radius, lon_segs, lat_segs):
-        """Create a sphere geometry for seamless skybox."""
-        format = GeomVertexFormat.getV3c4()
-        vdata = GeomVertexData(name, format, Geom.UHStatic)
+        format = GeomVertexFormat.getV3n3()
+        vdata = GeomVertexData("sky_hemisphere", format, Geom.UHStatic)
 
         vertices = []
-        colors = []
 
-        # Generate sphere vertices with color gradient
+        # Generate hemisphere vertices (only upper half)
         for lat in range(lat_segs + 1):
-            lat_angle = math.pi * lat / lat_segs - math.pi / 2  # -π/2 to π/2
+            lat_angle = (math.pi * 0.5) * lat / lat_segs  # 0 to π/2
 
             for lon in range(lon_segs + 1):
-                lon_angle = 2 * math.pi * lon / lon_segs  # 0 to 2π
+                lon_angle = 2 * math.pi * lon / lon_segs
 
-                # Sphere coordinates
                 x = radius * math.cos(lat_angle) * math.cos(lon_angle)
                 y = radius * math.cos(lat_angle) * math.sin(lon_angle)
                 z = radius * math.sin(lat_angle)
 
                 vertices.append((x, y, z))
 
-                # Color gradient from zenith to horizon
-                height_factor = (
-                    math.sin(lat_angle) + 1
-                ) / 2  # 0 at horizon, 1 at zenith
-
-                # Sky color gradient
-                zenith_color = Vec4(0.4, 0.6, 0.95, 1.0)  # Deep blue
-                horizon_color = Vec4(0.8, 0.9, 1.0, 1.0)  # Light blue
-
-                # Interpolate between zenith and horizon
-                color = Vec4(
-                    horizon_color.x
-                    + (zenith_color.x - horizon_color.x) * height_factor,
-                    horizon_color.y
-                    + (zenith_color.y - horizon_color.y) * height_factor,
-                    horizon_color.z
-                    + (zenith_color.z - horizon_color.z) * height_factor,
-                    1.0,
-                )
-                colors.append(color)
-
-        # Set vertex data
         vdata.setNumRows(len(vertices))
         vertex_writer = GeomVertexWriter(vdata, "vertex")
-        color_writer = GeomVertexWriter(vdata, "color")
+        normal_writer = GeomVertexWriter(vdata, "normal")
 
-        for (x, y, z), color in zip(vertices, colors):
+        for x, y, z in vertices:
             vertex_writer.addData3(x, y, z)
-            color_writer.addData4(color)
+            # Normals point inward (inverted for inside viewing)
+            normal_writer.addData3(-x, -y, -z)
 
-        # Create triangular faces
+        # Create triangles
         geom = Geom(vdata)
         tris = GeomTriangles(Geom.UHStatic)
 
         for lat in range(lat_segs):
             for lon in range(lon_segs):
-                # Current quad indices
                 i0 = lat * (lon_segs + 1) + lon
                 i1 = lat * (lon_segs + 1) + (lon + 1)
                 i2 = (lat + 1) * (lon_segs + 1) + lon
                 i3 = (lat + 1) * (lon_segs + 1) + (lon + 1)
 
-                # Two triangles per quad (inside-facing for skybox)
-                tris.addVertices(i0, i2, i1)
-                tris.addVertices(i1, i2, i3)
+                # Reverse winding for inverted geometry
+                tris.addVertices(i0, i1, i2)
+                tris.addVertices(i1, i3, i2)
 
         tris.closePrimitive()
         geom.addPrimitive(tris)
 
-        # Create geometry node
-        geom_node = GeomNode(name)
+        geom_node = GeomNode("sky_hemisphere")
         geom_node.addGeom(geom)
-
         return geom_node
-
-    def _apply_sky_gradient(self, sky_np):
-        """Apply a sky gradient using a simple shader or vertex colors."""
-        # Create a bright sky color that's easily visible
-        sky_color = Vec4(0.5, 0.7, 1.0, 1.0)  # Bright sky blue
-        sky_np.setColor(sky_color)
-
-        # Make sure it's not wireframe
-        sky_np.clearRenderMode()
-
-        # Ensure it's visible
-        sky_np.setTwoSided(True)
-        sky_np.setLightOff()  # Don't let lighting affect the sky
 
     def _create_distant_mountains(self):
         """Create realistic distant mountain ranges on the horizon."""
@@ -218,14 +236,6 @@ class MountainSkybox:
             range_node.reparentTo(mountain_node)
 
         return mountain_node
-
-    def _create_gentle_mountain(self, width, max_height, name):
-        """Create simple mountain cards that extend to ground level."""
-        cm = CardMaker(f"mountain_{name}")
-        # Extend mountains down below ground to eliminate floating appearance
-        cm.setFrame(-width / 2, width / 2, -max_height * 0.2, max_height)
-
-        return cm.generate()
 
     def _create_mountain_range(self, distance, height_multiplier, color, seed=0):
         """Create a single mountain range silhouette."""
@@ -286,6 +296,15 @@ class MountainSkybox:
         mountain_geom_node = GeomNode("mountain_range")
         mountain_geom_node.addGeom(geom)
         mountain_np = self.render.attachNewNode(mountain_geom_node)
+
+        # Apply mountain shader if available
+        if self.mountain_shader:
+            mountain_np.setShader(self.mountain_shader)
+            # Set initial shader uniforms
+            mountain_np.setShaderInput("u_time", 0.0)
+            mountain_np.setShaderInput("u_cycleSpeed", 0.025)  # Match sky shader
+            mountain_np.setShaderInput("sunBaseColor", Vec3(1.0, 0.9, 0.7))
+            mountain_np.setShaderInput("moonBaseColor", Vec3(0.8, 0.85, 1.0))
 
         # Enable transparency for atmospheric perspective
         mountain_np.setTransparency(TransparencyAttrib.MAlpha)
@@ -420,79 +439,6 @@ class MountainSkybox:
             )
 
         return cloud_node
-
-    def _create_cloud_ring(self, distance, height, density, seed):
-        """Create a ring of clouds at specified distance and height."""
-        format = GeomVertexFormat.getV3c4()
-        vdata = GeomVertexData("cloud_ring", format, Geom.UHStatic)
-
-        # Generate cloud patches
-        cloud_patches = []
-        segments = 32
-
-        for i in range(segments):
-            angle = 2 * math.pi * i / segments
-
-            # Random cloud presence
-            if self._cloud_noise(angle, seed) > (1.0 - density):
-                x = distance * math.cos(angle)
-                z = distance * math.sin(angle)
-
-                # Vary cloud height slightly
-                cloud_height = height + self._cloud_noise(angle * 2, seed + 10) * 50
-
-                cloud_patches.append((x, z, cloud_height, angle))
-
-        if not cloud_patches:
-            return self.render.attachNewNode("empty_clouds")
-
-        # Create geometry for cloud patches
-        vertices = []
-        for x, z, y, angle in cloud_patches:
-            # Create a simple quad for each cloud patch
-            size = 100 + self._cloud_noise(angle * 3, seed + 20) * 50
-
-            # Four corners of cloud quad
-            vertices.extend(
-                [
-                    (x - size, z - size, y),
-                    (x + size, z - size, y),
-                    (x + size, z + size, y),
-                    (x - size, z + size, y),
-                ]
-            )
-
-        vdata.setNumRows(len(vertices))
-        vertex_writer = GeomVertexWriter(vdata, "vertex")
-        color_writer = GeomVertexWriter(vdata, "color")
-
-        cloud_color = Vec4(1.0, 1.0, 1.0, 0.6)  # Semi-transparent white
-
-        for x, z, y in vertices:
-            vertex_writer.addData3(x, z, y)
-            color_writer.addData4(cloud_color)
-
-        # Create triangles
-        geom = Geom(vdata)
-        tris = GeomTriangles(Geom.UHStatic)
-
-        for i in range(len(cloud_patches)):
-            base = i * 4
-            # Two triangles per cloud quad
-            tris.addVertices(base, base + 1, base + 2)
-            tris.addVertices(base, base + 2, base + 3)
-
-        tris.closePrimitive()
-        geom.addPrimitive(tris)
-
-        cloud_geom_node = GeomNode("cloud_ring")
-        cloud_geom_node.addGeom(geom)
-        cloud_np = self.render.attachNewNode(cloud_geom_node)
-
-        # Enable transparency
-        cloud_np.setTransparency(TransparencyAttrib.MAlpha)
-
-        return cloud_np
 
     def _cloud_noise(self, x, seed):
         """Simple noise for cloud generation."""
@@ -708,88 +654,6 @@ class MountainSkybox:
             current_h = cloud_node.getH()
             cloud_node.setH(current_h + rotation_speed * 0.016)  # Assuming 60fps
 
-    def _create_natural_cloud_geometry(self, size, name):
-        """Create natural cloud geometry with irregular, fluffy shape."""
-        format = GeomVertexFormat.getV3()
-        vdata = GeomVertexData(name, format, Geom.UHStatic)
-
-        vertices = []
-
-        # Create cloud as collection of overlapping circular "puffs"
-        num_puffs = 5 + int(size / 30)  # More puffs for larger clouds
-
-        for puff_idx in range(num_puffs):
-            # Position puffs in natural clustering pattern
-            if puff_idx == 0:
-                # Main center puff
-                center_x, center_y = 0, 0
-                puff_radius = size * 0.6
-            else:
-                # Surrounding puffs with some randomness
-                angle = 2 * math.pi * puff_idx / num_puffs
-                # Add some variation to make it irregular
-                angle += (puff_idx * 0.7) % 1.0  # Pseudo-random offset
-
-                distance = size * (0.3 + 0.4 * abs(math.sin(puff_idx * 2.3)))
-                center_x = distance * math.cos(angle)
-                center_y = distance * math.sin(angle)
-                puff_radius = size * (0.3 + 0.4 * abs(math.sin(puff_idx * 1.7)))
-
-            # Create circular puff vertices
-            puff_segments = 12  # Enough for smooth circles
-            for i in range(puff_segments):
-                puff_angle = 2 * math.pi * i / puff_segments
-                x = center_x + puff_radius * math.cos(puff_angle)
-                y = center_y + puff_radius * math.sin(puff_angle)
-
-                # Vary height slightly for natural irregularity
-                z_variation = puff_radius * 0.1 * math.sin(puff_angle * 3.7)
-                z = z_variation
-
-                vertices.append((x, y, z))
-
-        # Add some random edge vertices for irregular cloud boundaries
-        for i in range(8):
-            # Create irregular edge points
-            angle = 2 * math.pi * i / 8
-            radius_variation = size * (0.8 + 0.6 * abs(math.sin(i * 2.1)))
-            x = radius_variation * math.cos(angle)
-            y = radius_variation * math.sin(angle) * 0.6  # Flatten vertically
-            z = size * 0.05 * math.sin(angle * 2.3)  # Slight height variation
-            vertices.append((x, y, z))
-
-        # Set vertex data
-        vdata.setNumRows(len(vertices))
-        vertex_writer = GeomVertexWriter(vdata, "vertex")
-
-        for x, y, z in vertices:
-            vertex_writer.addData3(x, y, z)
-
-        # Create triangles for cloud surface (simplified approach)
-        geom = Geom(vdata)
-        tris = GeomTriangles(Geom.UHStatic)
-
-        # Connect vertices to form cloud surface
-        # Use every 3 vertices to create triangles
-        for i in range(0, len(vertices) - 2, 3):
-            if i + 2 < len(vertices):
-                tris.addVertices(i, i + 1, i + 2)
-
-        # Add some connecting triangles for better shape
-        for i in range(0, len(vertices) - 6, 6):
-            if i + 5 < len(vertices):
-                tris.addVertices(i, i + 3, i + 1)
-                tris.addVertices(i + 1, i + 3, i + 4)
-
-        tris.closePrimitive()
-        geom.addPrimitive(tris)
-
-        # Create geometry node
-        cloud_geom_node = GeomNode(name)
-        cloud_geom_node.addGeom(geom)
-
-        return cloud_geom_node
-
     def _create_sun(self):
         """Create a bright, circular sun in the mountain sky."""
         sun_node = self.render.attachNewNode("sun_system")
@@ -983,6 +847,94 @@ class MountainSkybox:
             # Keep skybox centered on camera (only X and Y, not Z)
             self.skybox_node.setPos(camera_pos.x, camera_pos.y, 0)
 
+            # Update sky shader with current time for day/night cycle
+            if self.sky_dome:
+                self.sky_dome.setShaderInput("u_time", self.animation_time)
+                # Swap between day and night shaders based on cycle
+                self._update_sky_shader()
+
+            # Update mountain shaders with time for day/night cycle matching
+            if self.mountain_shader:
+                # Find all mountain nodes and update their time uniform
+                for child in self.skybox_node.getChildren():
+                    if "mountain" in child.getName().lower():
+                        child.setShaderInput("u_time", self.animation_time)
+
             # Animate clouds
             self.animation_time += dt
             self._animate_clouds()
+
+    def _update_sky_shader(self):
+        """Swap between day (sky.frag) and night (aurora.frag) shaders based on cycle time."""
+        if not self.enable_day_night_cycle or not self.sky_dome or not self.sky_shader or not self.aurora_shader:
+            return
+
+        # Normalize time to 0-1 cycle using u_cycleSpeed
+        cycle_speed = 0.2  # Matches shader default
+        cycle_progress = (self.animation_time * cycle_speed) % 1.0
+        
+        # Hysteresis to prevent flicker at boundaries
+        hysteresis_on = 0.65  # Transition to night
+        hysteresis_off = 0.35  # Transition back to day
+        
+        should_be_night = False
+        if self.current_sky_is_aurora:
+            should_be_night = cycle_progress > hysteresis_off
+        else:
+            should_be_night = cycle_progress > hysteresis_on
+        
+        # Only swap if state changed
+        if should_be_night != self.current_sky_is_aurora:
+            self.current_sky_is_aurora = should_be_night
+            self.shader_transition_time = 0.0
+            self.time_in_current_shader = 0.0
+            
+            # Store previous sky dome for crossfade
+            if self.prev_sky_dome:
+                self.prev_sky_dome.removeNode()
+            self.prev_sky_dome = self.sky_dome
+            
+            # Create new sky dome with new shader
+            new_sky_dome = self._create_sky_dome_with_shader(should_be_night)
+            new_sky_dome.reparentTo(self.skybox_node)
+            self.sky_dome = new_sky_dome
+            
+            shader_name = "aurora (night)" if should_be_night else "sky (day)"
+            print(f"Starting transition to {shader_name} shader at cycle {cycle_progress:.2f}")
+        
+        # Update transition timer and crossfade opacity
+        self.shader_transition_time += 0.016
+        fade_alpha = min(1.0, self.shader_transition_time / self.shader_transition_duration)
+        
+        # Update current shader's alpha (fade in)
+        self.sky_dome.setShaderInput("u_transitionAlpha", fade_alpha)
+        
+        # Update previous shader's alpha (fade out)
+        if self.prev_sky_dome and not self.prev_sky_dome.isEmpty():
+            self.prev_sky_dome.setShaderInput("u_transitionAlpha", 1.0 - fade_alpha)
+            
+            # Remove when fully faded out
+            if fade_alpha >= 1.0:
+                self.prev_sky_dome.removeNode()
+                self.prev_sky_dome = None
+    
+    def _create_sky_dome_with_shader(self, is_aurora):
+        """Create sky dome and apply appropriate shader."""
+        sky_geom = self._create_sky_hemisphere(1800, 32, 16)
+        sky_dome = self.render.attachNewNode(sky_geom)
+        
+        target_shader = self.aurora_shader if is_aurora else self.sky_shader
+        if target_shader:
+            sky_dome.setShader(target_shader)
+            self._set_sky_shader_uniforms(sky_dome, is_aurora=is_aurora)
+        else:
+            sky_dome.setColor(Vec4(0.5, 0.7, 1.0, 1.0))
+        
+        sky_dome.setLightOff()
+        sky_dome.setBin("background", 0)
+        sky_dome.setDepthWrite(False)
+        sky_dome.setDepthTest(False)
+        sky_dome.setTwoSided(True)
+        sky_dome.setTransparency(TransparencyAttrib.MAlpha)
+        
+        return sky_dome

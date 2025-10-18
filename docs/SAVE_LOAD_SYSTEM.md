@@ -71,7 +71,7 @@ world._create_example_buildings()
 ## Implementation Details
 
 ### WorldSerializer Class
-Located in `src/engine/world_serializer.py`, this class handles all serialization:
+Located in `src/testgame/engine/world_serializer.py`, this class handles all serialization:
 
 #### Key Methods
 - `save_world(world, player, save_name, metadata)`: Save complete world state
@@ -138,13 +138,13 @@ Located in `src/engine/world_serializer.py`, this class handles all serializatio
 
 1. **Add to World class**:
 ```python
-# In world.py
+# In src/testgame/engine/world.py
 self.custom_objects = []
 ```
 
 2. **Add to WorldSerializer**:
 ```python
-# In world_serializer.py
+# In src/testgame/engine/world_serializer.py
 def _serialize_custom_objects(self, objects):
     serialized = []
     for obj in objects:
@@ -308,7 +308,6 @@ template_mgr.load_template('flat_world', world)
 ### World Methods
 - `save_to_file(save_name, player, metadata=None)`: Save world
 - `load_from_file(save_name, player)`: Load world
-- `list_saves()`: Get available saves
 - `clear_world()`: Remove all objects
 
 ### WorldSerializer Methods

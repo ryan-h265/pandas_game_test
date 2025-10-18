@@ -5,7 +5,7 @@ Tool controls (scroll wheel and `[` `]` keys) are now context-sensitive and only
 
 ## Changes Made
 
-### Base Tool Class (`src/tools/tool_manager.py`)
+### Base Tool Class (`src/testgame/tools/base.py`)
 Added two new methods to the base `Tool` class:
 - `adjust_primary_property(delta)` - Scroll wheel adjustments
 - `adjust_secondary_property(delta)` - `[` `]` key adjustments
@@ -48,7 +48,7 @@ Each method returns `(property_name, new_value)` tuple or `None` if not applicab
   - Lower = faster shooting
   - Default: 0.3
 
-### Updated Main Controls (`src/main.py`)
+### Updated Main Controls (`src/testgame/game.py`)
 
 #### `adjust_brush_size(direction)` → Context-sensitive primary property
 - Now calls `active_tool.adjust_primary_property(direction)`

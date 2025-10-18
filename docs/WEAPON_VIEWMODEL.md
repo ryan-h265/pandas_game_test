@@ -5,7 +5,7 @@ Added a complete first-person weapon viewmodel system to display tools like an F
 
 ## Files Created/Modified
 
-### New File: `src/rendering/weapon_viewmodel.py`
+### New File: `src/testgame/rendering/weapon_viewmodel.py`
 - **WeaponViewModel class**: Manages FPS-style weapon display attached to camera
 - Procedurally generated 3D models for each tool:
   - **Fist**: Simple hand with palm, fingers, and thumb
@@ -30,14 +30,14 @@ Added a complete first-person weapon viewmodel system to display tools like an F
 
 ### Modified Files
 
-#### `src/tools/tool_manager.py`
+#### `src/testgame/tools/tool_manager.py`
 - Added `weapon_viewmodel` parameter to `ToolManager.__init__()`
 - Added `view_model_name` property to `Tool` base class
 - Updated `set_active_tool()` to show weapon model when switching
 - Updated `use_primary/secondary/tertiary()` to play weapon animations
 - Updated `update()` to pass movement state to viewmodel for bob effect
 
-#### `src/main.py`
+#### `src/testgame/game.py`
 - Imported `WeaponViewModel`
 - Created `self.weapon_viewmodel` instance
 - Passed to `ToolManager`
@@ -45,7 +45,7 @@ Added a complete first-person weapon viewmodel system to display tools like an F
 - Added control info to help text
 - Updated game loop to pass player movement state to tool manager
 
-#### `src/player/controller.py`
+#### `src/testgame/player/controller.py`
 - Added `is_moving()` method to check if player is moving (for weapon bob)
 
 ## Usage

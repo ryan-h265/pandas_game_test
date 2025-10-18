@@ -13,7 +13,7 @@ from testgame.engine.world_serializer import WorldSerializer
 class World:
     """Manages the game world state and updates."""
 
-    def __init__(self, render, bullet_world, auto_generate=True):
+    def __init__(self, render, bullet_world, auto_generate=True, world_data=None):
         """Initialize the world.
 
         Args:
@@ -54,6 +54,40 @@ class World:
 
             # Create example destructible wall
             # self._create_example_wall()
+        else:
+            print("Loading from saved world data...")
+            self._load_world_data(world_data)
+
+    def _load_world_data(self, world_data):
+        """Load world state from provided data.
+
+        Args:
+            world_data: Data structure containing world state
+        """
+        if not world_data:
+            print("No world data provided for loading.")
+            return
+
+        # Load terrain chunks
+        terrain_chunks = world_data.get("terrain_chunks", [])
+        for chunk_info in terrain_chunks:
+            chunk_x = chunk_info["chunk_x"]
+            chunk_z = chunk_info["chunk_z"]
+            self.terrain.generate_chunk(chunk_x, chunk_z, chunk_info)
+            self.loaded_chunks.add((chunk_x, chunk_z))
+
+        # Load buildings
+        buildings_data = world_data.get("buildings", [])
+        for building_info in buildings_data:
+            building = self.serializer.deserialize_building(
+                building_info, self.bullet_world, self.render
+            )
+            if building:
+                self.buildings.append(building)
+
+        print(
+            f"Loaded {len(self.loaded_chunks)} terrain chunks and {len(self.buildings)} buildings from save data"
+        )
 
     def _generate_initial_terrain(self):
         """Generate initial terrain chunks around spawn point."""
@@ -426,13 +460,13 @@ class World:
         """
         return self.serializer.load_world(self, player, save_name)
 
-    def list_saves(self):
-        """List all available save files.
+    # def list_saves(self):
+    #     """List all available save files.
 
-        Returns:
-            List of tuples (save_name, metadata_dict)
-        """
-        return self.serializer.list_saves()
+    #     Returns:
+    #         List of tuples (save_name, metadata_dict)
+    #     """
+    #     return self.serializer.list_saves()
 
     def clear_world(self):
         """Clear all objects from the world (buildings, physics objects, etc.)."""

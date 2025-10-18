@@ -13,16 +13,16 @@ A complete shadow and lighting system for your Panda3D game that provides ReSTIR
 - `assets/shaders/ssao.frag` - Screen-space ambient occlusion
 
 ### Python Modules
-- `src/rendering/shadow_manager.py` - Cascaded shadow map manager
-- `src/rendering/post_process.py` - Post-processing effects manager
-- `src/config/shadow_config.py` - Configuration and quality presets
+- `src/testgame/rendering/shadow_manager.py` - Cascaded shadow map manager
+- `src/testgame/rendering/post_process.py` - Post-processing effects manager
+- `src/testgame/config/shadow_config.py` - Configuration and quality presets
 
 ### Documentation
 - `SHADOW_SYSTEM.md` - Complete technical documentation
 - `IMPLEMENTATION_SUMMARY.md` - This file
 
 ### Modified Files
-- `src/main.py` - Integrated shadow system into main game loop
+- `src/testgame/game.py` - Integrated shadow system into main game loop
 
 ## Key Features
 
@@ -80,7 +80,7 @@ hatch run testgame
 
 ### Configuration
 
-Edit [src/config/shadow_config.py](src/config/shadow_config.py):
+Edit [src/testgame/config/shadow_config.py](src/testgame/config/shadow_config.py):
 
 ```python
 # Quick quality presets
@@ -190,7 +190,7 @@ Approximate frame time costs:
 
 1. **Test the system:**
    ```bash
-   hatch run run
+   hatch run testgame
    ```
 
 2. **Adjust for your GPU:**

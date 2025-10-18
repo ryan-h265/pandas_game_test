@@ -13,7 +13,7 @@ This implementation provides a practical shadow and lighting system for Panda3D 
 
 ### Components
 
-#### 1. Shadow Manager ([rendering/shadow_manager.py](src/rendering/shadow_manager.py))
+#### 1. Shadow Manager ([rendering/shadow_manager.py](src/testgame/rendering/shadow_manager.py))
 
 Manages the cascaded shadow map system:
 
@@ -28,7 +28,7 @@ Manages the cascaded shadow map system:
 - `cascade_splits`: [20, 50, 150] (view space distances)
 - `shadow_softness`: 2.0 (PCF kernel size multiplier)
 
-#### 2. Post-Process Manager ([rendering/post_process.py](src/rendering/post_process.py))
+#### 2. Post-Process Manager ([rendering/post_process.py](src/testgame/rendering/post_process.py))
 
 Handles post-processing effects:
 
@@ -112,9 +112,9 @@ Screen-space ambient occlusion adds depth to the scene:
 Adjust settings in the shadow manager initialization:
 
 ```python
-# In main.py
+# In src/testgame/game.py
 light_dir = Vec3(1, 1, -1)  # Change sun angle
-self.shadow_manager = ShadowManager(self.render, light_dir)
+self.shadow_manager = ShadowManager(self, self.render, light_dir)
 
 # Adjust shadow quality
 self.shadow_manager.shadow_map_size = 4096  # Higher resolution

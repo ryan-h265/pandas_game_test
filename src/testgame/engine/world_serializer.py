@@ -30,23 +30,6 @@ class WorldSerializer:
         """
         return self.saves_dir / f"{save_name}.json"
 
-    def list_saves(self):
-        """List all available save files.
-
-        Returns:
-            List of tuples (save_name, metadata_dict)
-        """
-        saves = []
-        for save_file in self.saves_dir.glob("*.json"):
-            try:
-                with open(save_file, "r") as f:
-                    data = json.load(f)
-                    metadata = data.get("metadata", {})
-                    saves.append((save_file.stem, metadata))
-            except Exception as e:
-                print(f"Error reading save {save_file}: {e}")
-        return sorted(saves, key=lambda x: x[1].get("timestamp", ""), reverse=True)
-
     def save_world(self, world, player, save_name, metadata=None):
         """Save the current world state to a file.
 
@@ -279,7 +262,7 @@ class WorldSerializer:
             data: List of dicts with building data
             world: World instance to add buildings to
         """
-        from structures.building import Building, BuildingPiece
+        from testgame.structures.building import Building, BuildingPiece
 
         for building_data in data:
             building_type = building_data["type"]
