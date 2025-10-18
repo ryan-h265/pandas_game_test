@@ -216,10 +216,6 @@ class HUD:
         # if player_pos is not None:
         #     self.update_minimap(player_pos)
 
-        # Update tool info
-        if tool is not None:
-            self.update_tool_info(tool)
-
     def set_tool_name(self, tool_name):
         """Update tool display.
 
@@ -325,6 +321,8 @@ class HUD:
             self.tool_info_text3.setText("")
             self.tool_info_text4.setText("")
             return
+        
+        print("Updating tool info for:", tool.name)
 
         tool_type = tool.tool_type
         self.tool_name_text.setText(f"Tool: {tool.name}")

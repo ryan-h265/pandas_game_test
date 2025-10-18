@@ -204,6 +204,7 @@ class Game(ShowBase):
             self.mouseWatcherNode,
             self.point_light_manager,
         )
+
         # Set up tool message callback to display on HUD
         self.tool_manager.tool_message_callback = self.on_tool_change
 
@@ -825,16 +826,9 @@ class Game(ShowBase):
         Args:
             message: Tool change message
         """
-        # Extract tool name from message
-        if ":" in message:
-            tool_name = message.split(":", 1)[1].strip()
-            tool_name = tool_name.split("(")[0].strip()
-            self.hud.set_tool_name(tool_name)
-        self.hud.show_message(message)
-
-        # Update crosshair for new tool
         active_tool = self.tool_manager.get_active_tool()
         if active_tool:
+            self.hud.update_tool_info(self.tool_manager.active_tool)
             self.crosshair_manager.show_crosshair(active_tool.view_model_name)
 
     def on_number_key(self, number):
