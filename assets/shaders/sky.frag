@@ -4,6 +4,7 @@
 uniform float u_time;// Elapsed time in seconds
 uniform vec3 sunBaseColor;// Base sun color
 uniform float u_cycleSpeed;// Day/night speed (0.025 ~= 4min cycle)
+uniform float u_transitionAlpha;// Fade-in alpha during transitions (0-1)
 
 // === Inputs from vertex shader ===
 in vec3 v_position;// World-space vertex position on hemisphere
@@ -48,7 +49,7 @@ void main(){
   
   skyColor+=sunColor*(sunDisk*2.+sunGlow*.8)*dayFactor;
   
-  // Clamp and output
+  // Clamp and output with fade-in during transition
   skyColor=clamp(skyColor,0.,1.);
-  fragColor=vec4(skyColor,1.);
+  fragColor=vec4(skyColor,u_transitionAlpha);
 }

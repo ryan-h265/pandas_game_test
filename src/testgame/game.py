@@ -136,7 +136,7 @@ class Game(ShowBase):
         print(f"Loading level: {level_info['name']}")
 
         # Initialize skybox with distant mountains, clouds, and sun
-        self.skybox = MountainSkybox(self.render, self.camera, self)
+        self.skybox = MountainSkybox(self.render, self.camera, self, enable_day_night_cycle=False)
         self.skybox.create_skybox()
         print("Created mountain skybox with distant peaks, clouds, and sun")
 

@@ -1,123 +1,127 @@
-#version 330
+#version 330 core
 
-// === Uniforms ===
-uniform float u_time;// Elapsed time in seconds
-uniform vec3 sunBaseColor;// Base sun color
-uniform vec3 moonBaseColor;// Base moon color
-uniform float u_cycleSpeed;// Day/night speed (0.025 ~= 4min cycle)
+// https://www.shadertoy.com/view/XtGGRt
 
-// === Inputs from vertex shader ===
-in vec3 v_position;// World-space vertex position on hemisphere
-in vec3 v_normal;// Vertex normal
+// === UNIFORMS ===
+uniform float u_time;// seconds
+uniform vec2 u_resolution;// viewport size
+uniform vec3 u_cameraPos;// camera position (optional)
+uniform vec3 u_auroraDir;// base aurora orientation (e.g. vec3(-0.5, -0.6, 0.9))
+uniform float u_transitionAlpha;// Fade-in alpha during transitions (0-1)
 
-// === Output ===
+// === INPUTS ===
+in vec3 v_position;// world-space vertex position (hemisphere)
+in vec3 v_normal;// sky direction (should point upward)
+
+// === OUTPUT ===
 out vec4 fragColor;
 
-// --- Noise for stars ---
-float hash(vec3 p){
-  return fract(sin(dot(p,vec3(12.9898,78.233,45.164)))*43758.5453);
-}
+// === HELPERS ===
+mat2 mm2(float a){float c=cos(a),s=sin(a);return mat2(c,s,-s,c);}
+mat2 m2=mat2(.95534,.29552,-.29552,.95534);
 
-float starField(vec3 rayDir,float intensity,float time){
-  vec3 starCoord=rayDir*50.;// Scale up for star positions
-  vec3 cellCoord=floor(starCoord);
-  vec3 cellFraction=fract(starCoord);
-  
-  float star=0.;
-  for(int x=-1;x<=1;x++){
-    for(int y=-1;y<=1;y++){
-      for(int z=-1;z<=1;z++){
-        vec3 neighbor=cellCoord+vec3(x,y,z);
-        float h=hash(neighbor);
-        
-        // Only some cells have stars (sparse)
-        if(h>.95){
-          vec3 starCenter=neighbor+vec3(
-            fract(sin(h*12.34)*.5)+.5,
-            fract(sin(h*23.45)*.5)+.5,
-            fract(sin(h*34.56)*.5)+.5
-          );
-          
-          float d=length(starCoord-starCenter);
-          
-          // Twinkle based on star's own hash and time
-          float twinklePeriod=2.+h*3.;// 2-5 second twinkle cycles
-          float twinkle=.3+.7*(sin(time*6.28/twinklePeriod+h*100.)*.5+.5);
-          
-          // Sharp core point
-          float core=exp(-d*d*50.)*twinkle;// Tight gaussian for sharp point
-          
-          // Soft glow around star
-          float glow=exp(-d*d*3.)*.3;// Wider gaussian for glow
-          
-          float starBrightness=(core+glow)*max(0.,h-.95)*2.;
-          star=max(star,starBrightness);
-        }
-      }
-    }
+float tri(float x){return clamp(abs(fract(x)-.5),.01,.49);}
+vec2 tri2(vec2 p){return vec2(tri(p.x)+tri(p.y),tri(p.y+tri(p.x)));}
+
+float triNoise2d(vec2 p,float spd,float time){
+  float z=1.8;
+  float z2=2.5;
+  float rz=0.;
+  p*=mm2(p.x*.06);
+  vec2 bp=p;
+  for(float i=0.;i<5.;i++){
+    vec2 dg=tri2(bp*1.85)*.75;
+    dg*=mm2(time*spd);
+    p-=dg/z2;
+    bp*=1.3;
+    z2*=.45;
+    z*=.42;
+    p*=1.21+(rz-1.)*.02;
+    rz+=tri(p.x+tri(p.y))*z;
+    p*=-m2;
   }
-  
-  return clamp(star*intensity,0.,1.);
+  return clamp(1./pow(rz*29.,1.3),0.,.55);
 }
 
+float hash21(vec2 n){return fract(sin(dot(n,vec2(12.9898,4.1414)))*43758.5453);}
+
+vec4 aurora(vec3 ro,vec3 rd,float time){
+  vec4 col=vec4(0);
+  vec4 avgCol=vec4(0);
+  for(float i=0.;i<50.;i++){
+    float pt=((.8+pow(i,1.4)*.002)-ro.y)/(rd.y*2.+.4);
+    vec3 bpos=ro+pt*rd;
+    vec2 p=bpos.zx;
+    float rzt=triNoise2d(p,.06,time);
+    vec4 col2=vec4(0.);
+    col2.a=rzt;
+    col2.rgb=(sin(1.-vec3(2.15,-.5,1.2)+i*.043)*.5+.5)*rzt;
+    avgCol=mix(avgCol,col2,.5);
+    col+=avgCol*exp2(-i*.065-2.5)*smoothstep(0.,5.,i);
+  }
+  col*=clamp(rd.y*15.+.4,0.,1.);
+  return col*1.8;
+}
+
+vec3 nmzHash33(vec3 q){
+  uvec3 p=uvec3(ivec3(q));
+  p=p*uvec3(374761393U,1103515245U,668265263U)+p.zxy+p.yzx;
+  p=p.yzx*(p.zxy^(p>>3U));
+  return vec3(p^(p>>16U))*(1./4294967295.);
+}
+
+vec3 stars(vec3 p){
+  vec3 c=vec3(0.);
+  float res=u_resolution.x;
+  for(float i=0.;i<4.;i++){
+    vec3 q=fract(p*(.15*res))-.5;
+    vec3 id=floor(p*(.15*res));
+    vec2 rn=nmzHash33(id).xy;
+    float c2=1.-smoothstep(0.,.6,length(q));
+    c2*=step(rn.x,.0005+i*i*.001);
+    c+=c2*(mix(vec3(1.,.49,.1),vec3(.75,.9,1.),rn.y)*.1+.9);
+    p*=1.3;
+  }
+  return c*c*.8;
+}
+
+vec3 bg(vec3 rd){
+  float sd=dot(normalize(u_auroraDir),rd)*.5+.5;
+  sd=pow(sd,5.);
+  vec3 col=mix(vec3(.05,.1,.2),vec3(.1,.05,.2),sd);
+  return col*.63;
+}
 void main(){
+  // Use vertex position as ray direction
   vec3 rayDir=normalize(v_position);
   
-  // --- Day/night cycle ---
-  float cycle=u_time*u_cycleSpeed;
-  vec3 sunDir=normalize(vec3(sin(cycle),sin(cycle*.8),cos(cycle)));
-  vec3 moonDir=-sunDir;
+  // FIX: Rotate from Shadertoy space (+Z forward, +Y up)
+  // to hemisphere space (+Y up, +Z forward)
+  rayDir=rayDir.xzy;// swaps Y and Z → fixes 90° rotation
   
-  float sunHeight=sunDir.y;
-  float moonHeight=moonDir.y;
+  vec3 ro=u_cameraPos;// typically vec3(0,0,0)
   
-  // Transition factor: -1 = night, 0 = twilight, 1 = day
-  float dayFactor=smoothstep(-.3,.3,sunHeight);
+  vec3 col=vec3(0.);
+  vec3 rd=rayDir;
   
-  // --- Sky gradient ---
-  vec3 dayZenith=vec3(.2,.5,.9);// Rich blue zenith
-  vec3 dayHorizon=vec3(.4,.65,.95);// Lighter blue horizon (not gray!)
-  vec3 nightZenith=vec3(.01,.015,.03);
-  vec3 nightHorizon=vec3(.05,.08,.12);// Slightly lighter night horizon
+  // Fade horizon
+  float fade=smoothstep(0.,.01,abs(rd.y))*.1+.9;
+  col=bg(rd)*fade;
   
-  // Use rayDir.z for height (Z is up in Panda3D)
-  float heightFactor=clamp(rayDir.z,0.,1.);
-  heightFactor=pow(heightFactor,.7);// Power curve for more zenith color
+  if(rd.y>0.){
+    vec4 aur=smoothstep(0.,1.5,aurora(ro,rd,u_time))*fade;
+    col+=stars(rd);
+    col=col*(1.-aur.a)+aur.rgb;
+  }else{
+    rd.y=abs(rd.y);
+    col=bg(rd)*fade*.6;
+    vec4 aur=smoothstep(0.,2.5,aurora(ro,rd,u_time));
+    col+=stars(rd)*.1;
+    col=col*(1.-aur.a)+aur.rgb;
+    vec3 pos=ro+((.5-ro.y)/rd.y)*rd;
+    float nz2=triNoise2d(pos.xz*vec2(.5,.7),0.,u_time);
+    col+=mix(vec3(.2,.25,.5)*.08,vec3(.3,.3,.5)*.7,nz2*.4);
+  }
   
-  vec3 zenith=mix(nightZenith,dayZenith,dayFactor);
-  vec3 horizon=mix(nightHorizon,dayHorizon,dayFactor);
-  vec3 skyColor=mix(horizon,zenith,heightFactor);
-  
-  // --- Sun disk + glow ---
-  float sunDot=max(dot(rayDir,sunDir),0.);
-  float sunDisk=smoothstep(.992,1.,sunDot);
-  float sunGlow=pow(sunDot,30.);
-  vec3 sunColor=mix(vec3(1.,.7,.3),sunBaseColor,dayFactor);
-  skyColor+=sunColor*(sunDisk*2.+sunGlow*.8)*dayFactor;
-  
-  // --- Sunrise/sunset colors (only during twilight) ---
-  float twilight=1.-abs(sunHeight);
-  float sunsetFactor=smoothstep(0.,.5,twilight);
-  vec3 sunsetColor=mix(vec3(0.,0.,0.),vec3(1.,.4,.1),sunsetFactor);
-  float sunsetBlend=(1.-dayFactor)*sunsetFactor;
-  skyColor=mix(skyColor,sunsetColor,sunsetBlend*.4);
-  
-  // --- Moon disk + glow ---
-  float moonDot=max(dot(rayDir,moonDir),0.);
-  float moonDisk=smoothstep(.992,1.,moonDot);
-  float moonGlow=pow(moonDot,40.);
-  skyColor+=moonBaseColor*(moonDisk*1.8+moonGlow*1.2)*(1.-dayFactor);
-  
-  // --- Moonlight tint at night ---
-  float moonLight=smoothstep(0.,.4,moonHeight)*(1.-dayFactor);
-  skyColor+=vec3(.04,.06,.1)*moonLight*.3;
-  
-  // --- Stars (only at night) ---
-  float starIntensity=1.-dayFactor;
-  float stars=starField(rayDir,starIntensity,u_time);
-  skyColor+=vec3(.9,.95,1.)*stars;
-  
-  // Clamp and output
-  skyColor=clamp(skyColor,0.,1.);
-  fragColor=vec4(skyColor,1.);
+  fragColor=vec4(col,u_transitionAlpha);
 }

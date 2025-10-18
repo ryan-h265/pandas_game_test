@@ -9,6 +9,7 @@ from panda3d.core import (
     Geom,
     GeomTriangles,
     GeomNode,
+    Vec2,
     Vec3,
     Vec4,
     TransparencyAttrib,
@@ -20,13 +21,14 @@ from panda3d.core import (
 class MountainSkybox:
     """Creates a procedural skybox with distant mountains, clouds, and sun."""
 
-    def __init__(self, render, camera, base):
+    def __init__(self, render, camera, base, enable_day_night_cycle=True):
         """Initialize the skybox.
 
         Args:
             render: Panda3D render node
             camera: Camera node for positioning
             base: ShowBase instance for camera lens access
+            enable_day_night_cycle: If True, swap between sky and aurora shaders. If False, use only sky shader.
         """
         self.render = render
         self.camera = camera
@@ -35,16 +37,24 @@ class MountainSkybox:
         self.sky_dome = None  # Store sky dome for per-frame shader updates
         self.cloud_nodes = []  # Track cloud nodes for animation
         self.animation_time = 0.0  # Track time for cloud movement
-        self.sky_shader = None  # Sky shader reference
+        self.sky_shader = None  # Sky shader reference (day)
+        self.aurora_shader = None  # Aurora shader reference (night)
         self.cloud_shader = None  # Cloud shader reference
         self.mountain_shader = None  # Mountain shader reference
+        self.enable_day_night_cycle = enable_day_night_cycle  # Toggle day/night swapping
+        self.current_sky_is_aurora = False  # Track which shader is active
+        self.shader_transition_time = 0.0  # Time spent in transition
+        self.shader_transition_duration = 2.0  # Seconds to fade between shaders
+        self.prev_sky_dome = None  # Previous shader dome for crossfade
+        self.time_in_current_shader = 0.0  # Time spent in current shader before transitioning
+        self.min_shader_duration = 30.0  # Minimum seconds to stay in each shader
         self._load_shaders()
 
     def _load_shaders(self):
         """Load sky, mountain, and cloud shaders."""
         shader_dir = Path(__file__).resolve().parents[3] / "assets" / "shaders"
 
-        # Load sky shader
+        # Load sky shader (day)
         sky_vert = shader_dir / "sky.vert"
         sky_frag = shader_dir / "sky.frag"
         if sky_vert.exists() and sky_frag.exists():
@@ -52,9 +62,21 @@ class MountainSkybox:
                 Shader.SL_GLSL, vertex=str(sky_vert), fragment=str(sky_frag)
             )
             if self.sky_shader:
-                print("Successfully loaded sky shader")
+                print("Successfully loaded sky shader (day)")
         else:
             print("Warning: Sky shader files not found")
+
+        # Load aurora shader (night)
+        aurora_vert = shader_dir / "sky.vert"  # Reuse sky vertex shader
+        aurora_frag = shader_dir / "aurora.frag"
+        if aurora_vert.exists() and aurora_frag.exists():
+            self.aurora_shader = Shader.load(
+                Shader.SL_GLSL, vertex=str(aurora_vert), fragment=str(aurora_frag)
+            )
+            if self.aurora_shader:
+                print("Successfully loaded aurora shader (night)")
+        else:
+            print("Warning: Aurora shader files not found")
 
         # Load mountain shader
         mountain_vert = shader_dir / "mountain.vert"
@@ -114,44 +136,31 @@ class MountainSkybox:
 
     def _create_sky_dome(self):
         """Create sky dome with shader-based procedural rendering."""
-        import math
-
-        # Create inverted hemisphere geometry for sky
-        sky_geom = self._create_sky_hemisphere(1800, 32, 16)
-        sky_dome = self.render.attachNewNode(sky_geom)
-
-        # Apply sky shader
-        if self.sky_shader:
-            sky_dome.setShader(self.sky_shader)
-            # Pass initial shader uniforms
-            # sky_dome.setShaderInput("u_time", 0.0)
-            sky_dome.setShaderInput("u_cycleSpeed", 0.2)  # 0.025 == ~4 min full cycle
-            sky_dome.setShaderInput("sunBaseColor", Vec3(1.0, 0.9, 0.7))
-            sky_dome.setShaderInput("moonBaseColor", Vec3(0.8, 0.85, 1.0))
-
-            sky_dome.setShaderInput("u_time", 0.0)
-            sky_dome.setShaderInput(
-                "u_resolution", Vec3(800, 600, 0)
-            )  # Placeholder resolution
-            sky_dome.setShaderInput("u_cameraPos", self.camera.getPos())
-            sky_dome.setShaderInput("u_auroraDir", Vec3(-0.5, -0.6, 0.9).normalized())
-
-            print("Applied sky shader to sky dome")
-        else:
-            # Fallback: solid color
-            sky_dome.setColor(Vec4(0.5, 0.7, 1.0, 1.0))
-            print("Warning: No sky shader, using solid color")
-
-        sky_dome.setLightOff()
-        sky_dome.setBin("background", 0)
-        sky_dome.setDepthWrite(False)
-        sky_dome.setDepthTest(False)
-        sky_dome.setTwoSided(True)
-
-        # Store reference for per-frame updates
+        sky_dome = self._create_sky_dome_with_shader(is_aurora=False)
         self.sky_dome = sky_dome
-
         return sky_dome
+
+    def _set_sky_shader_uniforms(self, sky_dome_node, is_aurora=False):
+        """Set shader uniforms based on which shader is active.
+        
+        Args:
+            sky_dome_node: The sky dome node to update
+            is_aurora: True for aurora (night) shader, False for sky (day) shader
+        """
+        # Common uniforms for both shaders
+        sky_dome_node.setShaderInput("u_time", self.animation_time)
+        sky_dome_node.setShaderInput("u_transitionAlpha", 1.0)  # Start fully opaque
+        
+        if is_aurora:
+            # Aurora shader specific uniforms
+            sky_dome_node.setShaderInput("u_resolution", Vec2(800, 600))
+            sky_dome_node.setShaderInput("u_cameraPos", Vec3(0, 0, 0))
+            sky_dome_node.setShaderInput("u_auroraDir", Vec3(-0.5, -0.6, 0.9).normalized())
+        else:
+            # Sky (day) shader specific uniforms
+            sky_dome_node.setShaderInput("u_cycleSpeed", 0.2)
+            sky_dome_node.setShaderInput("sunBaseColor", Vec3(1.0, 0.9, 0.7))
+            sky_dome_node.setShaderInput("moonBaseColor", Vec3(0.8, 0.85, 1.0))
 
     def _create_sky_hemisphere(self, radius, lon_segs, lat_segs):
         """Create simple hemisphere geometry for sky (no vertex colors, shader-driven)."""
@@ -839,8 +848,10 @@ class MountainSkybox:
             self.skybox_node.setPos(camera_pos.x, camera_pos.y, 0)
 
             # Update sky shader with current time for day/night cycle
-            if self.sky_dome and self.sky_shader:
+            if self.sky_dome:
                 self.sky_dome.setShaderInput("u_time", self.animation_time)
+                # Swap between day and night shaders based on cycle
+                self._update_sky_shader()
 
             # Update mountain shaders with time for day/night cycle matching
             if self.mountain_shader:
@@ -852,3 +863,78 @@ class MountainSkybox:
             # Animate clouds
             self.animation_time += dt
             self._animate_clouds()
+
+    def _update_sky_shader(self):
+        """Swap between day (sky.frag) and night (aurora.frag) shaders based on cycle time."""
+        if not self.enable_day_night_cycle or not self.sky_dome or not self.sky_shader or not self.aurora_shader:
+            return
+
+        # Normalize time to 0-1 cycle using u_cycleSpeed
+        cycle_speed = 0.2  # Matches shader default
+        cycle_progress = (self.animation_time * cycle_speed) % 1.0
+        
+        # Hysteresis to prevent flicker at boundaries
+        hysteresis_on = 0.65  # Transition to night
+        hysteresis_off = 0.35  # Transition back to day
+        
+        should_be_night = False
+        if self.current_sky_is_aurora:
+            should_be_night = cycle_progress > hysteresis_off
+        else:
+            should_be_night = cycle_progress > hysteresis_on
+        
+        # Only swap if state changed
+        if should_be_night != self.current_sky_is_aurora:
+            self.current_sky_is_aurora = should_be_night
+            self.shader_transition_time = 0.0
+            self.time_in_current_shader = 0.0
+            
+            # Store previous sky dome for crossfade
+            if self.prev_sky_dome:
+                self.prev_sky_dome.removeNode()
+            self.prev_sky_dome = self.sky_dome
+            
+            # Create new sky dome with new shader
+            new_sky_dome = self._create_sky_dome_with_shader(should_be_night)
+            new_sky_dome.reparentTo(self.skybox_node)
+            self.sky_dome = new_sky_dome
+            
+            shader_name = "aurora (night)" if should_be_night else "sky (day)"
+            print(f"Starting transition to {shader_name} shader at cycle {cycle_progress:.2f}")
+        
+        # Update transition timer and crossfade opacity
+        self.shader_transition_time += 0.016
+        fade_alpha = min(1.0, self.shader_transition_time / self.shader_transition_duration)
+        
+        # Update current shader's alpha (fade in)
+        self.sky_dome.setShaderInput("u_transitionAlpha", fade_alpha)
+        
+        # Update previous shader's alpha (fade out)
+        if self.prev_sky_dome and not self.prev_sky_dome.isEmpty():
+            self.prev_sky_dome.setShaderInput("u_transitionAlpha", 1.0 - fade_alpha)
+            
+            # Remove when fully faded out
+            if fade_alpha >= 1.0:
+                self.prev_sky_dome.removeNode()
+                self.prev_sky_dome = None
+    
+    def _create_sky_dome_with_shader(self, is_aurora):
+        """Create sky dome and apply appropriate shader."""
+        sky_geom = self._create_sky_hemisphere(1800, 32, 16)
+        sky_dome = self.render.attachNewNode(sky_geom)
+        
+        target_shader = self.aurora_shader if is_aurora else self.sky_shader
+        if target_shader:
+            sky_dome.setShader(target_shader)
+            self._set_sky_shader_uniforms(sky_dome, is_aurora=is_aurora)
+        else:
+            sky_dome.setColor(Vec4(0.5, 0.7, 1.0, 1.0))
+        
+        sky_dome.setLightOff()
+        sky_dome.setBin("background", 0)
+        sky_dome.setDepthWrite(False)
+        sky_dome.setDepthTest(False)
+        sky_dome.setTwoSided(True)
+        sky_dome.setTransparency(TransparencyAttrib.MAlpha)
+        
+        return sky_dome
