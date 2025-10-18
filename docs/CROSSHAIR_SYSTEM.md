@@ -37,7 +37,7 @@ Each tool now has its own unique crosshair design that matches its purpose and f
 
 ### File Structure
 ```
-src/ui/crosshair.py - CrosshairManager class
+src/testgame/ui/crosshair.py - CrosshairManager class
 ```
 
 ### CrosshairManager Class
@@ -73,7 +73,7 @@ crosshair_manager = CrosshairManager(base)
 
 ### Integration Points
 
-#### Main Game (`src/main.py`)
+#### Main Game (`src/testgame/game.py`)
 
 1. **Initialization:**
    ```python
@@ -86,7 +86,7 @@ crosshair_manager = CrosshairManager(base)
    def on_tool_change(self, message):
        active_tool = self.tool_manager.get_active_tool()
        if active_tool:
-           self.crosshair_manager.show_crosshair(active_tool.view_model_name)
+           self.crosshair_manager.show_crosshair(active_tool.tool_type.value)
    ```
 
 3. **Toggle Control:**

@@ -11,19 +11,19 @@ Shadows were causing low FPS (~6 FPS) due to:
 ## Optimizations Applied
 
 ### 1. Shadows Disabled by Default
-- **Change**: Shadows now start DISABLED (line 70-76 in [src/main.py](src/main.py))
+- **Change**: Shadows now start DISABLED (line 70-76 in [src/testgame/game.py](src/testgame/game.py))
 - **Impact**: Massive FPS boost (should be 60+ FPS without shadows)
 - **Toggle**: Press `N` to toggle shadows on/off during gameplay
 
 ### 2. Reduced Shadow Map Resolution
 - **Before**: 512x512 per cascade
-- **After**: 256x256 (line 31 in [src/rendering/shadow_manager.py](src/rendering/shadow_manager.py))
+- **After**: 256x256 (line 31 in [src/testgame/rendering/shadow_manager.py](src/testgame/rendering/shadow_manager.py))
 - **Impact**: 4x fewer pixels to render = 4x faster shadow map generation
 - **Trade-off**: Slightly blockier shadow edges
 
 ### 3. Single Shadow Cascade
 - **Before**: 2 cascades (2 render passes)
-- **After**: 1 cascade (line 32 in [src/rendering/shadow_manager.py](src/rendering/shadow_manager.py))
+- **After**: 1 cascade (line 32 in [src/testgame/rendering/shadow_manager.py](src/testgame/rendering/shadow_manager.py))
 - **Impact**: 50% reduction in shadow rendering cost
 - **Trade-off**: Shadows only visible in ~40m radius
 
@@ -35,7 +35,7 @@ Shadows were causing low FPS (~6 FPS) due to:
 
 ### 5. Reduced Shadow Softness
 - **Before**: 1.0 softness
-- **After**: 0.5 softness (line 34 in [src/rendering/shadow_manager.py](src/rendering/shadow_manager.py))
+- **After**: 0.5 softness (line 34 in [src/testgame/rendering/shadow_manager.py](src/testgame/rendering/shadow_manager.py))
 - **Impact**: Smaller PCF kernel = better cache coherency
 - **Trade-off**: Harder shadows
 
@@ -69,9 +69,9 @@ Shadows were causing low FPS (~6 FPS) due to:
 
 If you're still getting low FPS even WITHOUT shadows, try:
 
-1. **Reduce terrain resolution** in [src/config/settings.py](src/config/settings.py)
+1. **Reduce terrain resolution** in [src/testgame/config/settings.py](src/testgame/config/settings.py)
 2. **Disable post-processing** (press `C`)
-3. **Reduce view distance** (modify chunk loading in [src/engine/world.py](src/engine/world.py))
+3. **Reduce view distance** (modify chunk loading in [src/testgame/engine/world.py](src/testgame/engine/world.py))
 4. **Disable chunk debug colors** (press `V` if enabled)
 5. **Disable wireframe** (press `B` if enabled)
 
@@ -127,7 +127,7 @@ Expected FPS: 60+
 
 ## Reverting Changes
 
-To re-enable shadows by default, edit [src/main.py](src/main.py) line 69-76:
+To re-enable shadows by default, edit [src/testgame/game.py](src/testgame/game.py) line 69-76:
 ```python
 # Change from:
 self.shadows_enabled = False

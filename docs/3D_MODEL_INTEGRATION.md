@@ -50,19 +50,33 @@ Features:
 
 ### 2. Props Module
 **Files:**
-- `src/props/__init__.py`
-- `src/props/lantern_prop.py`
+- `src/testgame/props/__init__.py`
+- `src/testgame/props/base_prop.py`
+- `src/testgame/props/lantern_prop.py`
+- `src/testgame/props/japanese_bar_prop.py`
 
-New `LanternProp` class that:
+**BaseProp class** provides common functionality for all props:
+- glTF model loading with fallback geometry
+- Physics body creation (static or dynamic)
+- Consistent API for all prop types
+
+**LanternProp class** that:
 - Loads the Japanese stone lantern model from `assets/models/props/japanese_stone_lantern/scene.gltf`
 - Creates physics body (static or dynamic)
 - Adds warm point light with flickering effect
 - Provides fallback geometry if model fails to load
 
+**JapaneseBarProp class** that:
+- Loads the Japanese bar model from `assets/models/props/japanese_bar/scene.gltf`
+- Creates physics body for large building structure
+- Provides fallback geometry if model fails to load
+
 Example usage:
 ```python
-from props.lantern_prop import LanternProp
+from testgame.props.lantern_prop import LanternProp
+from testgame.props.japanese_bar_prop import JapaneseBarProp
 
+# Create a lantern
 lantern = LanternProp(
     world=bullet_world,
     render=render,
@@ -70,26 +84,36 @@ lantern = LanternProp(
     point_light_manager=point_light_manager,
     static=True  # Immovable
 )
+
+# Create a Japanese bar
+bar = JapaneseBarProp(
+    world=bullet_world,
+    render=render,
+    position=Vec3(20, 20, 0),
+    point_light_manager=point_light_manager,
+    static=True  # Immovable
+)
 ```
 
 ### 3. Updated Files
 
-#### `src/engine/world.py`
+#### `src/testgame/engine/world.py`
 - Added `self.props = []` list to track props separately from buildings
 - Added `add_prop(prop)` method
 
-#### `src/tools/building.py`
+#### `src/testgame/tools/placement.py` (formerly building.py)
 - Updated to support both buildings and props
-- Added `type` field to building types ("building" or "prop")
-- Building type 3 is now the Japanese Stone Lantern
+- Added `type` field to placement types ("building" or "prop")
+- Placement type 3 is now the Japanese Stone Lantern
+- Placement type 4 is now the Japanese Bar
 - Ghost preview works for both buildings and props
 - Handles placement differently based on type
 
-#### `src/tools/tool_manager.py`
+#### `src/testgame/tools/tool_manager.py`
 - Added `point_light_manager` parameter
-- Passes point light manager to building tool
+- Passes point light manager to placement tool
 
-#### `src/main.py`
+#### `src/testgame/game.py` (main game class)
 - Passes `point_light_manager` to `ToolManager`
 
 ## How to Use
@@ -102,14 +126,14 @@ lantern = LanternProp(
 4. **Left-click** to place the lantern
 5. The lantern will emit a warm orange glow automatically
 
-### Building Tool Controls with Lantern:
-- **Left Click**: Place lantern at ghost position
-- **Right Click**: (Not used for lanterns)
+### Placement Tool Controls:
+- **Left Click**: Place object at ghost position
+- **Right Click**: (Not used for props)
 - **Middle Click**: Toggle grid snapping
 - **1**: Simple Building
 - **2**: Japanese Building
 - **3**: Japanese Stone Lantern ⬅️ **NEW!**
-- **4**: TODO (placeholder)
+- **4**: Japanese Bar ⬅️ **NEW!**
 
 ## Model Files Structure
 
@@ -176,10 +200,10 @@ class MyProp:
         self.model.setPos(position)
 ```
 
-### Option 2: Add to Building Tool
-In `src/tools/building.py`, add to `building_types`:
+### Option 2: Add to Placement Tool
+In `src/testgame/tools/placement.py`, add to `placement_types`:
 ```python
-4: {
+5: {
     "name": "My New Prop",
     "class": MyPropClass,
     "type": "prop",
