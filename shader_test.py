@@ -15,13 +15,17 @@ Controls:
     ESC - Quit
     R - Reload shaders (live editing!)
     SPACE - Toggle animation
-    1/2 - Adjust u_time speed
+    1/2 - Adjust time speed (slower/faster)
+    U/I - Advance/rewind time (manual scrubbing)
     Arrow Keys - Rotate view
+    Mouse Drag - Rotate object
+    Mouse Scroll - Zoom in/out
 """
 
 import sys
 import argparse
 from pathlib import Path
+from panda3d.core import loadPrcFileData
 from direct.showbase.ShowBase import ShowBase
 from panda3d.core import (
     GeomVertexFormat,
@@ -45,8 +49,12 @@ class ShaderTester(ShowBase):
     """Minimal app to test shaders quickly."""
 
     def __init__(self, shader_name="sky", geometry_override=None):
-        super().__init__()
+        # Configure window size before ShowBase init
+        loadPrcFileData("", "win-size 2560 1440")
+        loadPrcFileData("", "window-title Shader Tester")
         
+        super().__init__()
+
         self.shader_name = shader_name
         self.geometry_override = geometry_override
         self.shader_dir = Path(__file__).parent / "assets" / "shaders"
@@ -399,11 +407,10 @@ class ShaderTester(ShowBase):
                 self.test_object.setShaderInput("sunBaseColor", Vec3(1.0, 0.9, 0.7))
                 self.test_object.setShaderInput("moonBaseColor", Vec3(0.8, 0.85, 1.0))
 
-            
             print(f"✓ Loaded shader: {self.shader_name}")
         else:
             print(f"✗ Failed to load shader: {self.shader_name}")
-    
+
     def _setup_controls(self):
         """Setup keyboard and mouse controls."""
         self.accept("escape", sys.exit)
@@ -411,7 +418,9 @@ class ShaderTester(ShowBase):
         self.accept("space", self._toggle_pause)
         self.accept("1", self._decrease_speed)
         self.accept("2", self._increase_speed)
-        
+        self.accept("u", self._advance_time, [0.5])  # Forward time
+        self.accept("i", self._advance_time, [-0.5])  # Backward time
+
         # Arrow keys for rotation
         self.accept("arrow_up", self._rotate_up)
         self.accept("arrow_down", self._rotate_down)
@@ -449,6 +458,18 @@ class ShaderTester(ShowBase):
         """Increase time scale."""
         self.time_scale = min(10.0, self.time_scale + 0.1)
         print(f"Time scale: {self.time_scale:.2f}x")
+    
+    def _advance_time(self, delta):
+        """Advance or rewind time (manual scrubbing).
+        
+        Args:
+            delta: Amount to advance (positive) or rewind (negative)
+        """
+        self.elapsed_time += delta
+        if self.elapsed_time < 0:
+            self.elapsed_time = 0
+        direction = "forward" if delta > 0 else "backward"
+        print(f"Time {direction}: elapsed_time = {self.elapsed_time:.2f}s")
     
     def _start_mouse_rotate(self):
         """Start mouse rotation mode."""

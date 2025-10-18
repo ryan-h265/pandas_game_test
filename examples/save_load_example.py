@@ -51,7 +51,7 @@ def example_save_load_usage(game):
 
     def list_all_saves():
         """List all available saves."""
-        saves = game.game_world.list_saves()
+        saves = game.list_saves()
         print(f"\nFound {len(saves)} save(s):")
         for save_name, metadata in saves:
             timestamp = metadata.get("timestamp", "Unknown")
