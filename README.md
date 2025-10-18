@@ -105,3 +105,7 @@ Add building placement system
 Create NPC system with basic AI
 
 Implement time-of-day system with dynamic lighting
+
+# c
+
+Fonts from https://www.fontspace.com

@@ -109,9 +109,7 @@ class MenuManager:
         ):
             active_tool = self.game.tool_manager.get_active_tool()
             if active_tool:
-                self.game.crosshair_manager.show_crosshair(
-                    active_tool.view_model_name
-                )
+                self.game.crosshair_manager.show_crosshair(active_tool.view_model_name)
 
     def cleanup(self):
         """Clean up menu resources."""

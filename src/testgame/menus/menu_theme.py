@@ -15,24 +15,20 @@ class MenuTheme:
         "bg_primary": (0.08, 0.10, 0.08, 0.96),  # Very dark sage green-gray
         "bg_secondary": (0.11, 0.13, 0.11, 0.92),  # Dark sage gray
         "bg_overlay": (0.05, 0.06, 0.05, 0.90),  # Almost black overlay with green tint
-        
         # UI Elements with sage green
         "button_default": (0.13, 0.16, 0.13, 1.0),  # Dark sage slate
         "button_hover": (0.35, 0.48, 0.38, 1.0),  # Sage green on hover
         "button_active": (0.45, 0.60, 0.48, 1.0),  # Bright sage green on active
         "button_disabled": (0.09, 0.10, 0.09, 0.5),  # Dark disabled
-        
         # Accents - sage green theme
         "accent_primary": (0.50, 0.68, 0.55, 1.0),  # Vibrant sage green
         "accent_secondary": (0.60, 0.78, 0.65, 1.0),  # Light sage green
         "accent_tertiary": (0.40, 0.58, 0.45, 1.0),  # Medium sage green
-        
         # Text - high contrast
         "text_primary": (0.95, 0.96, 0.94, 1.0),  # Almost white with warm tint
         "text_secondary": (0.75, 0.80, 0.77, 1.0),  # Light sage gray
         "text_muted": (0.58, 0.63, 0.60, 1.0),  # Medium sage gray
         "text_disabled": (0.35, 0.38, 0.35, 1.0),  # Dark sage gray
-        
         # Status colors - sage-friendly palette
         "status_success": (0.50, 0.72, 0.55, 1.0),  # Sage green success
         "status_warning": (0.95, 0.75, 0.30, 1.0),  # Orange warning
@@ -151,14 +147,14 @@ class MenuTheme:
             Dict with button styling parameters
         """
         size_config = MenuTheme.SIZES.get(size, MenuTheme.SIZES["button_medium"])
-        
+
         color_map = {
             "default": "button_default",
             "hover": "button_hover",
             "active": "button_active",
             "disabled": "button_disabled",
         }
-        
+
         return {
             "frameColor": MenuTheme.get_color(color_map.get(state, "button_default")),
             "text_scale": MenuTheme.FONTS["button"]["scale"],
@@ -169,30 +165,30 @@ class MenuTheme:
     @staticmethod
     def get_font_object(font_name):
         """Load and cache a font object for DirectGui widgets.
-        
+
         Args:
             font_name: Font name (custom TTF filename without .ttf or system font)
-            
+
         Returns:
             Font object or None
         """
         # Check cache first
         if font_name in MenuTheme._font_cache:
             return MenuTheme._font_cache[font_name]
-        
+
         try:
             from pathlib import Path
             import panda3d.core as p3d
-            
+
             # Check if it's a custom font file
             custom_font_path = Path(__file__).resolve().parents[3] / "assets" / "fonts"
-            
+
             # Try different filename patterns
             font_files = [
                 custom_font_path / f"{font_name}.ttf",
                 custom_font_path / f"{font_name}-*.ttf",
             ]
-            
+
             # Check for exact match first
             if font_files[0].exists():
                 font_obj = p3d.FontPool.loadFont(str(font_files[0]))
@@ -204,16 +200,16 @@ class MenuTheme:
                 else:
                     # Try to load as system font
                     font_obj = p3d.FontPool.loadFont(font_name)
-            
+
             if font_obj:
                 MenuTheme._font_cache[font_name] = font_obj
                 return font_obj
         except Exception as e:
             # Font loading failed
             pass
-        
+
         return None
-        
+
     @staticmethod
     def get_frame_style(frame_type="primary"):
         """Get frame/background styling.
@@ -229,7 +225,7 @@ class MenuTheme:
             "secondary": "bg_secondary",
             "overlay": "bg_overlay",
         }
-        
+
         return {
             "frameColor": MenuTheme.get_color(color_map.get(frame_type, "bg_primary")),
             "frameSize": (-1.5, 1.5, -1, 1),

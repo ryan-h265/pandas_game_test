@@ -43,7 +43,7 @@ class MountainSkybox:
     def _load_shaders(self):
         """Load sky, mountain, and cloud shaders."""
         shader_dir = Path(__file__).resolve().parents[3] / "assets" / "shaders"
-        
+
         # Load sky shader
         sky_vert = shader_dir / "sky.vert"
         sky_frag = shader_dir / "sky.frag"
@@ -55,7 +55,7 @@ class MountainSkybox:
                 print("Successfully loaded sky shader")
         else:
             print("Warning: Sky shader files not found")
-        
+
         # Load mountain shader
         mountain_vert = shader_dir / "mountain.vert"
         mountain_frag = shader_dir / "mountain.frag"
@@ -67,7 +67,7 @@ class MountainSkybox:
                 print("Successfully loaded mountain shader")
         else:
             print("Warning: Mountain shader files not found")
-        
+
         # Load cloud shader
         cloud_vert = shader_dir / "cloud.vert"
         cloud_frag = shader_dir / "cloud.frag"
@@ -115,11 +115,11 @@ class MountainSkybox:
     def _create_sky_dome(self):
         """Create sky dome with shader-based procedural rendering."""
         import math
-        
+
         # Create inverted hemisphere geometry for sky
         sky_geom = self._create_sky_hemisphere(1800, 32, 16)
         sky_dome = self.render.attachNewNode(sky_geom)
-        
+
         # Apply sky shader
         if self.sky_shader:
             sky_dome.setShader(self.sky_shader)
@@ -130,7 +130,9 @@ class MountainSkybox:
             sky_dome.setShaderInput("moonBaseColor", Vec3(0.8, 0.85, 1.0))
 
             sky_dome.setShaderInput("u_time", 0.0)
-            sky_dome.setShaderInput("u_resolution", Vec3(800, 600, 0))  # Placeholder resolution
+            sky_dome.setShaderInput(
+                "u_resolution", Vec3(800, 600, 0)
+            )  # Placeholder resolution
             sky_dome.setShaderInput("u_cameraPos", self.camera.getPos())
             sky_dome.setShaderInput("u_auroraDir", Vec3(-0.5, -0.6, 0.9).normalized())
 
@@ -139,67 +141,67 @@ class MountainSkybox:
             # Fallback: solid color
             sky_dome.setColor(Vec4(0.5, 0.7, 1.0, 1.0))
             print("Warning: No sky shader, using solid color")
-        
+
         sky_dome.setLightOff()
         sky_dome.setBin("background", 0)
         sky_dome.setDepthWrite(False)
         sky_dome.setDepthTest(False)
         sky_dome.setTwoSided(True)
-        
+
         # Store reference for per-frame updates
         self.sky_dome = sky_dome
-        
+
         return sky_dome
-    
+
     def _create_sky_hemisphere(self, radius, lon_segs, lat_segs):
         """Create simple hemisphere geometry for sky (no vertex colors, shader-driven)."""
         import math
-        
+
         format = GeomVertexFormat.getV3n3()
         vdata = GeomVertexData("sky_hemisphere", format, Geom.UHStatic)
-        
+
         vertices = []
-        
+
         # Generate hemisphere vertices (only upper half)
         for lat in range(lat_segs + 1):
             lat_angle = (math.pi * 0.5) * lat / lat_segs  # 0 to π/2
-            
+
             for lon in range(lon_segs + 1):
                 lon_angle = 2 * math.pi * lon / lon_segs
-                
+
                 x = radius * math.cos(lat_angle) * math.cos(lon_angle)
                 y = radius * math.cos(lat_angle) * math.sin(lon_angle)
                 z = radius * math.sin(lat_angle)
-                
+
                 vertices.append((x, y, z))
-        
+
         vdata.setNumRows(len(vertices))
         vertex_writer = GeomVertexWriter(vdata, "vertex")
         normal_writer = GeomVertexWriter(vdata, "normal")
-        
+
         for x, y, z in vertices:
             vertex_writer.addData3(x, y, z)
             # Normals point inward (inverted for inside viewing)
             normal_writer.addData3(-x, -y, -z)
-        
+
         # Create triangles
         geom = Geom(vdata)
         tris = GeomTriangles(Geom.UHStatic)
-        
+
         for lat in range(lat_segs):
             for lon in range(lon_segs):
                 i0 = lat * (lon_segs + 1) + lon
                 i1 = lat * (lon_segs + 1) + (lon + 1)
                 i2 = (lat + 1) * (lon_segs + 1) + lon
                 i3 = (lat + 1) * (lon_segs + 1) + (lon + 1)
-                
+
                 # Reverse winding for inverted geometry
                 tris.addVertices(i0, i1, i2)
                 tris.addVertices(i1, i3, i2)
-        
+
         tris.closePrimitive()
         geom.addPrimitive(tris)
-        
+
         geom_node = GeomNode("sky_hemisphere")
         geom_node.addGeom(geom)
         return geom_node
@@ -839,7 +841,7 @@ class MountainSkybox:
             # Update sky shader with current time for day/night cycle
             if self.sky_dome and self.sky_shader:
                 self.sky_dome.setShaderInput("u_time", self.animation_time)
-            
+
             # Update mountain shaders with time for day/night cycle matching
             if self.mountain_shader:
                 # Find all mountain nodes and update their time uniform

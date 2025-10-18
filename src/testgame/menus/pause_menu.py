@@ -574,27 +574,27 @@ class PauseMenu(BaseMenu):
     def _on_hover(self, btn, event):
         """Handle button hover with enhanced visual feedback."""
         from direct.interval.IntervalGlobal import LerpScaleInterval
-        
+
         # Change frame color to brighter hover state
         btn["frameColor"] = MenuTheme.get_color("button_hover")
-        
+
         # Change text to brighter color
         btn["text_fg"] = (1.0, 1.0, 1.0, 1.0)  # White text on hover
-        
+
         # Subtle scale up animation
         LerpScaleInterval(btn, 0.1, 1.05).start()
 
     def _on_unhover(self, btn, event):
         """Handle button unhover, reset to normal state."""
         from direct.interval.IntervalGlobal import LerpScaleInterval
-        
+
         # Reset frame color
         btn["frameColor"] = MenuTheme.get_color("button_default")
-        
+
         # Reset text to normal color
         button_style = MenuTheme.get_font_settings("button")
         btn["text_fg"] = button_style["fg"]
-        
+
         # Scale back to normal
         LerpScaleInterval(btn, 0.1, 1.0).start()
 
