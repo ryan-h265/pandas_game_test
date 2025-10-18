@@ -125,7 +125,7 @@ class MountainSkybox:
             sky_dome.setShader(self.sky_shader)
             # Pass initial shader uniforms
             # sky_dome.setShaderInput("u_time", 0.0)
-            sky_dome.setShaderInput("u_cycleSpeed", 0.8)  # 0.025 == ~4 min full cycle
+            sky_dome.setShaderInput("u_cycleSpeed", 0.2)  # 0.025 == ~4 min full cycle
             sky_dome.setShaderInput("sunBaseColor", Vec3(1.0, 0.9, 0.7))
             sky_dome.setShaderInput("moonBaseColor", Vec3(0.8, 0.85, 1.0))
 
