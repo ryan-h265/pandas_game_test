@@ -5,6 +5,7 @@ import numpy as np
 from pathlib import Path
 from datetime import datetime
 from panda3d.core import Vec3, Vec4, Quat
+from testgame.engine.terrain_generation import TerrainGenerator
 
 
 class WorldSerializer:
@@ -202,8 +203,12 @@ class WorldSerializer:
             # Generate chunk
             chunk = terrain.generate_chunk(chunk_x, chunk_z)
 
-            # Restore height data
+            # Restore resolution and height data from save
+            chunk.resolution = chunk_data["resolution"]
             chunk.height_data = np.array(chunk_data["height_data"])
+            
+            # Reinitialize terrain generator with correct resolution
+            chunk.terrain_generator = TerrainGenerator(chunk.size, chunk.resolution)
 
             # Rebuild mesh and collision with restored data
             chunk._update_mesh()

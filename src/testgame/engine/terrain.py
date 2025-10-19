@@ -138,10 +138,13 @@ class TerrainChunk:
 
         # Calculate normal using adjacent vertices (if they exist)
         # Sample points around the vertex
+        # Get array bounds (array is (resolution + 1) x (resolution + 1))
+        max_idx = self.resolution
+        
         h_left = self.height_data[x - 1][z] if x > 0 else h
-        h_right = self.height_data[x + 1][z] if x < self.resolution else h
+        h_right = self.height_data[x + 1][z] if (x + 1) <= max_idx else h
         h_down = self.height_data[x][z - 1] if z > 0 else h
-        h_up = self.height_data[x][z + 1] if z < self.resolution else h
+        h_up = self.height_data[x][z + 1] if (z + 1) <= max_idx else h
 
         # Calculate normal using cross product of tangent vectors
         # Tangent in X direction (scaled by spacing)
