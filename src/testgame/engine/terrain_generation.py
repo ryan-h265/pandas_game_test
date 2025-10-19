@@ -2,7 +2,7 @@
 
 import numpy as np
 import math
-from testgame.config.settings import FLAT_WORLD, TERRAIN_RESOLUTION, MODIFIABLE_TERRAIN
+from testgame.config.settings import WORLD_TYPE, TERRAIN_RESOLUTION, MODIFIABLE_TERRAIN
 
 
 def simple_noise(x, y, seed=0):
@@ -187,11 +187,29 @@ class TerrainGenerator:
             2D numpy array of height values
         """
         # If flat world is enabled, use donut terrain instead of flat plane
-        if FLAT_WORLD:
+        if WORLD_TYPE == "donut":
             return self.generate_donut_terrain(
                 chunk_x, chunk_z, world_x, world_z,
                 outer_radius=200, inner_radius=80, height=50
             )
+        elif WORLD_TYPE == "flat":
+            return self.generate_flat_terrain(self.resolution)
+        elif WORLD_TYPE == "mountain":
+            return self.generate_mountain_terrain(chunk_x, chunk_z, world_x, world_z)
+        else:
+            raise ValueError(f"Unknown WORLD_TYPE: {WORLD_TYPE}")
+
+    def generate_mountain_terrain(self, chunk_x, chunk_z, world_x, world_z):
+        """Generate mountainous terrain data for a chunk.
+        Args:
+            chunk_x: Chunk X coordinate
+            chunk_z: Chunk Z coordinate
+            world_x: World X position of chunk
+            world_z: World Z position of chunk
+        Returns:
+            2D numpy array of height values
+        """
+        heights = np.zeros((self.resolution + 1, self.resolution + 1))
 
         # Calculate spacing between vertices in world units
         spacing = self.chunk_size / self.resolution

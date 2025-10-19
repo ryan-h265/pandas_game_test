@@ -37,9 +37,11 @@ PHYSICS_FPS = 60
 GRAVITY = -9.81
 
 # World generation
-FLAT_WORLD = True  # Set to True for a completely flat world at height 0
+WORLD_TYPE = "mountain"  # 'mountain' / 'flat' / 'donut'
+
+
 MODIFIABLE_TERRAIN = False  # Set to False to disable terrain editing
-# When False + FLAT_WORLD=True: uses minimal geometry (2 triangles/chunk)
+# When False + WORLD_TYPE == "flat": uses minimal geometry (2 triangles/chunk)
 # for maximum performance instead of TERRAIN_RESOLUTION vertices
 
 # Terrain resolution (vertices per chunk edge)
@@ -48,7 +50,7 @@ MODIFIABLE_TERRAIN = False  # Set to False to disable terrain editing
 #   TERRAIN_RESOLUTION = 32  # Default: 32x32 = 2,048 triangles per chunk
 #   TERRAIN_RESOLUTION = 16  # Lower:   16x16 = 512 triangles per chunk (4x fewer)
 #   TERRAIN_RESOLUTION = 8   # Lowest:  8x8   = 128 triangles per chunk (16x fewer)
-TERRAIN_RESOLUTION = 32  # Reduced from 32 for better performance
+TERRAIN_RESOLUTION = 16  # Reduced from 32 for better performance
 
 # Debug visualization
 DEBUG_CHUNK_COLORS = False  # Show each chunk with a different color

@@ -20,7 +20,7 @@ from panda3d.bullet import (
 
 from testgame.config.settings import (
     CHUNK_SIZE,
-    FLAT_WORLD,
+    WORLD_TYPE,
     TERRAIN_RESOLUTION,
     MODIFIABLE_TERRAIN,
 )
@@ -50,9 +50,14 @@ class TerrainChunk:
         self.size = CHUNK_SIZE  # World size of chunk
         # Use minimal resolution for non-modifiable flat terrain (just 2x2 = 2 triangles)
         # Otherwise use configured resolution for detailed terrain
+        # self.resolution = (
+        #     1 if (not MODIFIABLE_TERRAIN and FLAT_WORLD) else TERRAIN_RESOLUTION
+        # )
+
         self.resolution = (
-            1 if (not MODIFIABLE_TERRAIN and FLAT_WORLD) else TERRAIN_RESOLUTION
+            1 if (not MODIFIABLE_TERRAIN and WORLD_TYPE == "flat") else TERRAIN_RESOLUTION
         )
+
         self.world_x = chunk_x * self.size
         self.world_z = chunk_z * self.size
 
