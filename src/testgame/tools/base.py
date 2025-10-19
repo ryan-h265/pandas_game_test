@@ -11,6 +11,7 @@ class ToolType(Enum):
     CROWBAR = "crowbar"
     GUN = "gun"
     BUILDING = "building"
+    ICE_AXE = "ice_axe"
 
 
 class Tool:

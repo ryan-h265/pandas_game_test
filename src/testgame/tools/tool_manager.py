@@ -6,6 +6,7 @@ from .terrain import TerrainTool
 from .crowbar import CrowbarTool
 from .gun import GunTool
 from .placement import PlacementTool
+from .ice_axe import IceAxeTool
 
 
 class ToolManager:
@@ -61,7 +62,7 @@ class ToolManager:
 
         # Default enabled tools (excluding fist and crowbar - player must find them)
         if enabled_tools is None:
-            enabled_tools = {ToolType.FIST, ToolType.GUN, ToolType.BUILDING}
+            enabled_tools = {ToolType.FIST, ToolType.GUN, ToolType.BUILDING, ToolType.ICE_AXE}
 
         # Create enabled tools (all melee weapons now use camera + building_raycaster for accurate hit detection)
         if ToolType.FIST in enabled_tools:
@@ -85,6 +86,10 @@ class ToolManager:
                 terrain_raycaster,
                 mouse_watcher,
                 point_light_manager,
+            )
+        if ToolType.ICE_AXE in enabled_tools:
+            self.tools[ToolType.ICE_AXE] = IceAxeTool(
+                world, camera, building_raycaster, terrain_editor
             )
 
         # Start with first available tool
@@ -261,6 +266,11 @@ class ToolManager:
                 self._bullet_world,
                 self._terrain_raycaster,
                 self._mouse_watcher,
+            )
+            tool_created = True
+        elif tool_type == ToolType.ICE_AXE:
+            self.tools[ToolType.ICE_AXE] = IceAxeTool(
+                self._world, self._camera, self._building_raycaster, self._terrain_editor
             )
             tool_created = True
 

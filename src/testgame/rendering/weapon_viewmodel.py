@@ -58,6 +58,11 @@ class WeaponViewModel:
                 "rotation": Vec3(0, -10, -20),
                 "scale": 0.8,
             },
+            "ice_axe": {
+                "position": Vec3(0.25, 0.8, -0.10),  # Moved slightly left for better positioning
+                "rotation": Vec3(-10, -15, -5),
+                "scale": 1.0,  # Model already scaled down in creation
+            },
         }
 
     def create_weapon_root(self):
@@ -99,6 +104,8 @@ class WeaponViewModel:
             self.current_model = self._create_terrain_tool_model()
         elif weapon_type == "building":
             self.current_model = self._create_building_tool_model()
+        elif weapon_type == "ice_axe":
+            self.current_model = self._create_ice_axe_model()
 
         if self.current_model:
             self.current_model.reparentTo(self.weapon_root)
@@ -514,6 +521,104 @@ class WeaponViewModel:
         building_icon.setPos(0, 0.15, 0.03)
 
         return tool_root
+
+    def _create_ice_axe_model(self):
+        """Create ice axe model - load from GLTF if available, otherwise create simple geometry.
+
+        Returns:
+            NodePath containing the ice axe model
+        """
+        # Try to load the actual GLTF model first
+        try:
+            from ..rendering.model_loader import get_model_loader
+            from panda3d.core import PandaNode
+            
+            loader = get_model_loader()
+            model = loader.load_gltf("assets/models/tools/ice_axe/scene.gltf", cache=True)
+            
+            if model is not None:
+                print("Loaded ice axe GLTF model")
+                
+                # Handle both PandaNode and NodePath cases (following props pattern)
+                if isinstance(model, PandaNode):
+                    ice_axe_model = NodePath(model)
+                else:
+                    ice_axe_model = model
+                
+                # Create a wrapper node for positioning
+                ice_axe_root = NodePath("ice_axe_gltf")
+                ice_axe_model.reparentTo(ice_axe_root)
+                
+                # Flatten the transform hierarchy to fix offset issues
+                ice_axe_root.flattenMedium()
+                
+                # Apply very small scale for weapon viewmodel
+                weapon_scale = 0.03  # Even smaller scale
+                ice_axe_root.setScale(weapon_scale)
+                print(f"Applied weapon viewmodel scale: {weapon_scale}")
+                
+                # Get bounds after scaling for positioning
+                bounds = ice_axe_root.getTightBounds()
+                if bounds:
+                    min_point, max_point = bounds
+                    size = max_point - min_point
+                    print(f"Model size after scaling: {size}")
+                
+                print("Ice axe GLTF model loaded and scaled for weapon viewmodel")
+                
+                return ice_axe_root
+                
+        except Exception as e:
+            print(f"Could not load ice axe GLTF model: {e}")
+            import traceback
+            traceback.print_exc()
+        
+        # Fallback: Create simple ice axe geometry
+        print("Using procedural ice axe model")
+        ice_axe_root = NodePath("ice_axe")
+
+        # Main handle (wooden shaft)
+        handle = self._create_box(
+            Vec3(0.025, 0.5, 0.025),
+            Vec4(0.6, 0.4, 0.2, 1.0),  # Wood brown
+        )
+        handle.reparentTo(ice_axe_root)
+        handle.setPos(0, 0.25, 0)
+
+        # Metal head - pick side (pointed)
+        pick_head = self._create_box(
+            Vec3(0.015, 0.15, 0.03),
+            Vec4(0.7, 0.7, 0.8, 1.0),  # Metal gray
+        )
+        pick_head.reparentTo(ice_axe_root)
+        pick_head.setPos(0, 0.52, 0.02)
+        pick_head.setHpr(0, -10, 0)  # Angled downward
+
+        # Metal head - adze side (flat)
+        adze_head = self._create_box(
+            Vec3(0.08, 0.025, 0.025),
+            Vec4(0.7, 0.7, 0.8, 1.0),  # Metal gray
+        )
+        adze_head.reparentTo(ice_axe_root)
+        adze_head.setPos(0, 0.52, -0.02)
+
+        # Connection between head and handle
+        connection = self._create_box(
+            Vec3(0.04, 0.06, 0.04),
+            Vec4(0.5, 0.5, 0.55, 1.0),  # Dark metal
+        )
+        connection.reparentTo(ice_axe_root)
+        connection.setPos(0, 0.48, 0)
+
+        # Grip area (leather wrap)
+        grip = self._create_box(
+            Vec3(0.03, 0.12, 0.03),
+            Vec4(0.4, 0.25, 0.15, 1.0),  # Dark leather brown
+        )
+        grip.reparentTo(ice_axe_root)
+        grip.setPos(0, 0.15, 0)
+
+        return ice_axe_root
 
     def _play_place_animation(self):
         """Play building placement animation."""

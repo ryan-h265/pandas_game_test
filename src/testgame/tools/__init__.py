@@ -6,6 +6,7 @@ from .terrain import TerrainTool
 from .crowbar import CrowbarTool
 from .gun import GunTool
 from .placement import PlacementTool
+from .ice_axe import IceAxeTool
 from .tool_manager import ToolManager
 
 # Backward compatibility alias
@@ -19,6 +20,7 @@ __all__ = [
     "CrowbarTool",
     "GunTool",
     "PlacementTool",
+    "IceAxeTool",
     "BuildingTool",  # Legacy name
     "ToolManager",
 ]

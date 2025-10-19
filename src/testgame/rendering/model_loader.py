@@ -25,7 +25,7 @@ class ModelLoader:
                         "WARNING: No global loader found. ModelLoader may not work correctly."
                     )
                     self.loader = None
-            except:
+            except Exception:
                 self.loader = None
         else:
             self.loader = base_loader
@@ -49,6 +49,7 @@ class ModelLoader:
         # Check cache first
         if cache and path in self._model_cache:
             print(f"Loading model from cache: {path}")
+            from panda3d.core import NodePath
             return self._model_cache[path].copyTo(NodePath())
 
         # Convert to absolute path if relative
@@ -75,15 +76,21 @@ class ModelLoader:
             if model is None:
                 raise Exception("panda3d-gltf returned None")
 
-            if model is None:
-                print(f"ERROR: Failed to load model: {abs_path}")
-                return None
-
             print(f"Successfully loaded model: {abs_path}")
+            print(f"Model type: {type(model)}")
+            
+            # Convert to NodePath if it's a PandaNode
+            from panda3d.core import PandaNode, NodePath
+            if isinstance(model, PandaNode):
+                model_nodepath = NodePath(model)
+                print("Converted PandaNode to NodePath")
+                return model_nodepath
+            else:
+                print("Model is already a NodePath")
+                return model
 
             # Don't cache for now - just return the model
             # Each load will be independent
-            return model
 
         except Exception as e:
             print(f"ERROR: Exception while loading model {abs_path}: {e}")
