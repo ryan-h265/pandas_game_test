@@ -1,37 +1,41 @@
 #version 330
 
-// Terrain rendering with PCF shadows and SSAO (OPTIMIZED for performance)
 uniform sampler2D shadowMap0;
 uniform sampler2D shadowMap1;
 uniform sampler2D shadowMap2;
+uniform sampler2D shadowMap3;
 uniform vec3 lightDirection;
 uniform vec3 lightColor;
 uniform vec3 ambientColor;
-uniform float cascadeSplits[3];
-uniform vec2 shadowMapSize;
+uniform vec4 cascadeSplits;
+uniform int numCascades;
+uniform vec2 shadowMapInvSize;
 uniform float shadowSoftness;
-uniform int useVertexColor;// 1 = use vertex colors, 0 = use default terrain color
+uniform float cascadeBlendDistance;
+uniform vec4 cascadeBias;
+uniform int shadowsEnabled;
+uniform int useVertexColor;  // 1 = use vertex colors, 0 = default terrain color
 
 // Fog uniforms
-uniform int fogEnabled;// 1 = fog enabled, 0 = disabled
-uniform vec3 fogColor;// Fog tint color
-uniform float fogStart;// Distance to start fog fade
-uniform float fogEnd;// Distance where fog is fully opaque
-uniform float fogStrength;// Multiplier for fog amount (0 disables)
+uniform int fogEnabled;
+uniform vec3 fogColor;
+uniform float fogStart;
+uniform float fogEnd;
+uniform float fogStrength;
 
 // SSAO uniforms
-uniform int ssaoEnabled;// 1 = enabled, 0 = disabled
-uniform float ssaoRadius;// Occlusion sample radius
-uniform float ssaoBias;// Depth bias
-uniform float ssaoStrength;// AO strength multiplier (0.0-2.0)
+uniform int ssaoEnabled;
+uniform float ssaoRadius;
+uniform float ssaoBias;
+uniform float ssaoStrength;
 
-// Point light uniforms (for lanterns, torches, etc.)
-#define MAX_POINT_LIGHTS 32// Increased from 8 (supports more lights with distance culling)
-uniform int numPointLights;// Number of active point lights
-uniform vec4 pointLightPositions[MAX_POINT_LIGHTS];// World space positions (w unused)
-uniform vec4 pointLightColors[MAX_POINT_LIGHTS];// RGB colors (w unused)
-uniform float pointLightRadii[MAX_POINT_LIGHTS];// Maximum radius of effect
-uniform float pointLightIntensities[MAX_POINT_LIGHTS];// Brightness multiplier
+// Point light uniforms
+#define MAX_POINT_LIGHTS 32
+uniform int numPointLights;
+uniform vec4 pointLightPositions[MAX_POINT_LIGHTS];
+uniform vec4 pointLightColors[MAX_POINT_LIGHTS];
+uniform float pointLightRadii[MAX_POINT_LIGHTS];
+uniform float pointLightIntensities[MAX_POINT_LIGHTS];
 
 in vec3 vWorldPos;
 in vec3 vNormal;
@@ -39,200 +43,212 @@ in vec2 vTexCoord;
 in vec4 vShadowCoord0;
 in vec4 vShadowCoord1;
 in vec4 vShadowCoord2;
+in vec4 vShadowCoord3;
 in float vViewDepth;
-in vec4 vColor;// Vertex color from vertex shader
+in vec4 vColor;
 
 out vec4 fragColor;
 
-// Ultra-fast shadow lookup with minimal PCF (2 samples for performance)
-float calculateShadowPCF(sampler2D shadowMap,vec4 shadowCoord,float bias){
-    // Perspective divide
-    vec3 projCoords=shadowCoord.xyz/shadowCoord.w;
-    
-    // Transform to [0,1] range
-    projCoords=projCoords*.5+.5;
-    
-    // Outside shadow map bounds = no shadow
-    if(projCoords.x<0.||projCoords.x>1.||
-        projCoords.y<0.||projCoords.y>1.||
-    projCoords.z>1.){
-        return 1.;
+const int MAX_CASCADES = 4;
+const vec2 POISSON_OFFSETS[8] = vec2[](
+    vec2(-0.613392, 0.617481),
+    vec2(0.170019, -0.040254),
+    vec2(-0.299417, -0.875105),
+    vec2(-0.651784, -0.420089),
+    vec2(0.756483, -0.321331),
+    vec2(0.834133, 0.517993),
+    vec2(-0.020331, 0.942286),
+    vec2(0.223321, 0.203821)
+);
+
+vec4 getShadowCoord(int cascadeIndex) {
+    if (cascadeIndex == 0) {
+        return vShadowCoord0;
+    } else if (cascadeIndex == 1) {
+        return vShadowCoord1;
+    } else if (cascadeIndex == 2) {
+        return vShadowCoord2;
     }
-    
-    float currentDepth=projCoords.z;
-    
-    // Minimal PCF with only 2 samples (for maximum performance)
-    vec2 texelSize=vec2(1.)/shadowMapSize;
-    float shadow=0.;
-    
-    float pcfDepth1=texture(shadowMap,projCoords.xy).r;
-    shadow+=currentDepth-bias>pcfDepth1?0.:1.;
-    
-    vec2 offset=texelSize*shadowSoftness;
-    float pcfDepth2=texture(shadowMap,projCoords.xy+offset).r;
-    shadow+=currentDepth-bias>pcfDepth2?0.:1.;
-    
-    return shadow/2.;
+    return vShadowCoord3;
 }
 
-// Calculate shadow with single cascade (maximum performance)
-float calculateCascadedShadow(){
-    float bias=.005;
-    
-    // Only 1 cascade for max performance
-    float shadow=calculateShadowPCF(shadowMap0,vShadowCoord0,bias);
-    
+float sampleShadowMap(sampler2D shadowMap, vec4 shadowCoord, float bias) {
+    vec4 coord = shadowCoord;
+    coord.xyz /= coord.w;
+
+    // Transform from clip space to texture space
+    vec3 projCoords = coord.xyz * 0.5 + 0.5;
+
+    if (projCoords.z <= 0.0 || projCoords.z >= 1.0) {
+        return 1.0;
+    }
+
+    if (projCoords.x < 0.0 || projCoords.x > 1.0 || projCoords.y < 0.0 || projCoords.y > 1.0) {
+        return 1.0;
+    }
+
+    float currentDepth = projCoords.z - bias;
+    vec2 texelSize = shadowMapInvSize;
+    float softness = max(shadowSoftness, 0.5);
+
+    float occlusion = 0.0;
+    float closestDepth = texture(shadowMap, projCoords.xy).r;
+    occlusion += currentDepth <= closestDepth ? 1.0 : 0.0;
+
+    for (int i = 0; i < 8; ++i) {
+        vec2 offset = POISSON_OFFSETS[i] * softness * texelSize;
+        closestDepth = texture(shadowMap, projCoords.xy + offset).r;
+        occlusion += currentDepth <= closestDepth ? 1.0 : 0.0;
+    }
+
+    return occlusion / 9.0;
+}
+
+float sampleCascadeShadow(int cascadeIndex, float bias) {
+    if (cascadeIndex == 0) {
+        return sampleShadowMap(shadowMap0, vShadowCoord0, bias);
+    } else if (cascadeIndex == 1) {
+        return sampleShadowMap(shadowMap1, vShadowCoord1, bias);
+    } else if (cascadeIndex == 2) {
+        return sampleShadowMap(shadowMap2, vShadowCoord2, bias);
+    }
+    return sampleShadowMap(shadowMap3, vShadowCoord3, bias);
+}
+
+float computeShadow(float surfaceNdL) {
+    if (shadowsEnabled == 0 || numCascades <= 0) {
+        return 1.0;
+    }
+
+    float depth = vViewDepth;
+    int cascadeIndex = numCascades - 1;
+    for (int i = 0; i < numCascades; ++i) {
+        if (depth <= cascadeSplits[i]) {
+            cascadeIndex = i;
+            break;
+        }
+    }
+
+    float baseBias = cascadeBias[cascadeIndex];
+    float slopeBias = baseBias * (1.0 - surfaceNdL);
+    float shadow = sampleCascadeShadow(cascadeIndex, baseBias + slopeBias);
+
+    if (cascadeIndex < numCascades - 1 && cascadeBlendDistance > 0.0) {
+        float split = cascadeSplits[cascadeIndex];
+        float blendStart = max(0.0, split - cascadeBlendDistance);
+        float blendFactor = clamp((depth - blendStart) / max(cascadeBlendDistance, 0.0001), 0.0, 1.0);
+        float nextBias = cascadeBias[cascadeIndex + 1];
+        float nextSlopeBias = nextBias * (1.0 - surfaceNdL);
+        float nextShadow = sampleCascadeShadow(cascadeIndex + 1, nextBias + nextSlopeBias);
+        shadow = mix(shadow, nextShadow, blendFactor);
+    }
+
     return shadow;
 }
 
-// Simple hash function for pseudo-random sampling
-float hash(vec3 p){
-    p=fract(p*.3183099+.1);
-    p*=17.;
-    return fract(p.x*p.y*p.z*(p.x+p.y+p.z));
+float hash(vec3 p) {
+    vec3 q = fract(p * 0.3183099 + 0.1);
+    q *= 17.0;
+    return fract(q.x * q.y * q.z * (q.x + q.y + q.z));
 }
 
-// Fast Screen-Space Ambient Occlusion
-float calculateSSAO(){
-    if(ssaoEnabled==0){
-        return 1.;// No occlusion
+float calculateSSAO() {
+    if (ssaoEnabled == 0) {
+        return 1.0;
     }
-    
-    vec3 normal=normalize(vNormal);
-    vec3 worldPos=vWorldPos;
-    
-    // Simple geometric occlusion based on surface curvature
-    // Sample surrounding geometry using world position
-    float occlusion=0.;
-    int numSamples=8;// Reduced for performance
-    
-    // Create sampling kernel in hemisphere around normal
-    for(int i=0;i<numSamples;i++){
-        // Generate pseudo-random sample direction
-        float angle=float(i)*.785398;// PI/4
-        float radius=ssaoRadius*(.5+.5*hash(worldPos+float(i)));
-        
-        // Create sample offset in tangent space
-        vec3 tangent=normalize(cross(normal,vec3(.5451,.1569,.7686)));
-        if(length(tangent)<.1){
-            tangent=normalize(cross(normal,vec3(1.,0.,0.)));
+
+    vec3 normal = normalize(vNormal);
+    vec3 worldPos = vWorldPos;
+
+    float occlusion = 0.0;
+    int numSamples = 8;
+
+    for (int i = 0; i < numSamples; ++i) {
+        float angle = float(i) * 0.785398;
+        float radius = ssaoRadius * (0.5 + 0.5 * hash(worldPos + float(i)));
+
+        vec3 tangent = normalize(cross(normal, vec3(0.5451, 0.1569, 0.7686)));
+        if (length(tangent) < 0.1) {
+            tangent = normalize(cross(normal, vec3(1.0, 0.0, 0.0)));
         }
-        vec3 bitangent=cross(normal,tangent);
-        
-        float cosAngle=cos(angle);
-        float sinAngle=sin(angle);
-        vec3 sampleDir=tangent*cosAngle+bitangent*sinAngle+normal*.5;
-        sampleDir=normalize(sampleDir);
-        
-        // Simple depth-based occlusion
-        // This is a simplified approach - proper SSAO needs screen-space depth buffer
-        float occlusionFactor=max(0.,dot(normal,sampleDir));
-        occlusion+=occlusionFactor;
+        vec3 bitangent = cross(normal, tangent);
+
+        float cosAngle = cos(angle);
+        float sinAngle = sin(angle);
+        vec3 sampleDir = tangent * cosAngle + bitangent * sinAngle + normal * 0.5;
+        sampleDir = normalize(sampleDir);
+
+        float occlusionFactor = max(0.0, dot(normal, sampleDir));
+        occlusion += occlusionFactor;
     }
-    
-    // Normalize
-    occlusion=occlusion/float(numSamples);
-    
-    // Apply strength and bias
-    occlusion=pow(occlusion,1.+ssaoBias);
-    occlusion=1.-((1.-occlusion)*ssaoStrength);
-    
-    return clamp(occlusion,0.,1.);
+
+    occlusion /= float(numSamples);
+    occlusion = pow(occlusion, 1.0 + ssaoBias);
+    occlusion = 1.0 - ((1.0 - occlusion) * ssaoStrength);
+    return clamp(occlusion, 0.0, 1.0);
 }
 
-// Calculate lighting contribution from point lights
-vec3 calculatePointLights(vec3 worldPos,vec3 normal,vec3 baseColor){
-    vec3 pointLightContribution=vec3(0.);
-    
-    for(int i=0;i<numPointLights&&i<MAX_POINT_LIGHTS;i++){
-        // Vector from surface to light (extract xyz from vec4)
-        vec3 lightPos=pointLightPositions[i].xyz;
-        vec3 lightVec=lightPos-worldPos;
-        float distance=length(lightVec);
-        
-        // Skip if beyond light radius
-        if(distance>pointLightRadii[i]){
+vec3 calculatePointLights(vec3 worldPos, vec3 normal, vec3 baseColor) {
+    vec3 contribution = vec3(0.0);
+
+    for (int i = 0; i < numPointLights && i < MAX_POINT_LIGHTS; ++i) {
+        vec3 lightPos = pointLightPositions[i].xyz;
+        vec3 lightVec = lightPos - worldPos;
+        float distance = length(lightVec);
+        if (distance > pointLightRadii[i]) {
             continue;
         }
-        
-        vec3 lightDir=normalize(lightVec);
-        
-        // Diffuse lighting with wrap-around for omnidirectional feel
-        float NdotL=dot(normal,lightDir);
-        
-        // Mix of diffuse and ambient-like contribution
-        // This ensures all surfaces get some light, not just those facing the source
-        float diffuse=max(NdotL,0.);// Standard diffuse
-        float wrap=(NdotL+1.)*.5;// Wrap-around lighting (0.0 to 1.0)
-        float lightContribution=mix(wrap,diffuse,.5);// 50/50 mix for softer omnidirectional feel
-        
-        // Attenuation - softer falloff for wider glow
-        float radius=pointLightRadii[i];
-        
-        // Linear + quadratic falloff (less aggressive than pure quadratic)
-        float linearAtten=.5/radius;
-        float quadraticAtten=.5/(radius*radius);
-        float attenuation=pointLightIntensities[i]/(1.+linearAtten*distance+quadraticAtten*distance*distance);
-        
-        // Gentler edge falloff for wider visible glow
-        float edgeFalloff=1.-smoothstep(radius*.8,radius,distance);
-        attenuation*=edgeFalloff;
-        
-        // Add this light's contribution (extract xyz from vec4 color)
-        pointLightContribution+=pointLightColors[i].xyz*baseColor*lightContribution*attenuation;
+
+        vec3 lightDir = normalize(lightVec);
+        float NdotL = max(dot(normal, lightDir), 0.0);
+
+        float radius = pointLightRadii[i];
+        float intensity = pointLightIntensities[i];
+        float attenuation = intensity / (1.0 + 0.5 * distance / radius + 0.5 * (distance * distance) / (radius * radius));
+        attenuation *= 1.0 - smoothstep(radius * 0.8, radius, distance);
+
+        float wrap = (NdotL + 1.0) * 0.5;
+        float lit = mix(wrap, NdotL, 0.6);
+
+        contribution += pointLightColors[i].rgb * baseColor * lit * attenuation;
     }
-    
-    return pointLightContribution;
+
+    return contribution;
 }
 
-void main(){
-    // Base terrain color - use vertex color if enabled, otherwise default grass green
+void main() {
     vec3 baseColor;
-    if(useVertexColor==1){
-        baseColor=vColor.rgb;
-    }else{
-        // Auto-detect if vertex has meaningful color data (not default white/black)
-        // If vertex color is not near white (1,1,1) or black (0,0,0), use it
-        float colorMagnitude=length(vColor.rgb-vec3(1.,1.,1.));
-        if(colorMagnitude>.1){
-            // Vertex has custom color data, use it
-            baseColor=vColor.rgb;
-        }else{
-            // Use default grass green for terrain
-            baseColor=vec3(.4,.6,.3);
+    if (useVertexColor == 1) {
+        baseColor = vColor.rgb;
+    } else {
+        float colorMagnitude = length(vColor.rgb - vec3(1.0));
+        if (colorMagnitude > 0.1) {
+            baseColor = vColor.rgb;
+        } else {
+            baseColor = vec3(0.4, 0.6, 0.3);
         }
     }
-    
-    // Normal lighting
-    vec3 normal=normalize(vNormal);
-    vec3 lightDir=normalize(-lightDirection);
-    float NdotL=max(dot(normal,lightDir),0.);
-    
-    // Calculate shadow
-    float shadow=calculateCascadedShadow();
-    
-    // Calculate ambient occlusion
-    float ao=calculateSSAO();
-    
-    // Final lighting calculation with AO
-    vec3 ambient=ambientColor*baseColor*ao;// AO affects ambient
-    vec3 diffuse=lightColor*baseColor*NdotL*shadow;
-    
-    // Add point light contributions (lanterns, torches)
-    vec3 pointLights=calculatePointLights(vWorldPos,normal,baseColor);
-    
-    vec3 finalColor=ambient+diffuse+pointLights;
-    
-    // Gamma correction
-    finalColor=pow(finalColor,vec3(1./2.2));
-    
-    if(fogEnabled==1){
-        float distance=vViewDepth;
-        float range=max(fogEnd-fogStart,.001);
-        float fogFactor=clamp((distance-fogStart)/range,0.,1.);
-        fogFactor=clamp(fogFactor*fogStrength,0.,1.);
-        finalColor=mix(finalColor,fogColor,fogFactor);
+
+    vec3 normal = normalize(vNormal);
+    vec3 lightDir = normalize(-lightDirection);
+    float NdotL = max(dot(normal, lightDir), 0.0);
+
+    float shadowFactor = computeShadow(NdotL);
+    float ao = calculateSSAO();
+
+    vec3 ambient = ambientColor * baseColor * ao;
+    vec3 diffuse = lightColor * baseColor * NdotL * shadowFactor;
+    vec3 pointLights = calculatePointLights(vWorldPos, normal, baseColor);
+
+    vec3 finalColor = ambient + diffuse + pointLights;
+    finalColor = pow(finalColor, vec3(1.0 / 2.2));
+
+    if (fogEnabled == 1) {
+        float range = max(fogEnd - fogStart, 0.001);
+        float fogFactor = clamp((vViewDepth - fogStart) / range, 0.0, 1.0);
+        fogFactor = clamp(fogFactor * fogStrength, 0.0, 1.0);
+        finalColor = mix(finalColor, fogColor, fogFactor);
     }
-    
-    fragColor=vec4(finalColor,1.);
+
+    fragColor = vec4(finalColor, 1.0);
 }

@@ -16,6 +16,7 @@ from testgame.config.settings import (
     FOG_END_DISTANCE,
     FOG_STRENGTH,
 )
+from testgame.config.shadow_config import QUALITY_PRESET, apply_preset
 from testgame.engine.world import World
 from testgame.player.controller import PlayerController
 from testgame.player.camera import CameraController
@@ -235,12 +236,14 @@ class Game(ShowBase):
         self.ssao_strength = 0.8  # Default AO strength
         light_dir = Vec3(1, 1, -1)  # Sun direction
         self.shadow_manager = ShadowManager(self, self.render, light_dir)
+        self.shadow_manager.bind_directional_light(self.sun_light)
         # Initial shader inputs (camera pos will be updated each frame)
         self.shadow_manager.set_shader_inputs(
             self.render,
             ssao_enabled=self.ssao_enabled,
             point_light_manager=self.point_light_manager,
         )
+        self.shadow_manager.update(self.camera, 0.0)
         self._initialize_fog()
         print("Shadows and ambient occlusion enabled by default")
         print(
@@ -249,6 +252,8 @@ class Game(ShowBase):
 
         # Initialize post-processing
         self.post_process = PostProcessManager(self.render, self.cam)
+        apply_preset(self.shadow_manager, self.post_process, QUALITY_PRESET)
+        self.shadow_manager.update(self.camera, 0.0)
 
         # Interaction state
         self.is_using_tool = False
@@ -496,6 +501,7 @@ class Game(ShowBase):
         self.accept(
             "r", self.toggle_raycast_debug
         )  # Toggle raycast debug visualization
+        self.accept("f8", self.toggle_shadow_debug_overlay)  # Toggle shadow map overlay
         self.accept("h", self.toggle_weapon_viewmodel)  # Toggle weapon viewmodel on/off
         self.accept("j", self.toggle_crosshair)  # Toggle crosshair on/off
 
@@ -704,6 +710,7 @@ class Game(ShowBase):
             if self.shadow_manager:
                 self.shadow_manager.cleanup()
                 self.shadow_manager = None
+            self.render.setShaderInput("shadowsEnabled", 0)
             self._apply_fog_to_render()
             self.shadows_enabled = False
             self.hud.show_message("Shadows: OFF (Performance Mode)")
@@ -712,15 +719,29 @@ class Game(ShowBase):
             # Enable shadows
             light_dir = Vec3(1, 1, -1)
             self.shadow_manager = ShadowManager(self, self.render, light_dir)
+            self.shadow_manager.bind_directional_light(self.sun_light)
             self.shadow_manager.set_shader_inputs(
                 self.render,
                 ssao_enabled=self.ssao_enabled,
                 point_light_manager=self.point_light_manager,
             )
+            apply_preset(self.shadow_manager, self.post_process, QUALITY_PRESET)
+            self.shadow_manager.update(self.camera, 0.0)
             self._apply_fog_to_render()
             self.shadows_enabled = True
             self.hud.show_message("Shadows: ON (Quality Mode)")
             print("Shadows enabled")
+
+    def toggle_shadow_debug_overlay(self):
+        """Toggle on-screen visualization of the shadow cascades."""
+        if not self.shadow_manager:
+            self.hud.show_message("Enable shadows first (press N)")
+            return
+
+        enabled = self.shadow_manager.toggle_debug_overlay()
+        status = "ON" if enabled else "OFF"
+        self.hud.show_message(f"Shadow Debug: {status}")
+        print(f"Shadow debug overlay {status}")
 
     def toggle_ssao(self):
         """Toggle ambient occlusion (SSAO) on/off."""
@@ -999,7 +1020,7 @@ class Game(ShowBase):
         # Update shadow cameras to follow player (if shadows enabled)
         player_pos = self.player.get_position()
         if self.shadow_manager:
-            self.shadow_manager.update_cascade_cameras(player_pos, None)
+            self.shadow_manager.update(self.camera, dt)
 
         # Handle mouse look (centered mode - track from center)
         if self.mouse_captured and self.win.hasPointer(0):

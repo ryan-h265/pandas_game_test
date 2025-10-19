@@ -396,7 +396,8 @@ class ShaderTester(ShowBase):
                 )
                 self.test_object.setShaderInput("lightColor", Vec3(1.0, 0.95, 0.8))
                 self.test_object.setShaderInput("ambientColor", Vec3(0.2, 0.25, 0.3))
-                self.test_object.setShaderInput("shadowMapSize", 1024)
+                inv_size = 1.0 / 1024.0
+                self.test_object.setShaderInput("shadowMapInvSize", (inv_size, inv_size))
                 self.test_object.setShaderInput("shadowSoftness", 4.0)
                 self.test_object.setShaderInput("useVertexColor", 0)
                 self.test_object.setShaderInput("ssaoEnabled", 1)

@@ -1,137 +1,188 @@
 #version 330
 
-// glTF model rendering with textures, shadows, and point lights
 uniform sampler2D shadowMap0;
-uniform sampler2D p3d_Texture0;// Base color texture from glTF
+uniform sampler2D shadowMap1;
+uniform sampler2D shadowMap2;
+uniform sampler2D shadowMap3;
+uniform sampler2D p3d_Texture0;
 uniform vec3 lightDirection;
 uniform vec3 lightColor;
 uniform vec3 ambientColor;
-uniform vec2 shadowMapSize;
+uniform vec4 cascadeSplits;
+uniform int numCascades;
+uniform vec2 shadowMapInvSize;
 uniform float shadowSoftness;
+uniform float cascadeBlendDistance;
+uniform vec4 cascadeBias;
+uniform int shadowsEnabled;
 
 // Fog uniforms
-uniform int fogEnabled;// 1 = fog enabled
-uniform vec3 fogColor;// Fog tint
-uniform float fogStart;// Start distance for fog
-uniform float fogEnd;// Full fog distance
-uniform float fogStrength;// Fog multiplier
+uniform int fogEnabled;
+uniform vec3 fogColor;
+uniform float fogStart;
+uniform float fogEnd;
+uniform float fogStrength;
 
-// Point light uniforms (for lanterns, torches, etc.)
+// Point light uniforms
 #define MAX_POINT_LIGHTS 32
-uniform int numPointLights;// Number of active point lights
-uniform vec4 pointLightPositions[MAX_POINT_LIGHTS];// World space positions
-uniform vec4 pointLightColors[MAX_POINT_LIGHTS];// RGB colors
-uniform float pointLightRadii[MAX_POINT_LIGHTS];// Maximum radius of effect
-uniform float pointLightIntensities[MAX_POINT_LIGHTS];// Brightness multiplier
+uniform int numPointLights;
+uniform vec4 pointLightPositions[MAX_POINT_LIGHTS];
+uniform vec4 pointLightColors[MAX_POINT_LIGHTS];
+uniform float pointLightRadii[MAX_POINT_LIGHTS];
+uniform float pointLightIntensities[MAX_POINT_LIGHTS];
 
 in vec3 vWorldPos;
 in vec3 vNormal;
 in vec2 vTexCoord;
 in vec4 vShadowCoord0;
+in vec4 vShadowCoord1;
+in vec4 vShadowCoord2;
+in vec4 vShadowCoord3;
 in float vViewDepth;
 in vec4 vColor;
 
 out vec4 fragColor;
 
-// Fast shadow lookup with minimal PCF
-float calculateShadowPCF(sampler2D shadowMap,vec4 shadowCoord,float bias){
-    // Perspective divide
-    vec3 projCoords=shadowCoord.xyz/shadowCoord.w;
-    
-    // Transform to [0,1] range
-    projCoords=projCoords*.5+.5;
-    
-    // Outside shadow map bounds = no shadow
-    if(projCoords.x<0.||projCoords.x>1.||
-        projCoords.y<0.||projCoords.y>1.||
-    projCoords.z>1.){
-        return 1.;
+const vec2 POISSON_OFFSETS[8] = vec2[](
+    vec2(-0.613392, 0.617481),
+    vec2(0.170019, -0.040254),
+    vec2(-0.299417, -0.875105),
+    vec2(-0.651784, -0.420089),
+    vec2(0.756483, -0.321331),
+    vec2(0.834133, 0.517993),
+    vec2(-0.020331, 0.942286),
+    vec2(0.223321, 0.203821)
+);
+
+vec4 getShadowCoord(int cascadeIndex) {
+    if (cascadeIndex == 0) {
+        return vShadowCoord0;
+    } else if (cascadeIndex == 1) {
+        return vShadowCoord1;
+    } else if (cascadeIndex == 2) {
+        return vShadowCoord2;
     }
-    
-    float currentDepth=projCoords.z;
-    
-    // Minimal PCF with 2 samples for performance
-    vec2 texelSize=vec2(1.)/shadowMapSize;
-    float shadow=0.;
-    
-    float pcfDepth1=texture(shadowMap,projCoords.xy).r;
-    shadow+=currentDepth-bias>pcfDepth1?0.:1.;
-    
-    vec2 offset=texelSize*shadowSoftness;
-    float pcfDepth2=texture(shadowMap,projCoords.xy+offset).r;
-    shadow+=currentDepth-bias>pcfDepth2?0.:1.;
-    
-    return shadow/2.;
+    return vShadowCoord3;
 }
 
-// Calculate point light contribution
-vec3 calculatePointLights(vec3 worldPos,vec3 normal,vec3 baseColor){
-    vec3 totalLight=vec3(0.);
-    
-    for(int i=0;i<numPointLights&&i<MAX_POINT_LIGHTS;i++){
-        vec3 lightPos=pointLightPositions[i].xyz;
-        vec3 lightColor=pointLightColors[i].rgb;
-        float lightRadius=pointLightRadii[i];
-        float lightIntensity=pointLightIntensities[i];
-        
-        // Vector from surface to light
-        vec3 lightDir=lightPos-worldPos;
-        float distance=length(lightDir);
-        
-        // Skip if beyond radius
-        if(distance>lightRadius){
+float sampleShadowMap(sampler2D shadowMap, vec4 shadowCoord, float bias) {
+    vec4 coord = shadowCoord;
+    coord.xyz /= coord.w;
+
+    vec3 projCoords = coord.xyz * 0.5 + 0.5;
+    if (projCoords.z <= 0.0 || projCoords.z >= 1.0) {
+        return 1.0;
+    }
+    if (projCoords.x < 0.0 || projCoords.x > 1.0 || projCoords.y < 0.0 || projCoords.y > 1.0) {
+        return 1.0;
+    }
+
+    float currentDepth = projCoords.z - bias;
+    vec2 texelSize = shadowMapInvSize;
+    float softness = max(shadowSoftness, 0.5);
+
+    float occlusion = 0.0;
+    float closestDepth = texture(shadowMap, projCoords.xy).r;
+    occlusion += currentDepth <= closestDepth ? 1.0 : 0.0;
+
+    for (int i = 0; i < 8; ++i) {
+        vec2 offset = POISSON_OFFSETS[i] * softness * texelSize;
+        closestDepth = texture(shadowMap, projCoords.xy + offset).r;
+        occlusion += currentDepth <= closestDepth ? 1.0 : 0.0;
+    }
+
+    return occlusion / 9.0;
+}
+
+float sampleCascadeShadow(int cascadeIndex, float bias) {
+    if (cascadeIndex == 0) {
+        return sampleShadowMap(shadowMap0, vShadowCoord0, bias);
+    } else if (cascadeIndex == 1) {
+        return sampleShadowMap(shadowMap1, vShadowCoord1, bias);
+    } else if (cascadeIndex == 2) {
+        return sampleShadowMap(shadowMap2, vShadowCoord2, bias);
+    }
+    return sampleShadowMap(shadowMap3, vShadowCoord3, bias);
+}
+
+float computeShadow(float surfaceNdL) {
+    if (shadowsEnabled == 0 || numCascades <= 0) {
+        return 1.0;
+    }
+
+    float depth = vViewDepth;
+    int cascadeIndex = numCascades - 1;
+    for (int i = 0; i < numCascades; ++i) {
+        if (depth <= cascadeSplits[i]) {
+            cascadeIndex = i;
+            break;
+        }
+    }
+
+    float baseBias = cascadeBias[cascadeIndex];
+    float slopeBias = baseBias * (1.0 - surfaceNdL);
+    float shadow = sampleCascadeShadow(cascadeIndex, baseBias + slopeBias);
+
+    if (cascadeIndex < numCascades - 1 && cascadeBlendDistance > 0.0) {
+        float split = cascadeSplits[cascadeIndex];
+        float blendStart = max(0.0, split - cascadeBlendDistance);
+        float blendFactor = clamp((depth - blendStart) / max(cascadeBlendDistance, 0.0001), 0.0, 1.0);
+        float nextBias = cascadeBias[cascadeIndex + 1];
+        float nextSlopeBias = nextBias * (1.0 - surfaceNdL);
+        float nextShadow = sampleCascadeShadow(cascadeIndex + 1, nextBias + nextSlopeBias);
+        shadow = mix(shadow, nextShadow, blendFactor);
+    }
+
+    return shadow;
+}
+
+vec3 calculatePointLights(vec3 worldPos, vec3 normal, vec3 baseColor) {
+    vec3 contribution = vec3(0.0);
+
+    for (int i = 0; i < numPointLights && i < MAX_POINT_LIGHTS; ++i) {
+        vec3 lightPos = pointLightPositions[i].xyz;
+        vec3 lightVec = lightPos - worldPos;
+        float distance = length(lightVec);
+        if (distance > pointLightRadii[i]) {
             continue;
         }
-        
-        lightDir=normalize(lightDir);
-        
-        // Diffuse lighting (Lambertian)
-        float diff=max(dot(normal,lightDir),0.);
-        
-        // Attenuation (inverse square with radius falloff)
-        float attenuation=lightIntensity/(1.+distance*distance/(lightRadius*lightRadius));
-        attenuation*=1.-smoothstep(lightRadius*.8,lightRadius,distance);
-        
-        // Add contribution
-        totalLight+=lightColor*baseColor*diff*attenuation;
+
+        vec3 lightDir = normalize(lightVec);
+        float NdotL = max(dot(normal, lightDir), 0.0);
+
+        float radius = pointLightRadii[i];
+        float intensity = pointLightIntensities[i];
+        float attenuation = intensity / (1.0 + 0.5 * distance / radius + 0.5 * (distance * distance) / (radius * radius));
+        attenuation *= 1.0 - smoothstep(radius * 0.8, radius, distance);
+
+        contribution += pointLightColors[i].rgb * baseColor * NdotL * attenuation;
     }
-    
-    return totalLight;
+
+    return contribution;
 }
 
-void main(){
-    // Sample base color texture
-    vec4 texColor=texture(p3d_Texture0,vTexCoord);
-    
-    // Use texture color as base (with vertex color tint if present)
-    vec3 baseColor=texColor.rgb*vColor.rgb;
-    
-    // Normal
-    vec3 normal=normalize(vNormal);
-    
-    // Directional light (sun)
-    float NdotL=max(dot(normal,-lightDirection),0.);
-    
-    // Shadow
-    float shadow=calculateShadowPCF(shadowMap0,vShadowCoord0,.005);
-    
-    // Directional lighting
-    vec3 directionalLight=lightColor*NdotL*shadow;
-    
-    // Point lights (lanterns, torches, etc.)
-    vec3 pointLight=calculatePointLights(vWorldPos,normal,baseColor);
-    
-    // Combine lighting
-    vec3 ambient=ambientColor*baseColor;
-    vec3 finalColor=ambient+(directionalLight*baseColor)+pointLight;
-    
-    if(fogEnabled==1){
-        float range=max(fogEnd-fogStart,.001);
-        float fogFactor=clamp((vViewDepth-fogStart)/range,0.,1.);
-        fogFactor=clamp(fogFactor*fogStrength,0.,1.);
-        finalColor=mix(finalColor,fogColor,fogFactor);
+void main() {
+    vec4 texColor = texture(p3d_Texture0, vTexCoord) * vColor;
+    vec3 baseColor = texColor.rgb;
+
+    vec3 normal = normalize(vNormal);
+    vec3 lightDir = normalize(-lightDirection);
+    float NdotL = max(dot(normal, lightDir), 0.0);
+
+    float shadowFactor = computeShadow(NdotL);
+    vec3 ambient = ambientColor * baseColor;
+    vec3 diffuse = lightColor * baseColor * NdotL * shadowFactor;
+    vec3 pointLights = calculatePointLights(vWorldPos, normal, baseColor);
+
+    vec3 finalColor = ambient + diffuse + pointLights;
+    finalColor = pow(finalColor, vec3(1.0 / 2.2));
+
+    if (fogEnabled == 1) {
+        float range = max(fogEnd - fogStart, 0.001);
+        float fogFactor = clamp((vViewDepth - fogStart) / range, 0.0, 1.0);
+        fogFactor = clamp(fogFactor * fogStrength, 0.0, 1.0);
+        finalColor = mix(finalColor, fogColor, fogFactor);
     }
-    
-    // Output with texture alpha
-    fragColor=vec4(finalColor,texColor.a);
+
+    fragColor = vec4(finalColor, texColor.a);
 }
