@@ -42,7 +42,7 @@ PHYSICS_FPS = 60
 GRAVITY = -9.81
 
 # World generation
-WORLD_TYPE = "mountain"  # 'mountain' / 'flat' / 'donut'
+WORLD_TYPE = "flat"  # 'mountain' / 'flat' / 'donut'
 
 
 MODIFIABLE_TERRAIN = False  # Set to False to disable terrain editing
