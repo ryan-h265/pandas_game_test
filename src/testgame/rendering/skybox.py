@@ -60,7 +60,7 @@ class MountainSkybox:
 
         # Load sky shader (day)
         sky_vert = shader_dir / "sky.vert"
-        sky_frag = shader_dir / "sky.frag"
+        sky_frag = shader_dir / "aurora.frag"
         if sky_vert.exists() and sky_frag.exists():
             self.sky_shader = Shader.load(
                 Shader.SL_GLSL, vertex=str(sky_vert), fragment=str(sky_frag)
@@ -155,14 +155,14 @@ class MountainSkybox:
         sky_dome_node.setShaderInput("u_time", self.animation_time)
         sky_dome_node.setShaderInput("u_transitionAlpha", 1.0)  # Start fully opaque
 
-        if is_aurora:
+        if is_aurora or True:
             # Aurora shader specific uniforms
             sky_dome_node.setShaderInput("u_resolution", Vec2(800, 600))
             sky_dome_node.setShaderInput("u_cameraPos", Vec3(0, 0, 0))
             sky_dome_node.setShaderInput(
                 "u_auroraDir", Vec3(-0.5, -0.6, 0.9).normalized()
             )
-        else:
+        # else:
             # Sky (day) shader specific uniforms
             sky_dome_node.setShaderInput("u_cycleSpeed", 0.2)
             sky_dome_node.setShaderInput("sunBaseColor", Vec3(1.0, 0.9, 0.7))

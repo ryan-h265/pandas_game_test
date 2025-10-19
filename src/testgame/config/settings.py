@@ -63,4 +63,4 @@ FOG_ENABLED = True
 FOG_COLOR = (0.65, 0.72, 0.78)  # Soft blue-gray mountain haze
 FOG_START_DISTANCE = 60.0  # Start fading objects after this distance (meters)
 FOG_END_DISTANCE = 220.0  # Fully faded by this distance (meters)
-FOG_STRENGTH = 0.7  # Multiplier for fog thickness (0 disables fog)
+FOG_STRENGTH = 0.35  # Multiplier for fog thickness (0 disables fog)
