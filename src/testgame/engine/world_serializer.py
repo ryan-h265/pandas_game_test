@@ -53,6 +53,7 @@ class WorldSerializer:
                 "player": self._serialize_player(player),
                 "terrain": self._serialize_terrain(world.terrain),
                 "buildings": self._serialize_buildings(world.buildings),
+                "props": self._serialize_props(getattr(world, "props", [])),
                 "physics_objects": self._serialize_physics_objects(
                     world.physics_objects
                 ),
@@ -103,6 +104,9 @@ class WorldSerializer:
 
             # Load buildings
             self._deserialize_buildings(save_data["buildings"], world)
+
+            # Load props
+            self._deserialize_props(save_data.get("props", []), world)
 
             # Load physics objects
             self._deserialize_physics_objects(save_data["physics_objects"], world)
@@ -437,6 +441,158 @@ class WorldSerializer:
 
             world.physics_objects.append(obj_np)
 
+    def _serialize_props(self, props):
+        """Serialize decorative props (glTF models).
+
+        Args:
+            props: List of prop instances
+
+        Returns:
+            list of dicts with prop data
+        """
+        serialized = []
+
+        for prop in props:
+            try:
+                base_position = getattr(prop, "position", None)
+                if base_position is None and hasattr(prop, "get_position"):
+                    base_position = prop.get_position()
+
+                if base_position is None:
+                    continue
+
+                if isinstance(base_position, Vec3):
+                    position_vec = base_position
+                else:
+                    position_vec = Vec3(*base_position)
+
+                position_list = self._vec3_to_list(position_vec)
+
+                prop_entry = {
+                    "type": prop.__class__.__name__,
+                    "position": position_list,
+                    "static": getattr(prop, "static", True),
+                }
+
+                # Capture orientation (prefer physics body for dynamic props)
+                rotation_quat = None
+                if getattr(prop, "static", True):
+                    model_node = getattr(prop, "model_node", None)
+                    if model_node:
+                        rotation_quat = model_node.getQuat()
+                else:
+                    physics_np = getattr(prop, "physics_body", None)
+                    if physics_np:
+                        rotation_quat = physics_np.getQuat()
+                if rotation_quat:
+                    prop_entry["rotation"] = self._quat_to_list(rotation_quat)
+
+                # Capture scale for visual parity
+                model_node = getattr(prop, "model_node", None)
+                if model_node:
+                    scale_vec = model_node.getScale()
+                    prop_entry["scale"] = self._vec3_to_list(scale_vec)
+
+                # Capture physics state for dynamic props
+                physics_np = getattr(prop, "physics_body", None)
+                if physics_np and not getattr(prop, "static", True):
+                    body_node = physics_np.node()
+                    prop_entry["linear_velocity"] = self._vec3_to_list(
+                        body_node.getLinearVelocity()
+                    )
+                    prop_entry["angular_velocity"] = self._vec3_to_list(
+                        body_node.getAngularVelocity()
+                    )
+
+                serialized.append(prop_entry)
+            except Exception as exc:
+                print(f"Warning: Could not serialize prop {prop}: {exc}")
+
+        return serialized
+
+    def _deserialize_props(self, data, world):
+        """Deserialize decorative props from saved data."""
+
+        if not data:
+            return
+
+        try:
+            from testgame.props.lantern_prop import LanternProp
+            from testgame.props.japanese_bar_prop import JapaneseBarProp
+        except ImportError as exc:
+            print(f"Warning: Could not import prop classes: {exc}")
+            return
+
+        prop_classes = {
+            "LanternProp": LanternProp,
+            "JapaneseBarProp": JapaneseBarProp,
+        }
+
+        point_light_manager = getattr(world, "point_light_manager", None)
+
+        for prop_data in data:
+            prop_type = prop_data.get("type")
+            prop_class = prop_classes.get(prop_type)
+
+            if not prop_class:
+                print(f"Warning: Unknown prop type '{prop_type}', skipping")
+                continue
+
+            try:
+                position = Vec3(*prop_data.get("position", [0, 0, 0]))
+                static = prop_data.get("static", True)
+
+                prop_instance = prop_class(
+                    world.bullet_world,
+                    world.render,
+                    position,
+                    point_light_manager=point_light_manager,
+                    static=static,
+                )
+
+                if hasattr(prop_instance, "set_position"):
+                    prop_instance.set_position(position)
+
+                # Restore scale if saved
+                scale_data = prop_data.get("scale")
+                if scale_data and hasattr(prop_instance, "model_node"):
+                    model_node = prop_instance.model_node
+                    if model_node:
+                        model_node.setScale(*scale_data)
+
+                # Restore rotation (apply to both visual and physics nodes as needed)
+                rotation_data = prop_data.get("rotation")
+                if rotation_data:
+                    rotation_quat = Quat(*rotation_data)
+                    physics_np = getattr(prop_instance, "physics_body", None)
+                    model_node = getattr(prop_instance, "model_node", None)
+
+                    if physics_np:
+                        physics_np.setQuat(rotation_quat)
+                    if model_node and getattr(prop_instance, "static", True):
+                        model_node.setQuat(rotation_quat)
+
+                # Restore physics velocity for dynamic props
+                if not getattr(prop_instance, "static", True):
+                    physics_np = getattr(prop_instance, "physics_body", None)
+                    if physics_np:
+                        body_node = physics_np.node()
+                        linear_velocity = prop_data.get("linear_velocity")
+                        angular_velocity = prop_data.get("angular_velocity")
+
+                        if linear_velocity:
+                            body_node.setLinearVelocity(Vec3(*linear_velocity))
+                        if angular_velocity:
+                            body_node.setAngularVelocity(Vec3(*angular_velocity))
+
+                if hasattr(world, "add_prop"):
+                    world.add_prop(prop_instance)
+                else:
+                    world.props.append(prop_instance)
+
+            except Exception as exc:
+                print(f"Warning: Failed to deserialize prop '{prop_type}': {exc}")
+
     def _clear_world(self, world):
         """Clear all existing world objects before loading.
 
@@ -447,6 +603,16 @@ class WorldSerializer:
         for building in world.buildings:
             building.destroy()
         world.buildings.clear()
+
+        # Remove all props (gltf models, lights)
+        for prop in getattr(world, "props", []):
+            try:
+                if hasattr(prop, "remove"):
+                    prop.remove()
+            except Exception as exc:
+                print(f"Warning: Failed to remove prop during clear: {exc}")
+        if hasattr(world, "props"):
+            world.props.clear()
 
         # Remove all physics objects
         for obj_np in world.physics_objects:

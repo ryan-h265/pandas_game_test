@@ -39,6 +39,9 @@ class World:
         # Track props (lanterns, decorations, etc.)
         self.props = []
 
+        # Optional point light manager reference for prop lighting
+        self.point_light_manager = None
+
         # Initialize world serializer
         self.serializer = WorldSerializer()
 

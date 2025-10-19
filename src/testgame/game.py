@@ -62,6 +62,12 @@ class Game(ShowBase):
         self.menu_manager = MenuManager(self)
         self.menu_manager.show_start_menu()
 
+        # Placement rotation state
+        self.rotation_active_tool = None
+        self.rotation_accum_deg = 0.0
+        self.rotation_mouse_sensitivity = 1.2
+        self.rotation_has_moved = False
+
         print("\n=== SELECT A LEVEL TO START ===\n")
 
         # Note: Actual level initialization happens in load_level()
@@ -206,6 +212,7 @@ class Game(ShowBase):
         # Initialize point light system (for torches, lanterns, etc.)
         # IMPORTANT: Must be initialized before ToolManager for prop lighting
         self.point_light_manager = PointLightManager()
+        self.game_world.point_light_manager = self.point_light_manager
         print("Point light system initialized (0 lights active)")
 
         # Initialize tool system
@@ -585,6 +592,31 @@ class Game(ShowBase):
             elif button == 2:  # Middle click
                 self.tool_manager.use_tertiary(hit)
 
+        # Setup placement rotation tracking for building tool
+        if button == 3 and active_tool:
+            if active_tool.tool_type == ToolType.BUILDING:
+                if (
+                    self.rotation_active_tool
+                    and self.rotation_active_tool is not active_tool
+                    and hasattr(self.rotation_active_tool, "end_rotation_gesture")
+                ):
+                    self.rotation_active_tool.end_rotation_gesture()
+                self.rotation_active_tool = active_tool
+                self.rotation_accum_deg = getattr(
+                    active_tool, "current_rotation_deg", 0.0
+                )
+                self.rotation_has_moved = False
+                if hasattr(active_tool, "begin_rotation_gesture"):
+                    active_tool.begin_rotation_gesture()
+            else:
+                if (
+                    self.rotation_active_tool
+                    and hasattr(self.rotation_active_tool, "end_rotation_gesture")
+                ):
+                    self.rotation_active_tool.end_rotation_gesture()
+                self.rotation_active_tool = None
+                self.rotation_has_moved = False
+
     def on_mouse_up(self, button):
         """Handle mouse button release.
 
@@ -598,6 +630,21 @@ class Game(ShowBase):
         active_tool = self.tool_manager.get_active_tool()
         if active_tool:
             active_tool.on_mouse_release(button)
+
+        if button == 3:
+            if (
+                self.rotation_active_tool
+                and active_tool
+                and active_tool == self.rotation_active_tool
+            ):
+                if not self.rotation_has_moved:
+                    hit = self.raycaster.get_terrain_hit(self.mouseWatcherNode)
+                    if hit:
+                        self.tool_manager.use_secondary(hit)
+                if hasattr(self.rotation_active_tool, "end_rotation_gesture"):
+                    self.rotation_active_tool.end_rotation_gesture()
+            self.rotation_active_tool = None
+            self.rotation_has_moved = False
 
     def adjust_brush_size(self, direction):
         """Adjust active tool's primary property (context-sensitive).
@@ -1001,6 +1048,16 @@ class Game(ShowBase):
         if self.shadow_manager:
             self.shadow_manager.update_cascade_cameras(player_pos, None)
 
+        active_tool = self.tool_manager.get_active_tool()
+        if (
+            self.rotation_active_tool
+            and self.rotation_active_tool is not active_tool
+        ):
+            if hasattr(self.rotation_active_tool, "end_rotation_gesture"):
+                self.rotation_active_tool.end_rotation_gesture()
+            self.rotation_active_tool = None
+            self.rotation_has_moved = False
+
         # Handle mouse look (centered mode - track from center)
         if self.mouse_captured and self.win.hasPointer(0):
             # Get absolute mouse position
@@ -1019,8 +1076,28 @@ class Game(ShowBase):
                 delta_x = mouse_x - center_x
                 delta_y = mouse_y - center_y
 
-                # Update camera rotation
-                self.camera_controller.update_look(delta_x, delta_y)
+                rotation_mode = (
+                    self.rotation_active_tool
+                    and self.rotation_active_tool is active_tool
+                    and self.is_using_tool
+                    and self.current_mouse_button == 3
+                )
+
+                if rotation_mode:
+                    if abs(delta_x) < abs(delta_y):
+                        delta_x = 0
+                    deg_delta = delta_x * self.rotation_mouse_sensitivity
+                    if abs(deg_delta) > 0.0:
+                        self.rotation_has_moved = True
+                    self.rotation_accum_deg = (
+                        self.rotation_accum_deg + deg_delta
+                    ) % 360.0
+                    tool = self.rotation_active_tool
+                    if tool and hasattr(tool, "set_rotation"):
+                        tool.set_rotation(self.rotation_accum_deg)
+                else:
+                    # Update camera rotation
+                    self.camera_controller.update_look(delta_x, delta_y)
 
                 # Re-center the mouse
                 self.win.movePointer(0, center_x, center_y)
@@ -1029,7 +1106,6 @@ class Game(ShowBase):
         hit = self.raycaster.get_terrain_hit(self.mouseWatcherNode)
         if hit:
             # Update brush indicator position (only show for terrain tool)
-            active_tool = self.tool_manager.get_active_tool()
             if active_tool and active_tool.tool_type == ToolType.TERRAIN:
                 self.brush_indicator.update_position(hit["position"])
                 self.brush_indicator.show()
@@ -1042,7 +1118,11 @@ class Game(ShowBase):
                 if button == 1:  # Left click
                     self.tool_manager.use_primary(hit)
                 elif button == 3:  # Right click
-                    self.tool_manager.use_secondary(hit)
+                    if not (
+                        self.rotation_active_tool
+                        and self.rotation_active_tool is active_tool
+                    ):
+                        self.tool_manager.use_secondary(hit)
                 elif button == 2:  # Middle click
                     self.tool_manager.use_tertiary(hit)
         else:

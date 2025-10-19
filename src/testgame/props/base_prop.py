@@ -53,6 +53,7 @@ class BaseProp:
         self.point_light_manager = point_light_manager
         self.static = static
         self.is_ghost = is_ghost
+        self.rotation = 0.0
 
         # References
         self.model_node = None
@@ -268,6 +269,20 @@ class BaseProp:
 
         if self.model_node and self.static:
             self.model_node.setPos(position)
+
+    def set_rotation(self, heading):
+        """Set yaw rotation for the prop in degrees."""
+        self.rotation = float(heading) % 360.0
+
+        if self.physics_body:
+            self.physics_body.setHpr(self.rotation, 0, 0)
+
+        if self.model_node and self.static:
+            self.model_node.setHpr(self.rotation, 0, 0)
+
+    def get_rotation(self):
+        """Get current yaw rotation in degrees."""
+        return self.rotation
 
     def remove(self):
         """Remove the prop from the scene."""
