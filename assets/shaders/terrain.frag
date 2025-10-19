@@ -2,8 +2,8 @@
 
 // Terrain rendering with PCF shadows and SSAO (OPTIMIZED for performance)
 uniform sampler2D shadowMap0;
-uniform sampler2D shadowMap1;
-uniform sampler2D shadowMap2;
+// uniform sampler2D shadowMap1;
+// uniform sampler2D shadowMap2;
 uniform vec3 lightDirection;
 uniform vec3 lightColor;
 uniform vec3 ambientColor;
@@ -37,8 +37,8 @@ in vec3 vWorldPos;
 in vec3 vNormal;
 in vec2 vTexCoord;
 in vec4 vShadowCoord0;
-in vec4 vShadowCoord1;
-in vec4 vShadowCoord2;
+// in vec4 vShadowCoord1;
+// in vec4 vShadowCoord2;
 in float vViewDepth;
 in vec4 vColor;// Vertex color from vertex shader
 
