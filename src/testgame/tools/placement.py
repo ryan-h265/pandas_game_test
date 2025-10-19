@@ -1,6 +1,8 @@
 """Placement tool - for placing buildings, props, and models with ghost preview."""
 
-from panda3d.core import Vec3, TransparencyAttrib
+from math import cos, sin, radians
+
+from panda3d.core import Vec3, TransparencyAttrib, KeyboardButton
 from testgame.props.lantern_prop import LanternProp
 from testgame.props.japanese_bar_prop import JapaneseBarProp
 from testgame.structures.simple_building import SimpleBuilding
@@ -83,8 +85,8 @@ class PlacementTool(Tool):
         self.building_depth = self.placement_types[1]["default_depth"]
         self.building_height = self.placement_types[1]["default_height"]
 
-        # Ghost building preview (cached per type to avoid memory leaks)
-        self.ghost_buildings_cache = {}  # {building_type: ghost_building}
+        # Ghost building preview cache (stores instance + precomputed offsets)
+        self.ghost_buildings_cache = {}
         self.ghost_building = None
         self.ghost_position = Vec3(0, 0, 0)
         self.placement_valid = False
@@ -93,6 +95,12 @@ class PlacementTool(Tool):
         self.max_placement_distance = 50.0
         self.snap_to_grid = True
         self.grid_size = 5.0  # Grid snap size
+        self.current_rotation_deg = 0.0
+        self.rotation_step = 15.0
+        self.ghost_piece_offsets = {}
+        self.rotation_gesture_active = False
+        self.position_locked = False
+        self.rotation_gesture_origin = Vec3(0, 0, 0)
 
         # Track if we've already placed a building on this mouse press
         self.has_placed_this_click = False
@@ -113,6 +121,9 @@ class PlacementTool(Tool):
 
     def _create_ghost_building(self):
         """Create or retrieve cached ghost preview of the building/prop."""
+        self.position_locked = False
+        self.rotation_gesture_active = False
+
         # Hide current ghost if visible
         if self.ghost_building:
             self._hide_ghost_building()
@@ -126,9 +137,12 @@ class PlacementTool(Tool):
         )
 
         if cache_key in self.ghost_buildings_cache:
-            # Reuse cached ghost
-            self.ghost_building = self.ghost_buildings_cache[cache_key]
+            # Reuse cached ghost entry
+            cache_entry = self.ghost_buildings_cache[cache_key]
+            self.ghost_building = cache_entry.get("instance")
+            self.ghost_piece_offsets = cache_entry.get("offsets", {}).copy()
             self._show_ghost_building()
+            self._apply_ghost_transform()
             return
 
         try:
@@ -205,8 +219,22 @@ class PlacementTool(Tool):
                         print(f"Warning: Error setting ghost piece appearance: {e}")
                         pass
 
-            # Cache this ghost for reuse
-            self.ghost_buildings_cache[cache_key] = self.ghost_building
+            # Precompute offsets for rotation
+            if building_type == "prop":
+                self.ghost_piece_offsets = {}
+            else:
+                self.ghost_piece_offsets = self._compute_piece_offsets(
+                    self.ghost_building
+                )
+
+            # Cache this ghost for reuse (store both instance and offsets)
+            self.ghost_buildings_cache[cache_key] = {
+                "instance": self.ghost_building,
+                "offsets": self.ghost_piece_offsets.copy(),
+            }
+
+            # Ensure ghost uses current transform state
+            self._apply_ghost_transform()
 
         except Exception as e:
             print(f"Error creating ghost building/prop: {e}")
@@ -254,6 +282,191 @@ class PlacementTool(Tool):
         if self.ghost_building:
             self._hide_ghost_building()
             self.ghost_building = None
+            self.ghost_piece_offsets = {}
+            self.position_locked = False
+            self.rotation_gesture_active = False
+
+    def _compute_piece_offsets(self, building):
+        """Compute local offsets for each piece relative to building origin."""
+        base_pos = Vec3(building.position)
+        offsets = {}
+        for piece in getattr(building, "pieces", []):
+            offsets[piece.name] = piece.position - base_pos
+        return offsets
+
+    def _apply_ghost_transform(self):
+        """Apply current position and rotation to ghost preview."""
+        if not self.ghost_building:
+            return
+
+        # Ensure we have offsets for buildings
+        if hasattr(self.ghost_building, "pieces") and not self.ghost_piece_offsets:
+            self.ghost_piece_offsets = self._compute_piece_offsets(self.ghost_building)
+
+        heading = self.current_rotation_deg
+        cos_h = cos(radians(heading))
+        sin_h = sin(radians(heading))
+        position = Vec3(self.ghost_position)
+
+        if hasattr(self.ghost_building, "pieces"):
+            for piece in self.ghost_building.pieces:
+                offset = self.ghost_piece_offsets.get(piece.name)
+                if offset is None:
+                    offset = piece.position - self.ghost_building.position
+                    self.ghost_piece_offsets[piece.name] = offset
+
+                rotated = Vec3(
+                    offset.x * cos_h - offset.y * sin_h,
+                    offset.x * sin_h + offset.y * cos_h,
+                    offset.z,
+                )
+                world_pos = position + rotated
+                if piece.body_np and not piece.body_np.isEmpty():
+                    piece.body_np.setPos(world_pos)
+                    piece.body_np.setHpr(heading, 0, 0)
+                piece.position = world_pos
+
+            # Update building base position
+            self.ghost_building.position = Vec3(position)
+
+        elif hasattr(self.ghost_building, "set_position"):
+            # Props implement set_position and optionally set_rotation
+            self.ghost_building.set_position(position)
+            if hasattr(self.ghost_building, "set_rotation"):
+                self.ghost_building.set_rotation(heading)
+            elif hasattr(self.ghost_building, "model_node"):
+                node = self.ghost_building.model_node
+                if node and not node.isEmpty():
+                    node.setHpr(heading, 0, 0)
+
+    def _apply_rotation_to_building_instance(self, building, heading, pivot):
+        """Apply rotation to a real building instance after placement."""
+        if not building or not hasattr(building, "pieces"):
+            return
+
+        pivot_vec = Vec3(pivot)
+        cos_h = cos(radians(heading))
+        sin_h = sin(radians(heading))
+
+        offsets = {
+            piece.name: piece.position - pivot_vec for piece in building.pieces
+        }
+
+        for piece in building.pieces:
+            offset = offsets.get(piece.name, Vec3(0, 0, 0))
+            rotated = Vec3(
+                offset.x * cos_h - offset.y * sin_h,
+                offset.x * sin_h + offset.y * cos_h,
+                offset.z,
+            )
+            world_pos = pivot_vec + rotated
+            if piece.body_np and not piece.body_np.isEmpty():
+                piece.body_np.setPos(world_pos)
+                piece.body_np.setHpr(heading, 0, 0)
+            piece.position = world_pos
+
+        building.position = Vec3(pivot_vec)
+        setattr(building, "rotation", heading)
+
+    def _rotate_ghost(self, delta_degrees):
+        """Adjust current rotation and update ghost transform."""
+        self.current_rotation_deg = (self.current_rotation_deg + delta_degrees) % 360.0
+        self._apply_ghost_transform()
+
+    def set_rotation(self, heading_degrees):
+        """Set absolute rotation for the ghost preview."""
+        self.current_rotation_deg = float(heading_degrees) % 360.0
+        self._apply_ghost_transform()
+
+    def begin_rotation_gesture(self):
+        """Lock ghost position while rotating via mouse drag."""
+        if not self.rotation_gesture_active:
+            self.rotation_gesture_active = True
+            self.position_locked = True
+            self.rotation_gesture_origin = Vec3(self.ghost_position)
+
+    def end_rotation_gesture(self):
+        """Release position lock after mouse rotation gesture."""
+        if self.rotation_gesture_active:
+            self.rotation_gesture_active = False
+            self.position_locked = False
+            self.rotation_gesture_origin = Vec3(0, 0, 0)
+            # Reapply transform to ensure final orientation persists cleanly
+            self._apply_ghost_transform()
+
+    def _is_shift_down(self):
+        """Check if shift modifier is currently held."""
+        if not self.mouse_watcher:
+            return False
+        return self.mouse_watcher.is_button_down(KeyboardButton.shift())
+
+    def _get_rotation_step(self):
+        """Determine rotation step based on modifier keys."""
+        if not self.mouse_watcher:
+            return self.rotation_step
+
+        if self.mouse_watcher.is_button_down(KeyboardButton.control()):
+            return 1.0
+
+        if self.mouse_watcher.is_button_down(KeyboardButton.alt()):
+            return 45.0
+
+        return self.rotation_step
+
+    def _to_vec3(self, value):
+        """Convert tuples, Point3, or Vec3 into a Vec3 instance."""
+        if isinstance(value, Vec3):
+            return Vec3(value)
+
+        if hasattr(value, "x") and hasattr(value, "y") and hasattr(value, "z"):
+            return Vec3(value.x, value.y, value.z)
+
+        if isinstance(value, (list, tuple)) and len(value) == 3:
+            return Vec3(value[0], value[1], value[2])
+
+        # Fallback to origin if value is invalid
+        return Vec3(0, 0, 0)
+
+    def _get_node_bounds(self, node, fallback_center=None, fallback_size=None):
+        """Get axis-aligned bounds for a node or fallback dimensions."""
+        if node and not node.isEmpty():
+            bounds = node.getTightBounds()
+            if bounds:
+                min_pt, max_pt = bounds
+                return self._to_vec3(min_pt), self._to_vec3(max_pt)
+
+        if fallback_center is not None and fallback_size is not None:
+            fallback_size_vec = (
+                fallback_size
+                if isinstance(fallback_size, Vec3)
+                else self._to_vec3(fallback_size)
+            )
+            half = Vec3(
+                fallback_size_vec.x / 2.0,
+                fallback_size_vec.y / 2.0,
+                fallback_size_vec.z / 2.0,
+            )
+            center = self._to_vec3(fallback_center)
+            return center - half, center + half
+
+        return None
+
+    def _bounds_overlap(self, a_bounds, b_bounds):
+        """Check for overlap between two axis-aligned bounding boxes."""
+        if not a_bounds or not b_bounds:
+            return False
+
+        a_min, a_max = a_bounds
+        b_min, b_max = b_bounds
+
+        return (
+            a_min.x < b_max.x
+            and a_max.x > b_min.x
+            and a_min.y < b_max.y
+            and a_max.y > b_min.y
+            and a_min.z < b_max.z
+            and a_max.z > b_min.z
+        )
 
     def _update_ghost_position(self, position):
         """Update the position of the ghost building/prop.
@@ -262,6 +475,9 @@ class PlacementTool(Tool):
             position: Vec3 world position
         """
         if not self.ghost_building:
+            return
+
+        if self.position_locked:
             return
 
         # Apply grid snapping if enabled
@@ -273,23 +489,7 @@ class PlacementTool(Tool):
             )
 
         self.ghost_position = position
-
-        # Update position based on type
-        if hasattr(self.ghost_building, "pieces"):
-            # Building with pieces
-            for piece in self.ghost_building.pieces:
-                # Calculate offset from original building position
-                offset = piece.position - self.ghost_building.position
-                new_pos = position + offset
-                piece.body_np.setPos(new_pos)
-                piece.position = new_pos
-
-            # Update building base position
-            self.ghost_building.position = position
-
-        elif hasattr(self.ghost_building, "set_position"):
-            # Prop with set_position method
-            self.ghost_building.set_position(position)
+        self._apply_ghost_transform()
 
     def _set_ghost_color(self, valid):
         """Set the ghost building/prop color based on placement validity.
@@ -331,127 +531,77 @@ class PlacementTool(Tool):
         if not self.ghost_building or not self.world:
             return True
 
-        # Get all existing buildings (excluding ghost buildings)
         existing_buildings = [
             b for b in self.world.buildings if not b.name.startswith("ghost")
         ]
-
-        # Get all existing props
         existing_props = self.world.props if hasattr(self.world, "props") else []
 
-        # Determine if ghost is a prop or building
-        is_prop = not hasattr(self.ghost_building, "pieces")
+        ghost_bounds = []
 
-        if is_prop:
-            # For props, use simple position-based checking with approximate size
-            ghost_pos = self.ghost_position
-            # Approximate prop size (adjust based on your prop)
-            prop_radius = 1.5  # Radius for collision check
+        if hasattr(self.ghost_building, "pieces"):
+            for ghost_piece in self.ghost_building.pieces:
+                node = ghost_piece.body_np if hasattr(ghost_piece, "body_np") else None
+                bounds = self._get_node_bounds(
+                    node,
+                    fallback_center=ghost_piece.position,
+                    fallback_size=ghost_piece.size,
+                )
+                if bounds:
+                    ghost_bounds.append(bounds)
+        else:
+            prop_node = None
+            if hasattr(self.ghost_building, "model_node") and self.ghost_building.model_node:
+                prop_node = self.ghost_building.model_node
+            elif (
+                hasattr(self.ghost_building, "physics_body")
+                and self.ghost_building.physics_body
+            ):
+                prop_node = self.ghost_building.physics_body
 
-            # Check against existing buildings
+            fallback_size = getattr(
+                self.ghost_building, "FALLBACK_DIMENSIONS", (1.0, 1.0, 1.0)
+            )
+            bounds = self._get_node_bounds(
+                prop_node,
+                fallback_center=self.ghost_position,
+                fallback_size=fallback_size,
+            )
+            if bounds:
+                ghost_bounds.append(bounds)
+
+        if not ghost_bounds:
+            return True
+
+        for bounds in ghost_bounds:
+            # Against existing buildings
             for building in existing_buildings:
                 for piece in building.pieces:
-                    piece_pos = piece.position
-                    piece_size = piece.size
-
-                    # Calculate distance from prop center to building piece
-                    # Use AABB check with prop as a small box
-                    ghost_min = Vec3(
-                        ghost_pos.x - prop_radius,
-                        ghost_pos.y - prop_radius,
-                        ghost_pos.z,
+                    node = piece.body_np if hasattr(piece, "body_np") else None
+                    piece_bounds = self._get_node_bounds(
+                        node,
+                        fallback_center=piece.position,
+                        fallback_size=piece.size,
                     )
-                    ghost_max = Vec3(
-                        ghost_pos.x + prop_radius,
-                        ghost_pos.y + prop_radius,
-                        ghost_pos.z + 2.0,
-                    )
-
-                    piece_min = Vec3(
-                        piece_pos.x - piece_size.x / 2,
-                        piece_pos.y - piece_size.y / 2,
-                        piece_pos.z - piece_size.z / 2,
-                    )
-                    piece_max = Vec3(
-                        piece_pos.x + piece_size.x / 2,
-                        piece_pos.y + piece_size.y / 2,
-                        piece_pos.z + piece_size.z / 2,
-                    )
-
-                    if (
-                        ghost_min.x < piece_max.x
-                        and ghost_max.x > piece_min.x
-                        and ghost_min.y < piece_max.y
-                        and ghost_max.y > piece_min.y
-                        and ghost_min.z < piece_max.z
-                        and ghost_max.z > piece_min.z
-                    ):
+                    if self._bounds_overlap(bounds, piece_bounds):
                         return False
 
-            # Check against existing props
+            # Against existing props
             for prop in existing_props:
-                prop_pos = prop.get_position()
-                distance = (ghost_pos - prop_pos).length()
-                if distance < (prop_radius * 2):  # Props too close
+                prop_node = None
+                if hasattr(prop, "model_node") and prop.model_node:
+                    prop_node = prop.model_node
+                elif hasattr(prop, "physics_body") and prop.physics_body:
+                    prop_node = prop.physics_body
+
+                fallback_size = getattr(prop, "FALLBACK_DIMENSIONS", (1.0, 1.0, 1.0))
+                prop_bounds = self._get_node_bounds(
+                    prop_node,
+                    fallback_center=prop.get_position() if hasattr(prop, "get_position") else None,
+                    fallback_size=fallback_size,
+                )
+                if self._bounds_overlap(bounds, prop_bounds):
                     return False
 
-        else:
-            # Original building collision check
-            for ghost_piece in self.ghost_building.pieces:
-                ghost_pos = ghost_piece.position
-                ghost_size = ghost_piece.size
-
-                # Calculate ghost piece bounding box
-                ghost_min = Vec3(
-                    ghost_pos.x - ghost_size.x / 2,
-                    ghost_pos.y - ghost_size.y / 2,
-                    ghost_pos.z - ghost_size.z / 2,
-                )
-                ghost_max = Vec3(
-                    ghost_pos.x + ghost_size.x / 2,
-                    ghost_pos.y + ghost_size.y / 2,
-                    ghost_pos.z + ghost_size.z / 2,
-                )
-
-                # Check against all pieces of all existing buildings
-                for building in existing_buildings:
-                    for piece in building.pieces:
-                        piece_pos = piece.position
-                        piece_size = piece.size
-
-                        # Calculate existing piece bounding box
-                        piece_min = Vec3(
-                            piece_pos.x - piece_size.x / 2,
-                            piece_pos.y - piece_size.y / 2,
-                            piece_pos.z - piece_size.z / 2,
-                        )
-                        piece_max = Vec3(
-                            piece_pos.x + piece_size.x / 2,
-                            piece_pos.y + piece_size.y / 2,
-                            piece_pos.z + piece_size.z / 2,
-                        )
-
-                        # Check for AABB (Axis-Aligned Bounding Box) collision
-                        if (
-                            ghost_min.x < piece_max.x
-                            and ghost_max.x > piece_min.x
-                            and ghost_min.y < piece_max.y
-                            and ghost_max.y > piece_min.y
-                            and ghost_min.z < piece_max.z
-                            and ghost_max.z > piece_min.z
-                        ):
-                            # Collision detected
-                            return False
-
-                # Check against existing props
-                for prop in existing_props:
-                    prop_pos = prop.get_position()
-                    # Simple distance check for now
-                    distance = (ghost_pos - prop_pos).length()
-                    if distance < 3.0:  # Props within 3 units
-                        return False
-
-        # No collisions found
         return True
 
     def update(self, dt):
@@ -470,10 +620,14 @@ class PlacementTool(Tool):
             if hit_info:
                 # Update ghost position to hit point
                 hit_pos = hit_info["position"]
-                self._update_ghost_position(hit_pos)
+                if not self.position_locked:
+                    self._update_ghost_position(hit_pos)
 
                 # Check if placement is valid
-                valid = self._check_placement_valid(hit_pos)
+                check_pos = (
+                    self.ghost_position if self.position_locked else hit_pos
+                )
+                valid = self._check_placement_valid(check_pos)
                 self._set_ghost_color(valid)
 
     def on_primary_use(self, hit_info):
@@ -514,6 +668,10 @@ class PlacementTool(Tool):
                 static=True,  # Props are static by default
             )
 
+            # Apply current rotation before adding
+            if hasattr(new_prop, "set_rotation"):
+                new_prop.set_rotation(self.current_rotation_deg)
+
             # Add prop to world
             self.world.add_prop(new_prop)
 
@@ -538,6 +696,11 @@ class PlacementTool(Tool):
             # Add building to world
             self.world.add_building(new_building)
 
+            # Rotate building to match preview
+            self._apply_rotation_to_building_instance(
+                new_building, self.current_rotation_deg, self.ghost_position
+            )
+
             print(
                 f"Placed building at {self.ghost_position} (size: {self.building_width}x{self.building_depth}x{self.building_height})"
             )
@@ -556,16 +719,17 @@ class PlacementTool(Tool):
         Returns:
             bool: True if action was performed
         """
-        # Swap width and depth to rotate 90 degrees
-        self.building_width, self.building_depth = (
-            self.building_depth,
-            self.building_width,
+        if not self.ghost_building:
+            return False
+
+        step = self._get_rotation_step()
+        delta = -step if self._is_shift_down() else step
+        self._rotate_ghost(delta)
+
+        direction = "counter-clockwise" if delta < 0 else "clockwise"
+        print(
+            f"Rotated placement {direction} to {self.current_rotation_deg:.1f} degrees"
         )
-
-        # Recreate ghost with new dimensions (will use cache if available)
-        self._create_ghost_building()
-
-        print(f"Rotated building (now {self.building_width}x{self.building_depth})")
         return True
 
     def on_tertiary_use(self, hit_info):

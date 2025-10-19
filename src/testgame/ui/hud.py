@@ -357,7 +357,9 @@ class HUD:
             self.tool_info_text2.setText(
                 f"Size: {width:.0f}x{depth:.0f}x{height:.0f} | Grid: {'ON' if snap_to_grid else 'OFF'}"
             )
-            self.tool_info_text3.setText("LClick:Place RClick:Rotate MClick:Grid")
+            self.tool_info_text3.setText(
+                "LClick:Place HoldRClick+Mouse:Rotate TapRClick:Step(Ctrl=1° Alt=45°) MClick:Grid"
+            )
             self.tool_info_text4.setText("Scroll:Width [/]:Height 1-4:Type")
 
         elif tool_type == ToolType.TERRAIN:
